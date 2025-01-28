@@ -1,0 +1,2462 @@
+
+1 INTRODUCTION
+
+Program 'dsarch' is a comprehensive utility for archiving data onto CISL
+Research Data Archive (RDA) Servers; and recording detailed information about
+data files, data period, file counts and sizes of a given dataset into Research
+Data Archive Database (RDADB). A Digital Object Identifier (DOI) can be
+assigned to a dataset to put the dataset under DOI/Version control, and all
+the web data files of the dataset are linked to the new DOI/Version Control.
+Archived data files for one dataset can be organized into sub-products, called
+groups. Data files can be further organized into subgroups. Theoretically there
+is no limit to how many levels of subgroups that can be setup. The information
+of data files recorded in RDADB can be also retrieved and modified using this
+utility program.
+
+A dataset, if not in RDADB yet, can be initiated through Metadata Manager,
+https://dss.ucar.edu/cgi-bin/internal/dssmm. To process data archives, 'dsarch'
+can perform the following major functions:
+  - Setup a dataset, and its groups/subgroups if specified,  in the RDADB to
+    make it ready for data archiving
+  - Add, update and terminate DOI/Version Controls for a given dataset
+  - Archive data files by copying them from working area to the RDA Servers
+  - Call 'gatherxml' to evaluate file content metadata for the archived files
+  - Cross-archive data files by duplicating them between Object Stores and RDA
+    Data Disk Servers
+  - Save file information of the archived data into RDADB
+  - Retrieve dataset/group/file information saved in RDADB
+  - Cross-archive data files by duplicating them between Object Stores and RDA
+    Data Disk Servers
+  - Move data files from one dataset, or even one group, to another; or move
+    data files from one location to another
+  - Tar a provided file list from one or multiple datasets, and Backup it up
+    onto Globus Quasar Server for a backup copy, and optionally another disaster
+    backup copy
+  - Retore damaged data files from the Quasar backup server
+  - Remove files from RDA Servers
+  - Auto-restart interrupted dsarch commands recorded in RDADB
+  - Regenerate filelist and main webpages on demand after changes made to
+    a dataset
+
+A supporting utility program, 'myconvert', was developed to convert and transfer
+SCCS metadata (text-based flat files) into RDADB, and another program,
+'publish_filelist', was developed to publish the RDA Server filelists
+of datasets to user interfaces on the RDA Web Server. These are complementary
+utilities of 'dsarch'. Check usages of them for detail help information.
+
+The RDADB dataset flag, -UD (-UseDSARCH), must be, at least, set to 'Y' for a
+dataset before data files can be archived and the associated file information
+can be inserted or modified into RDADB by 'dsarch'. This flag also controls
+publication for file lists: 'P' or 'W' to publish file list for data files on
+RDA Server. The published filelists are part of the user interface for
+each dataset viewed on the RDA Web Server. Check description of Action option
+-SD (-SetDataset) and Info option -UD (-UseDSARCH) for details on how to set
+this flag properly.
+
+If, after moved, a data file name, including its path, is different from its
+original file name, the new file name overrides the original file name,
+but the original name is also recorded in RDADB with link to the new data file
+name. Both file names are considered to be the same data file when the data
+accesses of this file are gathered for usage metrics. Therefore, 'dsarch' is 
+recommended for moving data files, instead of direct moving commands.
+
+Combine another untiliy program, dsquasar, to backup archived data files onto
+Globus Quasar Server. The dsquasar helps to identify and create filelists of
+un-backed up data files, and save them as input files for dsarch to tar and
+back them up.
+ 
+Some validation procedures are added to prevent DECS specialists from executing
+'dsarch' accidentally on a wrong dataset. If an input file is used to hold
+option information for processing 'dsarch' of a given dataset, the input file
+name must start with the dataset number, as in format of 'dsnnn.n.*'; the
+wildcard '*' matches one or multiple characters valid for file names. Another
+validation is supported to check if a specialist is allowed to execute 'dsarch'
+on the chosen dataset.  Action stops if a specialist is not in the authorized
+list, unless a Mode option -MD (-MyDataset) is present. The option -MD tells
+'dsarch' to go ahead finish an Action forcefully.
+
+For failed data archive actions, (-AW|-AS|-AH|-AQ), due to storage system downs,
+the identical dsarch actions will be retried after the systems are backed up
+again. This ability will only be turned on if option -BP (-d) is present and
+the dsarch actions sent into background batch processes, and the related
+information is saved in RDADB and 
+
+When a DOI/Version control is added to dataset, it can not be removed, although
+it can be terminated when the dataset is not active anymore for its data are out
+of date. The data filelist of the inactive dataset can still be reconstructed
+per user request via the terminated DOI/Version control information. Restrictions
+are applied to data files of a dataset that is under DOI/Version control. These
+data files can not be moved or deleted, but new data files can be added for
+operational datasets. When a data file is archived, normally it can not changed
+unless new data are appended to the same data files.
+
+When a dataset is under DOI/Version control, only the Web data files are put
+under the version control directly. If there are saved data staged on disks
+for internal uses or easy access to the NCAR users, it is responsibility of
+the specialist who owns the dataset to maintain them.
+
+In the following sections, general usage of 'dsarch' is described first; and
+detail descriptions of Action options are given next; and then Mode and Info
+options are explained in more detail on how to modify and pass information
+for Action options, respectively. Examples of actions and other options are
+interspersed through out the document.
+
+
+2 GENERAL DSARCH USAGE
+
+  dsarch [[-(DS|Dataset)] dsnnn.n] [Action Option] [Mode Options] [Info Options]
+      or
+  dsarch [-(IF|InputFile)] InputFileNames
+
+Quotes [] indicate optional. A pipeline '|' in parentheses as in format (A|B)
+means either A or B can be used. The options applied to 'dsarch' are divided
+into three categories, Action, Mode, and Information (Info for short) options. 
+Action options are used to specify what tasks this utility to execute, Mode
+options are used to modify behaviors of the actions, and the Info options 
+are used to pass information, one or multiple values, to run 'dsarch'. An option
+can be given in form of either short name or long name, -DS or -Dataset for
+example. Some options have alias names for convenience; -UseRDADB, for example,
+is an alias option name for Mode option -UD (-UseDSARCH). Option names can be
+given in either upper or lower cases, while the values following Info options
+are case sensitive. 
+
+Option -DS is actually an Info option which is used to specify a dataset number.
+It is listed separately because a dataset number is a common value required for
+most actions. If a dataset number is given as the first option following
+'dsarch' the option name -DS (-Dataset) can be omitted.
+
+Specify one of the Action options each time to execute 'dsarch'. Based on what
+Action is chosen, some of the Info options are mandatory and others are optional
+and certain Mode options can be applied to alter the behaviors of the Action.
+
+All options, except Info option -IF (-InputFile), can be given either on command
+line or in input files. Input file names are presented per Info option -IF and
+can only be provided on command line. Check description of Info option -IF
+(-InputFile) for detail on how to present options in input files. One or
+multiple input files, combined with options on command line, are allowed to run
+'dsarch'. The option name, -IF (-InputFile), itself can be omitted if a single
+input file is given on command line, while the action and other option
+information are all provided inside the input file.
+
+When information of dataset, DOI/Version Controls, groups, and the
+Web/Save/Help/Quasar files are retrieved from RDADB, Info options are used to
+specify conditions for querying information from RDADB. Some special signs can
+be used to further confine the information with special and complicated
+conditions; they are '!', '<', '>' and '<>'.  These special signs, if provided
+on command line,  must be quoted or escaped to avoid of being interpreted by
+Unix OS system. The '!', or \!, means exclusion to the following value(s) and
+it must be the first item following an Info option name, while '<' or '>' mean
+greater or less than the following value, and '<>' means between the following
+two values. Combine '!' and '<', as syntax "'!' '<' OptionValue", to make a
+condition of 'larger than or equal to OptionValue'. 
+
+Description of an individual option is displayed if 'dsarch' is issued on 
+command line as
+
+  dsarch [Option] -(h|help) [Option]
+
+A description is displayed for an option given either before or after -(h|help).
+If no option is specified or 'dsarch' is issued by itself, this whole document
+is displayed per UNIX utility 'more'. A hard copy of this help document can be
+printed from the saved file: ~rdadata/dssdb/prog_usage/dsarch.usg.
+
+#The online HTML version of this document is available at
+#http://dss.ucar.edu/internal/docs/dsarch/
+
+
+3 ACTION OPTIONS
+
+Action options are used to specify what task 'dsarch' executes. No values
+are allowed to follow Action options. Multiple tasks may be processed with a
+single execution of 'dsarch' depending on what Action option is chosen. Some of
+the comprehensive actions include automatically other simpler actions as
+default; and others include additional actions when certain Mode options are
+present. Multiple Action options provided simultaneously are blocked.
+
+Some actions are setting information into and some getting information from
+RDADB for a given dataset. A using DSARCH flag must be set to 'Y', 'I', 'P', or
+'W' per Info option -UD (-UseDSARCH) before setting actions can be executed
+for a dataset.
+
+Based on the information being manipulated, the actions are divided into seven 
+categories:
+     Dataset Actions - create, modify and retrieve dataset information in RDADB
+ DOI/Version Actions - add, modify, view and terminate DOI/Version control for
+                       a given dataset
+       Group Actions - create, delete, modify and retrieve group information in
+                       RDADB, of a given dataset
+        File Actions - archive local data files as Saved/Web/Help files; move
+                       and delete archived files on RDA Server; create, delete,
+                       modify and retrieve information of archived files in
+                       RDADB, of a given dataset, and groups if specified
+    All Info Actions - create, modify and retrieve all information, of dataset,
+                       groups and files of a given dataset in RDADB 
+     Webpage Actions - regenerate dataset main and filelist webpages
+
+
+3.1 Dataset Actions 
+
+  Dataset information can be modified and viewed via Actions included in this
+  section:
+  Set Dataset Information - modify information of an existing dataset
+  Get Dataset Information - retrieve information of an existing dataset
+
+3.1.1 Set Dataset Information
+  -SD or -SetDataset, modifies dataset information into RDADB for a given
+  dataset number. 
+
+  dsarch [-(DS|Dataset)] dsnnn.n [-](SD|SetDataset) [Mode Options]
+         [-(UD|UseDSARCH) UseDSARCHFlag]   # Y, P, W, I, or N
+         [-(LC|Location) AccessLocationFlag]   # C - CGD, G - Glade, O - Object Store
+         [-(BF|BackupFlag) QuasarBackupFlag]   # B - Backup, D - Backup & Drdata
+         [-(DF|DataFormat) DataFormat]     # BINARY, ASCII, NetCDF and etc.
+         [-(WH|WebHome) WebDataHomeDirectory]
+         [-(WP|WebPath) WebFilePath]
+         [-(SP|SavedPath) SavedFilePath]
+         [-(FL|FileLimit) FileCountLimit]
+         [-(BL|ButtonLimit) FileLimitShowButton]
+         [-(GL|GroupLevel) NumberOfGroupDisplay]
+         [-(ML|MetaLink) MetadataLink]
+         [-(NW|NoteWeb) WebNote] 
+         [-(ND|NoteDocument) DocumentNote] 
+         [-(NS|NoteSoftware) SoftwareNote] 
+         [-(NI|NoteInternal) InternalNote]
+         [-(DB|Debug) DebugModeInfo]
+         # options for setting multiple specialist defined key/value pairs
+         [-(KV|KeyValue) KeyValuePairs]    # in form of 'key=>value'
+         # options for setting multiple data periods 
+         [-(GI|GroupIndex) GroupIndices]   # used to identify groups for periods
+         [-(BD|BeginDate) BeginOnDates]
+         [-(BT|BeginTime) BeginAtTimes] 
+         [-(ED|EndDate) EndOnDates]
+         [-(ET|EndTime) EndOnTimes] 
+
+  Mode options that can be specified for setting dataset action:
+        -(MD|MyDataset) - overrides the default specialist and enables RDADB 
+                          information to be set by any one
+           -(NT|NoTrim) - skip trimming of spaces and comments from input
+                          values to speed up reading input file(s)
+      -(RT|ResetTGroup) - reset top group index for all the Saved/Web file records 
+     -(WM|WithMetadata) - re-gathers Web file content metadata at dataset level
+   -(WN|WithFileNumber) - reevaluates and resets file counts 
+
+  A given dataset number is normally added via dataset Metadata Manager (MM).
+  The Action -SD modifies dataset record, and the associated
+  data periods for groups if any. Data periods for groups can be modified by
+  'dsarch', while they can be created, removed and modified per MM. 
+
+  The Web data accessing location flag of a dataset is provided via option
+  -LC (-Location). The defualt value is 'G' for accessing web files from Glade
+  Disk if there exists any web data files. A value of 'O' is set as default
+  if all web data files of the dataset are on Object Store, and a value of 'C'
+  is set as default if all web data files of the dataset are at CGD data path.
+
+  For example, set dataset information of use DSARCH flag, reset file counts and
+  data size, and beginning data date into RDADB for dataset number 'd744004'
+
+  dsarch d744004 SD -WN -UD Y -BD 1999-07-01
+
+3.1.2 Get Dataset Information
+  -GD or -GetDataset, retrieves dataset information from RDADB for a given
+  dataset number. 
+
+  dsarch [-(DS|Dataset)] dsnnn.n [-](GD|GetDataset) [Mode Options]
+         [-(FN|FieldNames) FieldNameString]
+         [-(KV|KeyValue) KeyNames]     # specify key names to view their values
+         [-(OF|OutputFile) OutputFileName] 
+         [-(DB|Debug) DebugModeInfo]
+
+  Mode options that can be specified for getting dataset Action:
+    -(FO|FormatOutput) - format the column output with a same width for all
+                         values of a given field 
+      -(PE|ShowPeriod) - show associated period information for dataset, and
+                         groups if any
+  -(WN|WithFileNumber) - gathers and displays Saved/Web file counts 
+
+  Use Info option -FN (-FieldNames) to specify what dataset fields to retrieve.
+  It defaults to 'SWFULQ' if option -FN is omitted. Information of all available
+  fields is retrieved if -FN ALL is given. 
+
+  Valid dataset field names and their corresponding Info options:
+
+  Names  Info Options         Descriptions
+  T      -(TI|Title)          dataset title 
+  S      -(SP|SavedPath)      path relative to Saved home directory
+  H      -(WH|WebHome)        path for the web data home directory
+  W      -(WP|WebPath)        path relative to web home directory
+  F      -(DF|DataFormat)     default data content format
+  U      -(UD|UseDSARCH)      use DSARCH flag
+  L      -(LC|Location)       Online web file access location flags
+  Q      -(BF|BackupFlag)     Quasar Backup flags
+  V      -(GL|GroupLevel)     number of group levels to display
+  C      -(FL|FileLimit)      file count limit for separate group filelists
+  B      -(BL|ButtonLimit)    file count limit for showing script buttons
+  A      -(ML|MetaLink)       a link to content meta at the dataset level
+  W      -(NW|NoteWeb)        web data description
+  I      -(NI|NoteInternal)   internal data description
+  D      -(ND|NoteDocument)   document description
+  N      -(NS|NoteSoftware)   software description
+  G      -(GI|GroupIndex)     Group Indices to identify groups for periods
+  J      -(BD|BeginDate)      date data begin for dataset/group
+  K      -(BT|BeginTime)      time data begin for dataset/group
+  X      -(ED|EndDate)        date data end for dataset/group
+  Y      -(ET|EndTime)        time data end for dataset/group
+
+  Info option -OF (-OutputFile) is used to specify a file name to save the
+  retrieved information for later usage. Result of this action is displayed
+  on screen if no output file is provided.
+
+  For example, get dataset information of d260001 for all fields and dump the
+  output into file 'd260001.ds'
+
+  dsarch d260001 GD -FN ALL -PE -OF d260001.ds
+
+<<Content of output file d260001.ds>>
+Dataset<=>d260001
+Title<=>Objectively Analyzed Air-Sea Fluxes (OAFlux) For Global Oceans, By Lisan Yu et al.
+SavedPath<=>
+WebPath<=>
+Location<=>G
+DataFormat<=>
+UseDSARCH<=>P
+GroupLevel<=>3
+FileLimit<=>500
+ButtonLimit<=>2
+DescWeb<=>
+DescInternal<=>
+GroupIndex<:>BeginDate<:>EndDate<:>BeginTime<:>EndTime<:>
+1<:>1985-01-01<:>2006-12-31<:>00:00:00<:>00:00:59<:>
+2<:>1958-01-01<:>2006-12-31<:>00:00:00<:>00:00:59<:>
+
+
+3.2 DOI/Version Actions 
+
+  DOI/Version controls can be added, modified, viewed and terminated via Actions 
+  included in this section:
+       Set Version Control - add and modify DOI/Version control information
+       Get Version Control - retrieve DOI/Version control information
+ Terminate Version Control - terminate an active DVI/Version control
+
+3.2.1 Set Version Control
+  -SV or -SetVersion, adds and modifies DOI/Version controls for a given dataset number. 
+
+  dsarch [-(DS|Dataset)] dsnnn.n [-](SV|SetVersion) [Mode Options]
+         [-(VI|VersionIndex) VersionIndex]
+         [-(IV|InternalVersion) InternalVersionIndex]
+         [-(EV|ExternalVersion) AssignedVersionNumber]
+         [-(DN|DOINumber) DOInumber]
+         [-(VT|VersionStatus) VersionRecordStatus]    # P-Pending, A-Active, H-History
+         [-(BD|BeginDate) VersionStartdate]
+         [-(BT|BeginTime) VersionStartTime]
+         [-(ED|EndDate) VersionEnddate]
+         [-(ET|EndTime) VersionEndTime]
+         [-(DE|Description) VersionNote]
+
+  Mode options that can be specified for setting DOI/Version control action:
+   -(MD|MyDataset) - overrides the default specialist and enables RDADB 
+                     information to be set by any one
+      -(NT|NoTrim) - skips trimming of spaces and comments from input
+                     values to speed up reading input file(s)
+  -(NV|NewVersion) - adds a new version control record into RDADB
+
+  If a version index is given and it is in RDADB already, its record is modified.
+  A new version control record is added if version control index is not given or it is
+  0 and Mode option -NV (-NewVersion) is present.
+  
+  When a version control record is first added into RDADB without DOI number specified,
+  it is in status of Pending. It can only be changed to Active if a DOI number
+  is provided. An active version control record is added with a new DOI number and a
+  version control index is auto-generated. 
+  
+  For example, put dataset d999009 under DOI/Version control
+  
+  dsarch d999009 SV -NV -DN DOINumber
+  
+  If the data of d999009 are updated mostly or completely to a newer version (set of
+  files) a new DOI number is needed. You may execute the same 'dsarch' command to
+  add another new active version control record with a new DOI number. The previous
+  version control record is changed automatically to status of History and its DOI number
+  is superseded now by the current DOI number. Only one active version control record can
+  exist for a give dataset.
+  
+  If the data of d999009 are modified minimally a new internal version index is needed
+  with the same DOI number, you may execute the same 'dsarch' command to add another
+  new version control record with a new internal version index but the same existing DOI
+  number. The previous version control record is also changed to status of History.
+
+  One case of the minimal data change is to replace one or multiple erroneous Web
+  files under version control. The files are first moved to different filenames
+  via dsarch Action -MV. The file type is autmatically set to 'V' as Version
+  controlled type. A new internal version can be optionally added at this time. Then
+  new Web files are added as replacements.
+ 
+  Usage Note: Various RDA use cases are described here. It is recommended that you review
+  and know these use cases, so that the DOIs in the RDA are handled consistently.
+
+3.2.2 Get Version Control
+  -GV or -GetVersion, retrieves DOI/Version control information from RDADB for a given
+  dataset number. 
+
+  dsarch [-(DS|Dataset)] dsnnn.n [-](GV|GetVersion) [Mode Option]
+         [-(FN|FieldNames) FieldNameString]
+         [-(KV|KeyValue) KeyNames]     # specify key names to view their values
+         [-(OF|OutputFile) OutputFileName] 
+         [-(DB|Debug) DebugModeInfo]
+
+  Mode option that can be specified for getting DOI/Version control Action:
+    -(FO|FormatOutput) - format the column output with a same width for all
+                         values of a given field 
+
+  Use Info option -FN (-FieldNames) to specify what version control fields to retrieve.
+  It defaults to 'VIEDSJX' if option -FN is omitted. Information of all available
+  fields is retrieved if -FN ALL is given. 
+
+  Valid version control field names and their corresponding Info options:
+
+  Names  Info Options           Descriptions
+  V      -(VI|VersionIndex)     version control index
+  I      -(IV|InternalVersion)  Internal version number 
+  E      -(EV|ExternalVersion)  External version number to publish
+  D      -(DN|DOINumber)        DOI number created for the version control
+  S      -(VT|VersionStatus)    version control status, A-Active, P-Pending and H-History
+  J      -(BD|BeginDate)        date the version control starts at
+  K      -(BT|BeginTime)        time the version control starts at
+  X      -(ED|EndDate)          date the terminated version control ends by
+  Y      -(ET|EndTime)          time the terminated version control ends by
+  N      -(DE|Description)      note for the version control record
+
+  Info option -OF (-OutputFile) is used to specify a file name to save the
+  retrieved information for later usage. Result of this action is displayed
+  on screen if no output file is provided.
+
+  For example, get version control information of d132000 for all fields and dump the
+  output into file 'd132000.vrsn'
+
+  dsarch d132000 GV -FN ALL -OF d132000.vrsn
+
+<<Content of output file d132000.vrn>>
+Dataset<=>d132000
+VersionIndex<:>InternalVersion<:>ExternalVersion<:>DOINumber<:>VersionStatus<:>BeginDate<:>BeginTime<:>EndDate<:>EndTime<:>Description<:>
+9<:>1<:><:>10.5065/D6SQ8XDW<:>A<:>2013-03-04<:>14:38:44<:><:><:><:>
+
+
+3.2.3 Terminate Version Control
+  -TV or -Terminate, terminates a version control from RDADB for a specified dataset. 
+
+  dsarch [-(DS|Dataset)] dsnnn.n [-](TV|TerminateVersion) [Mode Options]
+          -(VI|VersionIndex) VersionIndix 
+         [-(LN|LoginName) LoginAccountName]
+         [-(DB|Debug) DebugModeInfo]
+
+  Mode options that can be specified for terminating version control action:
+  -(MD|MyDataset) - overrides the default specialist and enables RDADB 
+                    information to be set by any one
+     -(NT|NoTrim) - skip trimming of spaces and comments from input
+                    values to speed up reading input file(s)
+  
+  The version control record to be terminated is identified by the version index given 
+  per Info option -VI (-VersionIndex) and dataset number per option -DS. This action
+  is blocked if there exist any Web data files lined to the version index. To terminate
+  the version control record with Web files under it, you gather the Web file names per
+  action option -GW (-GetWebFile), and either set the version index value to 0 or a
+  different index, or move the Web files to Saved files; then terminate the version
+  control.
+
+  For example,  terminate version index 5 of d999009
+
+  dsarch d999009 TV -VI 5
+
+  After termination, an active version control record is changed to status 'H' and the
+  record is retained for future references, but for a Pending version control record, it
+  is completely removed from RDADB if it is terminated.
+  
+
+3.3 Group Actions
+
+  Groups are for further dividing a dataset into multiple products. Dataset 
+  group information can be created, modified, deleted and viewed via Actions
+  included in this section:
+     Set Group Information - create or modify group information into RDADB for
+                             a specified dataset
+     Get Group Information - retrieve information of existing dataset groups
+  Delete Group Information - delete one or multiple dataset groups
+  Change Group Information - change one or multiple group indices to different
+                             values
+
+3.3.1 Set Group Information
+  -SG or -SetGroup, creates and modifies group information into RDADB for a
+  given dataset number. One or multiple groups can be processed each time.
+
+  dsarch [-(DS|Dataset)] dsnnn.n [-](SG|SetGroup) [Mode Options]
+         [-(GI|GroupIndex) GroupIndices]  # mandatory for new groups
+         [-(GN|GroupName) GroupNames]
+         [-(PI|ParentIndex) ParentGroupIndices] # set if subgroup 
+         [-(TI|Title) GroupTitles]
+         [-(GT|GroupType) GroupTypes]
+         [-(GP|GroupPattern) FileNamePatterns]
+         [-(BF|BackupFlag) QuasarBackupFlags]
+         [-(SP|SavedPath) SavedFilePaths]   # relative to dataset saved home dir
+         [-(WP|WebPath) WebFilePaths]       # relative to dataset data home dir
+         [-(ML|MetaLink) MetadataLinks]
+         [-(NW|NoteWeb) WebNotes] 
+         [-(NI|NoteInternal) InternalNotes]
+         [-(LN|LoginName) LoginAccountName]
+         [-(DB|Debug) DebugModeInfo]
+
+  Mode options that can be specified for setting group action:
+       -(MD|MyDataset) - overrides the default specialist and enables RDADB 
+                         information to be set by any one
+          -(NT|NoTrim) - skip trimming of spaces and comments from input
+                         values to speed up reading input file(s)
+     -(RT|ResetTGroup) - reset top group index for all the Saved/Web file records
+                         in a group
+    -(WM|WithMetadata) - re-gathers Web file content metadata at the group level
+  -(WN|WithFileNumber) - re-evaluates and resets Saved/Web file counts for the
+                         affected groups
+
+  If a group index per option -GI (-GroupIndex) exists in RDADB already for the
+  specified dataset, group record is modified; otherwise, a new group record is
+  added. For a new group record, a unique group index number must be provided.
+
+  A tree structure of groups can set by using subgroups. A subgroups is created 
+  if its parent group index is identified per options -PI (-ParentIndex).
+  Theoretically there is no limits how many levels of subgroups can be set.
+  As default, three subgroup levels are displayed on group list webpages; but it
+  can be reset to any number by option -GL (-GroupLevel) per action -SD
+  (-SetDataset).
+
+  If a group type is changed from P to I, all its subgroups are set to I
+  recursively, and all Saved/Web Files under the group or its subgroups are
+  also set to I.
+ 
+  For example, set multiple group information of d744004 via input file
+  'd744004.grp'
+
+  dsarch SG -IF d744004.grp
+
+<<Content of input file d744004.grp>>
+Dataset<=>d744004
+EndDate<=>2005-09-30 # set end data date into table 'dataset'
+GroupIndex<:>Title<:>GroupPattern<:>DescWeb<:>
+1<:>Blended Wind<:>.bln<:>
+The 'bln' product is the blended wind field output.<:>
+2<:>NCEP Re-analyses<:>.low<:>
+The 'low' fields consist of the NCEP re-analyses splined
+to the 0.5 x 0.5 degree grid (i.e. no QSCAT data blended).<:>
+3<:>Superposition of QSCAT Observations<:>.sub<:>
+The 'sub' product is output from an intermediate step in the blending process
+that consists of the superposition of QSCAT observations on NCEP before
+blending. This product is of no particular scientific value, but very useful
+in identifying the satellite data swaths in each composite of 12-hours of
+QSCAT observations.<:>
+
+3.3.2 Get Group Information
+  -GG or -GetGroup, retrieves group information for a given dataset. Information
+  of specified groups are retrieved if the group indices or names are provided.
+ 
+  dsarch [-(DS|Dataset] dsnnn.n [-](GG|GetGroup)
+         [-(FN|FieldNames) FieldNameString]
+         [-(ON|OrderNames) OrderNameString]
+         [-(GI|GroupIndex) GroupIndices]
+         [-(GN|GroupName) GroupNames]
+         [-(PI|ParentGroupIndex) ParentGroupIndices]
+         [(-OF|-OutputFile) OutputFileName] 
+         [-(DB|Debug) DebugModeInfo]
+
+  Mode options that can be specified for getting group action:
+    -(FO|FormatOutput) - format the column output with a same width for all
+                         values of a given field 
+  -(RG|REcursiveGroup) - gather subgroups recursively for given group index
+  -(WN|WithFileNumber) - gathers and displays HPSS/Web file counts for groups
+
+  Use Info option -FN (-FieldNames) to specify what group fields to retrieve.
+  It defaults to 'IGXTQSW' if option -FN is not provided. Information of all
+  available fields is retrieved if -FN ALL is given.
+
+  Valid group field names and their corresponding Info options:
+
+  Names  Info Options         Descriptions
+  I      -(GI|GroupIndex)     group indices
+  G      -(GN|GroupName)      group names, IDs
+  X      -(PI|ParentIndex)    parent group indices
+  T      -(TI|Title)          group titles 
+  R      -(GT|GroupType)      group types
+  P      -(GP|GroupPattern)   common file name patterns for each group
+  Q      -(BF|BackupFlag)     Quasar Backup flags
+  S      -(SP|SavedPath)      path relative to saved home directory for groups
+  W      -(WP|WebPath)        path relative to web home directory for groups
+  A      -(ML|MetaLink)       a link to content meta at the group level
+  D      -(NW|NoteWeb)        group description of data on RDA Server
+  N      -(NI|NoteInternal)   group description of internal HPSS data
+
+  Group information can be retrieved for specified groups per option -GI
+  (-GroupIndex) or -GN (-GroupName), or per option -PI (-ParentIndex). Info
+  option -GN accepts wildcard input of '%' for matching any number of
+  characters.
+
+  For example, get the group information of d260001 for default fields and
+  the file counts for groups 1 and 2
+
+  dsarch d260001 GG -WN -GI 1 2
+
+<<Content of the output>>
+Dataset<=>d260001
+GroupIndex<:>GroupName<:>ParentIndex<:>Title<:>GroupPattern<:>BackupFlag<:>SavedPath<:>WebPath<:>
+1<:>DAILY<:>0<:>DAILY OAFlux Products<:><:>P<:><:>daily<:>
+2<:>MONTHLY<:>0<:>MONTHLY OAFlux Products<:><:>P<:><:>monthly<:>
+2 group records retrieved
+d260001-G1: DS-11094192261 DC-327 WC-327 SS-8909173908 SC-51
+d260001-G2: DS-552780725 DC-522 WC-522 SS-465789806 SC-51
+
+
+3.3.3 Delete Group Information
+  -DG or -DeleteGroup, deletes one or multiple groups from RDADB for given
+  group indices of a specified dataset. 
+
+  dsarch [-(DS|Dataset)] dsnnn.n [-](DG|DeleteGroup) [Mode Options]
+          -(GI|GroupIndex) GroupIndices 
+         [-(LN|LoginName) LoginAccountName]
+         [-(DB|Debug) DebugModeInfo]
+
+  Mode options that can be specified for deleting group action:
+       -(MD|MyDataset) - overrides the default specialist and enables RDADB 
+                         information to be set by any one
+          -(NT|NoTrim) - skip trimming of spaces and comments from input
+                         values to speed up reading input file(s)
+     -(RT|ResetTGroup) - reset top group index for the HPSS/Web file records 
+  -(WN|WithFileNumber) - reevaluates and resets HPSS/Web file counts for the
+                         affected groups 
+
+  The groups to be deleted are identified by group indices given per Info
+  option -GI (-GroupIndex) and dataset number per option -DS. This action
+  is blocked if there exist any subgroups or data files under the groups to
+  be deleted.  To delete the groups with files under them, you gather the files
+  on Saved or RDA Server per action options, -GS (-GetSavedFile) or -GW
+  (-GetWebFile), and set the group indices of the files to 0 or change them to
+  other group indices via action -CG (-ChangeGroup), or delete the files
+  gathered per action -DL (-Delete); then delete the groups.
+
+  For example,  delete group indices 2 and 3 of d744004
+
+  dsarch d744004 DG -GI 2 3
+
+
+3.3.4 Change Group Information
+  -CG or -ChangeGroup, changes group indices from original groups given by
+  option -OG (-OriginGroup) to new groups specified by option -GI (-GroupIndex)
+  for a given dataset.
+
+  dsarch [-(DS|dataset)] dsnnn.n [-](CG|ChangeGroup) [Mode Options]
+          -(OG|OriginGroup) OriginalGroupIndices
+          -(GI|GroupIndex) NewGroupIndices 
+         [-(LN|LoginName) LoginAccountName]
+         [-(DB|Debug) DebugModeInfo]
+
+  Mode options that can be specified for changing group action:
+       -(MD|MyDataset) - overrides the default specialist and enables RDADB 
+                         information to be set by any one
+          -(NT|NoTrim) - skip trimming of spaces and comments from input
+                         values to speed up reading input file(s)
+     -(RT|ResetTGroup) - reset top group index for the HPSS/Web file records 
+  -(WN|WithFileNumber) - reevaluates and resets HPSS/Web file counts for the
+                         affected groups 
+
+  A dataset group is identified by its group index. It can only be changed to
+  different value via this action -CG and both original group indices per Info
+  option -OG (-OriginGroup) and new group indices per Info option -GI
+  (-GroupIndex) are present. The Saved and Web File namesassociated to the
+  original group indices are changed to new group indices correspondingly. The
+  original group indices must exist in RDADB for the given dataset.
+
+  For example,  change group indices 1 and 2, to 2 and 3 of d744004
+
+  dsarch d744004 CG -OG 1 2 -GI 2 3
+
+
+3.4 File Actions
+
+  The saved, Web and Help files are archived and their information are recorded
+  into RDADB via actions described in this section. The files themselves, and
+  their recorded information can be manipulated via different file actions. The
+  file information recorded in RDADB can be viewed for given dataset and further
+  specified by other conditions. The file actions included in this section are:
+  Set Saved File Information - create or modify information of Saved data files
+                               into RDADB
+  Get Saved File Information - retrieve information of existing saved data files
+                               recorded in RDADB
+    Set Web File Information - create or modify information of data files on RDA
+                               Server into RDADB
+    Get Web File Information - retrieve information of existing data files on RDA
+                               Server recorded RDADB
+   Set Help File Information - create or modify information of document and
+                               software Help files recorded in RDADB
+   Get Help File Information - retrieve Quasar file information recorded in RDADB
+ Set Quasar File Information - create or modify information of backup Quasar
+                               files recorded in RDADB
+ Get Quasar File Information - retrieve Help file information recorded in RDADB
+         Archive Saved Files - archive saved data files, and record new records
+                               into RDADB or modify records that are in RDADB
+           Archive Web Files - archive web data files, and record new records
+                               into RDADB or modify records that are in RDADB
+          Archive Help Files - archive Help files onto RDA Seb Servers, and
+                               record new records into RDADB or modify records
+                               that are in RDADB
+         Backup Quasar Files - tar mulitple files from one or more datasets into
+                               a single file, and backup it onto Globus Quasar
+                               Server
+        Restore Quasar Files - retrieve quasar files identified from given Saved
+                               and Web files, restore the untarrd Saved and Web
+                               files for missing ones
+   Move Saved/Web/Help/Quasar Files - move physically the Saved, Web, Help and
+                                      Quasar files from one dataset to another,
+                                      or just inside of a single dataset, and
+                                      cross move between Save and Web files
+ Delete Saved/Web/Help/Quasar Files - delete one or multiple Saved, Web, Help,
+                                      and Quasar files, and their information
+                                      recorded in RDADB
+
+3.4.1 Set Saved File Information
+  -SS or -SetSavedFile (Alias: -SetSaved), creates and modifies information of
+  the Saved files in RDADB for a given dataset. One or multiple files can be
+  processed each time.
+
+  dsarch [-(DS|Dataset)] dsnnn.n [-](SS|SetSavedFile) [Mode Options]
+         [-(SF|SavedFile) SavedFileNames]
+         [-(ON|OrderNames) OrderNameString]
+         [-(OB|OrderBy) OrderByPattern]
+         [-(GI|GroupIndex) GroupIndices]
+         [-(GN|GroupName) GroupNames]
+         [-(TG|TopGroupIndex) TopGroupIndices]
+         [-(PO|PatternOffset) PatternStringOffset]
+         [-(ST|SavedFileType) SavedFileTypes]   # Primary, VersionControl, Work, oRiginal
+         [-(FS|FileStatus) SavedFileStatus]     # Public or Interal file
+         [-(LC|Location) StorageLocationFlags]  # CGD data; Glade, Object or Both
+         [-(DF|DataFormat) DataFormats]         # BINARY, ASCII, NetCDF and etc.
+         [-(AF|ArchiveFormat) FileArchiveFormats]   # tarred, Compressed and etc.
+         [-(DO|DisplayOrder] DisplayOrderIndices]
+         [-(SZ|Size) FileSizes]
+         [-(MC|MD5Checksum) MD5ChecksumValues]
+         [-(FD|FileDate) DateModified]
+         [-(FT|FileTime) TimeModified] 
+         [-(DE|Description] SavedFileDescriptions]
+         [-(LN|LoginName) LoginAccountName]
+         [-(QS|QsubOptions)  PBSBatchOptions]
+         [-(BP|BatchProcess) [BatchControlInfo]]
+         [-(DB|Debug) DebugModeInfo]
+
+  Mode options that can be specified for setting Web file action:
+   -(BG|BackGround) - background process to turn off screen display for both 
+                      standard outputs and errors
+  -(EM|EMailNotice) - sends email for summary and errors for this action
+    -(MD|MyDataset) - overrides the default specialist and enables RDADB 
+                      information to be set by any one
+      -(NE|NoEmail) - does not send email to the specialist for failed action
+       -(NT|NoTrim) - skip trimming of spaces and comments from input
+                      values to speed up reading input file(s)
+    -(RD|RemoveDir) - removes empty web directories
+   -(RO|ResetOrder) - resets the ordering indices of the list of file names
+                      on Saved Server according to the order they are given per
+                      option -SF. Reordering filelist can be also accomplished
+                      by giving option -ON (-OrderNames), which tells Action
+                      -SW to reorder all the files of given dataset and the
+                      involved groups
+  -(SC|SetChecksum) - evaluates the md5 checksum values for data files on
+                      RDA Server and saves them into RDADB
+
+  Saved file names must be provided per option -SF (-SavedFile) for this action to
+  work, unless Info Option -ON (-OrderNames) is provided to reorder Saved files
+  of specified dataset and groups. The number of values passed in following
+  Info options should match the number of file names given per option -SF,
+  except for options related to dataset information and the Info options that
+  are allowed to pass in single values, such as -GI (-GroupIndex), -AF
+  (-ArchiveFormat), -DF (-DataFormat), and -ST (-SavedFileType). If a single group
+  index is provided for multiple Saved file names, the index value is shared by
+  all the given files on RDA Server.
+
+  Pattern matching is used for identify a group index for a given saved file
+  if group index is not given explicitly and Info option -PO (-PatternOffset)
+  if present. The Web file name is matched against group pattern values that
+  are previously saved in group records via Action -SG (-SetGroup).
+
+
+3.4.2 Get Saved File Information
+  -GS or -GetSavedFile (Alias: -GetSaved), gets information of data files on Saved
+  Server for a given dataset and/or specified Saved file names. The list of data
+  files can be further specified for given group indices, file archive types,
+  and other conditions.
+
+  dsarch [-(DS|Dataset)] dsnnn.n -(GS|GetSavedFile) [Mode Options]
+         [-(FN|FieldNames) FieldNameString]
+         [-(ON|OrderNames) OrderNameString]
+         [-(OB|OrderBy) OrderByPattern]
+         [-(SF|SavedFile) SavedFileNames]
+         [-(ST|SavedFileType) SavedFileTypes]
+         [-(FS|FileStatus) SavedFileStatus]
+         [-(LC|Location) StorageLocationFlags]
+         [-(GI|GroupIndex) GroupIndices]
+         [-(GN|GroupName) GroupNames]
+         [-(TG|TopGroupIndex) TopGroupIndices]
+         [-(DE|Description) SavedFileDescriptions]
+         [(-OF|-OutputFile) OutputFileName] 
+         [-(DB|Debug) DebugModeInfo]
+
+  Mode options that can be specified for getting Saved file action: 
+   -(FO|FormatOutput) - format the column output with a same width for all
+                        values of a given field 
+ -(RG|REcursiveGroup) - gather files in subgroups recursively for given group index
+   -(RN|RelativeName) - retrieves Saved file names with paths relative to
+                        saved paths for groups or dataset
+
+  Use Info option -FN (-FieldNames) to specify what fields of file on Saved
+  Server to retrieve. It defaults to 'FINMTHS' if option -FN is not provided;
+  information of all available fields is retrieved if -FN ALL is given.
+
+  Valid Saved file field names and their corresponding Info options:
+
+  Names  Info Options          Descriptions
+  F      -(SF|SavedFile)       Saved file names with relative paths
+  T      -(ST|SavedFileType)   Saved file archiving types
+  C      -(MC|MD5Checksum)     Saved file MD5 Checksum
+  I      -(GI|GroupIndex)      group indices for Saved files
+  X      -(TG|TopGroupIndex)   top group indices for Saved files
+  V      -(VI|VersionIndex)    Version control index
+  N      -(DF|DataFormat)      data content formats
+  M      -(AF|ArchiveFormat)   file archive formats
+  O      -(DO|DisplayOrder)    display order indices
+  B      -(QF|QuasarFile)      Quasar backup file names
+  Q      -(QT|QuasarType)      Quasar backyp file types
+  L      -(LC|Location)        Saved file storage location flag
+  H      -(FS|FileStatus)      Saved file archiving status
+  S      -(SZ|Size)            Saved file sizes
+  J      -(FD|FileDate)        date data last modified on
+  K      -(FT|FileTime)        time data last modified at 
+  D      -(DE|Description)     Saved file descriptions
+
+  The dataset number per option -DS (-Dataset) is mandatory unless Saved file 
+  names are provided. An error message is prompted for specialist to pick one
+  dataset number and rerun 'dsarch' if multiple datasets are identified for
+  given Saved file information without specified dataset number. Saved file names
+  are expanded automatically to include full paths relative to the dataset Saved
+  Home Directories if the file names are given without or with incomplete paths.
+
+  Saved file information can be retrieved for further specified file archive
+  types per option -ST (-SavedFileType), groups per option -GI (-GroupIndex) or
+  -GN (-GroupName), and Saved file descriptions per -DE (-Description). Info
+  options -SF, -GN and -DE accept wildcard inputs of '%' for matching any number
+  of characters.
+
+
+3.4.3 Set Web File Information
+  -SW or -SetWebFile (Alias: -SetWeb), creates and modifies information of files
+  on RDA Server in RDADB for a given dataset. One or multiple files can be
+  processed each time.
+
+  dsarch [-(DS|Dataset)] dsnnn.n -(SW|SetWebFile) [Mode Options]
+         [-(WF|WebFile) webFileNames]
+         [-(ON|OrderNames) OrderNameString]
+         [-(OB|OrderBy) OrderByPattern]
+         [-(GI|GroupIndex) GroupIndices]
+         [-(GN|GroupName) GroupNames]
+         [-(TG|TopGroupIndex) TopGroupIndices]
+         [-(PO|PatternOffset) PatternStringOffset]
+         [-(WT|WebFileType) WebFileTypes]     # Web Data or NCAR Data
+         [-(LC|Location) StorageLocationFlags]
+         [-(FS|FileStatus) WebFileStatus]     # Public or interal file
+         [-(DF|DataFormat) DataFormats]       # BINARY, ASCII, NetCDF and etc.
+         [-(AF|ArchiveFormat) FileArchiveFormats]  # tarred, Compressed and etc.
+         [-(DO|DisplayOrder] DisplayOrderIndices]
+         [-(SZ|Size) FileSizes]
+         [-(MC|MD5Checksum) MD5ChecksumValues]
+         [-(FD|FileDate) DateModified]
+         [-(FT|FileTime) TimeModified] 
+         [-(ML|MetaLink) MetadataLinks]
+         [-(TL|ThreddLink) ThreddCatalogLinks]
+         [-(DE|Description] WebFileDescriptions]
+         [-(LN|LoginName) LoginAccountName]
+         [-(AL|AsyncLimit) AsyncProcessLimit]
+         [-(QS|QsubOptions)  PBSBatchOptions]
+         [-(BP|BatchProcess) [BatchControlInfo]]
+         [-(DB|Debug) DebugModeInfo]
+
+  Mode options that can be specified for setting Web file action:
+   -(BG|BackGround) - background process to turn off screen display for both 
+                      standard outputs and errors
+    -(DX|DeleteXML) - if present, calling 'dcm' to delete file content metadata
+                      of specified Web files
+  -(EM|EMailNotice) - sends email for summary and errors for this action
+    -(GX|GatherXML) - evaluates file content metadata by calling 'gatherxml'
+    -(MD|MyDataset) - overrides the default specialist and enables RDADB 
+                      information to be set by any one
+      -(NE|NoEmail) - does not send email to the specialist for failed action
+       -(NT|NoTrim) - skip trimming of spaces and comments from input
+                      values to speed up reading input file(s)
+    -(RD|RemoveDir) - removes empty web directories
+   -(RO|ResetOrder) - resets the ordering indices of the list of file names
+                      on RDA Server according to the order they are given per
+                      option -WF. Reordering filelist can be also accomplished
+                      by giving option -ON (-OrderNames), which tells Action
+                      -SW to reorder all the files of given dataset and the
+                      involved groups
+  -(RS|GXRSOptions) - works with option -GX (-GatherXML) to speed up gatherxml
+  -(SC|SetChecksum) - evaluates the md5 checksum values for data files on
+                      RDA Server and saves them into RDADB
+
+  Web file names must be provided per option -WF (-WebFile) for this action to
+  work, unless Info Option -ON (-OrderNames) is provided to reorder Web files
+  of specified dataset and groups. The number of values passed in following
+  Info options should match the number of file names given per option -WF,
+  except for options related to dataset information and the Info options that
+  are allowed to pass in single values, such as -GI (-GroupIndex), -AF
+  (-ArchiveFormat), -DF (-DataFormat), and -WT (-WebFileType). If a single group
+  index is provided for multiple Web file names, the index value is shared by
+  all the given files on RDA Server.
+
+  Pattern matching is used for identify a group index for a given Web file
+  if group index is not given explicitly and Info option -PO (-PatternOffset)
+  if present. The Web file name is matched against group pattern values that
+  are previously saved in group records via Action -SG (-SetGroup).
+
+  The web file status can be set to either P (public) or I (internal) for data
+  type D (data), N (ncar data), O (document) and S (software). For a Web file is
+  set to be under an Internal group, its status is automatically forced to I.
+
+  If a Web file is set to be under an Internal group, its status is forced to I.
+
+
+3.4.4 Get Web File Information
+  -GW or -GetWebFile (Alias: -GetWeb), gets information of data files on RDA
+  Server for a given dataset and/or specified Web file names. The list of data
+  files can be further specified for given group indices, file archive types,
+  and file descriptions.
+
+  dsarch [-(DS|Dataset)] dsnnn.n -(GW|GetWebFile) [Mode Options]
+         [-(FN|FieldNames) FieldNameString]
+         [-(ON|OrderNames) OrderNameString]
+         [-(OB|OrderBy) OrderByPattern]
+         [-(WF|WebFile) WebFileNames]
+         [-(WT|WebFileType) WebFileTypes]
+         [-(FS|FileStatus) WebFileStatus]
+         [-(LC|Location) StorageLocationFlags]
+         [-(GI|GroupIndex) GroupIndices]
+         [-(GN|GroupName) GroupNames]
+         [-(TG|TopGroupIndex) TopGroupIndices]
+         [-(DE|Description) WebFileDescriptions]
+         [(-OF|-OutputFile) OutputFileName] 
+         [-(DB|Debug) DebugModeInfo]
+
+  Mode options that can be specified for getting Web file action: 
+   -(FO|FormatOutput) - format the column output with a same width for all
+                        values of a given field 
+ -(RG|REcursiveGroup) - gather files in subgroups recursively for given group index
+   -(RN|RelativeName) - retrieves Web file names with paths relative to
+                        saved Web paths for groups or dataset
+
+  Use Info option -FN (-FieldNames) to specify what fields of file on RDA
+  Server to retrieve. It defaults to 'FINMTHS' if option -FN is not provided;
+  information of all available fields is retrieved if -FN ALL is given.
+
+  Valid Web file field names and their corresponding Info options:
+
+  Names  Info Options          Descriptions
+  F      -(WF|WebFile)         Web file names with relative paths
+  T      -(WT|WebFileType)     Web file archiving types
+  C      -(MC|MD5Checksum)     Web file MD5 Checksum
+  I      -(GI|GroupIndex)      group indices for Web files
+  X      -(TG|TopGroupIndex)   top group indices for Web files
+  V      -(VI|VersionIndex)    Version control index
+  M      -(AF|ArchiveFormat)   file archive formats
+  N      -(DF|DataFormat)      data content formats
+  O      -(DO|DisplayOrder)    display order indices
+  B      -(QF|QuasarFile)      Quasar backup file names
+  Q      -(QT|QuasarType)      Quasar backyp fie types
+  L      -(LC|Location)        Web file storage location flag
+  H      -(FS|FileStatus)      Web file archiving status
+  S      -(SZ|Size)            Web file sizes
+  J      -(FD|FileDate)        date data last modified on
+  K      -(FT|FileTime)        time data last modified at 
+  A      -(ML|MetaLink)        a link to content meta at the file level
+  E      -(TL|ThreddLink)      a link to Thredd Catalog page at the file level
+  D      -(DE|Description)     Web file descriptions
+
+  The dataset number per option -DS (-Dataset) is mandatory unless Web file 
+  names are provided. An error message is prompted for specialist to pick one
+  dataset number and rerun 'dsarch' if multiple datasets are identified for
+  given Web file information without specified dataset number. Web file names
+  are expanded automatically to include full paths relative to the dataset Web
+  Home Directories if the file names are given without or with incomplete paths.
+
+  Web file information can be retrieved for further specified file archive
+  types per option -WT (-WebFileType), groups per option -GI (-GroupIndex) or
+  -GN (-GroupName), and Web file descriptions per -DE (-Description). Info
+  options -WF, -GN and -DE accept wildcard inputs of '%' for matching any number
+  of characters.
+
+  For example, get the Web file information of d540000 for default fields;
+  for Data type and wildcard matching '200' in Web file names
+
+  dsarch d540000 GW -WT D -WF %200% 
+
+<<Content of the output>>
+Dataset<=>d540000
+WebFile<:>GroupIndex<:>DataFormat<:>ArchiveFormat<:>WebFileType<:>Size<:>
+IMMA_2.4_1998_2000.tar<:>37<:>IMMA<:>Z.TAR<:>D<:>1283094016<:>
+IMMA_2.4_2001_2002.tar<:>37<:>IMMA<:>Z.TAR<:>D<:>1006424064<:>
+IMMA_2.4_2003_2004.tar<:>37<:>IMMA<:>Z.TAR<:>D<:>1149672960<:>
+IMMA_2.4_2005.tar<:>37<:>IMMA<:>Z.TAR<:>D<:>951742976<:>
+IMMA_2.4_2006.tar<:>37<:>IMMA<:>Z.TAR<:>D<:>1119821824<:>
+IMMA_2.4_2007.tar<:>37<:>IMMA<:>Z.TAR<:>D<:>656820224<:>
+
+3.4.5 Set Help File Information
+  -SH or -SetHelpFile (Alias: -SetHelp), creates and modifies information of Help
+  files, Documents and Software, in RDADB for a given dataset. One or multiple
+  files can be processed each time.
+
+  dsarch [-(DS|Dataset)] dsnnn.n -(SH|SetHelpFile) [Mode Options]
+         [-(HF|HelpFile) HelpFileNames]
+         [-(WU|WebURL) RemoteFileWebURL]
+         [-(SR|Source) ContributionSource]
+         [-(ON|OrderNames) OrderNameString]
+         [-(OB|OrderBy) OrderByPattern]
+         [-(HT|HelpFileType) HelpFileTypes]  # Document or Software
+         [-(FS|FileStatus) HelpFileStatus]     # Public or Interal file
+         [-(LC|Location) StorageLocationFlags]  # Glade, Object, Both or Remote
+         [-(DF|DataFormat) DataFormats]       # Python, PDF, and etc.
+         [-(AF|ArchiveFormat) FileArchiveFormats]  # tarred, Compressed and etc.
+         [-(DO|DisplayOrder] DisplayOrderIndices]
+         [-(SZ|Size) FileSizes]
+         [-(MC|MD5Checksum) MD5ChecksumValues]
+         [-(ID|InitialDate) HelpFileInitialDate]  # Initial Publish/Release Date
+         [-(FD|FileDate) DateModified]
+         [-(FT|FileTime) TimeModified] 
+         [-(DE|Description] SavedFileDescriptions]
+         [-(LN|LoginName) LoginAccountName]
+         [-(DB|Debug) DebugModeInfo]
+
+  Mode options that can be specified for setting Web file action:
+   -(BG|BackGround) - background process to turn off screen display for both 
+                      standard outputs and errors
+  -(EM|EMailNotice) - sends email for summary and errors for this action
+    -(MD|MyDataset) - overrides the default specialist and enables RDADB 
+                      information to be set by any one
+      -(NE|NoEmail) - does not send email to the specialist for failed action
+       -(NT|NoTrim) - skip trimming of spaces and comments from input
+                      values to speed up reading input file(s)
+   -(RO|ResetOrder) - resets the ordering indices of the list of file names
+                      according to the order they are provided
+  -(SC|SetChecksum) - evaluates the md5 checksum values for Helpfiles and
+                      saves them into RDADB
+
+  Help file names must be provided per option -HF (-HelpFile) for this action to
+  work, unless Info Option -ON (-OrderNames) is provided to reorder Help files
+  of specified dataset and groups. The number of values passed in following
+  Info options should match the number of file names given per option -HF,
+  except for options related to dataset information and the Info options that
+  are allowed to pass in single values, such as -AF (-ArchiveFormat), -DF
+  (-DataFormat), and -HT (-HelpFileType).
+
+  For a Help file located remotely, such as on github, a Help file record can be
+  added into RDADB via action -SH and a full URL link is provided via option -WU.
+  
+
+3.4.6 Get Help File Information
+  -GH or -GetHelpFile (Alias: -GetHelp), gets information of Help files, Documents
+  and Softwares, for a given dataset and/or specified Help file names. The file
+  list can be further specified for given file types, and other
+  conditions.
+
+  dsarch [-(DS|Dataset)] dsnnn.n -(GH|GetHelpFile) [Mode Options]
+         [-(FN|FieldNames) FieldNameString]
+         [-(ON|OrderNames) OrderNameString]
+         [-(OB|OrderBy) OrderByPattern]
+         [-(HF|HelpFile) HelpFileNames]
+         [-(HT|HelpFileType) HelpFileTypes]     # Document or Software
+         [-(FS|FileStatus) SavedFileStatus]
+         [-(LC|Location) StorageLocationFlags]
+         [-(SR|Source) ContributionSource]
+         [-(DE|Description) SavedFileDescriptions]
+         [(-OF|-OutputFile) OutputFileName] 
+         [-(DB|Debug) DebugModeInfo]
+
+  Mode option that can be specified for getting Help file action: 
+   -(FO|FormatOutput) - format the column output with a same width for all
+                        values of a given field 
+
+  Use Info option -FN (-FieldNames) to specify what fields of Help files to
+  retrieve. It defaults to 'FINMTHSU' if option -FN is not provided;
+  information of all available fields is retrieved if -FN ALL is given.
+
+  Valid Saved file field names and their corresponding Info options:
+
+  Names  Info Options          Descriptions
+  F      -(HF|HelpFile)        Help file names
+  N      -(DF|DataFormat)      file content formats
+  M      -(AF|ArchiveFormat)   file archive formats
+  O      -(DO|DisplayOrder)    display order indices
+  T      -(HT|HelpFileType)    Help file archiving types
+  H      -(FS|FileStatus)      Help file archiving status
+  L      -(LC|Location)        Help file storage location flag
+  S      -(SZ|Size)            Help file sizes
+  R      -(SR|Source)          Help file contribution source
+  I      -(ID|InitialDate)     Date initially Published/Released
+  J      -(FD|FileDate)        date last modified on
+  K      -(FT|FileTime)        time last modified at 
+  U      -(WU|WebURL'          a full URL for a remote help file
+  D      -(DE|Description)     file descriptions
+
+  The dataset number per option -DS (-Dataset) is mandatory unless Help file 
+  names are provided. An error message is prompted for specialist to pick one
+  dataset number and rerun 'dsarch' if multiple datasets are identified for
+  given Help file information without specified dataset number.
+
+  Help file information can be retrieved for further specified file archive
+  types per option -HT (-HelpFileType), and file descriptions per -DE
+  (-Description). Info options -HF and -DE accept wildcard inputs of '%'
+  for matching any number of characters.
+
+3.4.7 Set Quasar File Information
+  -SQ or -SetQuasarFile (Alias: -SetQuasar), modifies information of the Quasar files
+  in RDADB for a given dataset. One or multiple files can be processed each time.
+
+  dsarch [-(DS|Dataset)] dsnnn.n [-](SS|SetSavedFile) [Mode Options]
+         [-(QF|QuasarFile) QuasarFileNames]
+         [-(ON|OrderNames) OrderNameString]
+         [-(OB|OrderBy) OrderByPattern]
+         [-(QT|QuasarFileType) QuasarFileTypes]   # Backup or backup&Drdata
+         [-(BS|BackupStatus) QuasarBackupFileStatus]      # New-record, Tarred, or Achived
+         [-(DF|DataFormat) FileContentFormat]
+         [-(AF|ArchiveFormat) FileArchiveFormat] 
+         [-(DO|DisplayOrder] DisplayOrderIndices]
+         [-(SZ|Size) FileSizes]
+         [-(MC|MD5Checksum) MD5ChecksumValues]
+         [-(FD|FileDate) DateModified]
+         [-(FT|FileTime) TimeModified] 
+         [-(DE|Description] SavedFileDescriptions]
+         [-(LN|LoginName) LoginAccountName]
+         [-(QS|QsubOptions)  PBSBatchOptions]
+         [-(BP|BatchProcess) [BatchControlInfo]]
+         [-(DB|Debug) DebugModeInfo]
+
+  Mode options that can be specified for setting Web file action:
+   -(BG|BackGround) - background process to turn off screen display for both 
+                      standard outputs and errors
+    -(MD|MyDataset) - overrides the default specialist and enables RDADB 
+                      information to be set by any one
+      -(NE|NoEmail) - does not send email to the specialist for failed action
+       -(NT|NoTrim) - skip trimming of spaces and comments from input
+                      values to speed up reading input file(s)
+   -(RO|ResetOrder) - resets the ordering indices of the list of file names
+                      on Quasar Server according to the order they are given per
+                      option -QF. Reordering filelist can be also accomplished
+                      by giving option -ON (-OrderNames), which tells Action
+                      -SQ to reorder all the files of given dataset
+  -(SC|SetChecksum) - evaluates the md5 checksum values for data files on
+                      RDA Server and saves them into RDADB
+
+  Quasar file names must be provided per option -QF (-QuasarFile) for this action
+  to work, unless Info Option -ON (-OrderNames) is provided to reorder the files
+  of specified dataset. The number of values passed in following Info options
+  should match the number of file names given per option -QF, except for options
+  related to dataset information and the Info options that are allowed to pass in
+  as single values, such as -AF (-ArchiveFormat), -DF (-DataFormat), and -QT
+  (-QuasarFileType).
+
+
+3.4.8 Get Quasar File Information
+  -GQ or -GetQuasarFile (Alias: -GetQuasar), gets information of backup files on
+  Quasar Server for a given dataset and/or specified Quasar file names. The file
+  list can be further specified for file archive types, and other conditions.
+
+  dsarch [-(DS|Dataset)] dsnnn.n -(GQ|GetQuasarFile) [Mode Options]
+         [-(FN|FieldNames) FieldNameString]
+         [-(ON|OrderNames) OrderNameString]
+         [-(OB|OrderBy) OrderByPattern]
+         [-(QF|QuasarFile) QuasarFileNames]
+         [-(QT|QuasarFileType) QuasarFileTypes]
+         [-(FS|FileStatus) QuasarFileStatus]
+         [-(DE|Description) QuasarFileDescriptions]
+         [(-OF|-OutputFile) OutputFileName] 
+         [-(DB|Debug) DebugModeInfo]
+
+  Mode options that can be specified for getting Saved file action: 
+   -(FO|FormatOutput) - format the column output with a same width for all
+                        values of a given field 
+
+  Use Info option -FN (-FieldNames) to specify what fields of file on Saved
+  Server to retrieve. It defaults to 'FNMTHS' if option -FN is not provided;
+  information of all available fields is retrieved if -FN ALL is given.
+
+  Valid Saved file field names and their corresponding Info options:
+
+  Names  Info Options          Descriptions
+  F      -(QF|QuasarFile)      Quasar file names with relative paths
+  T      -(QT|QuasarFileType)  Quasar file archiving types
+  C      -(MC|MD5Checksum)     Saved file MD5 Checksum
+  N      -(DF|DataFormat)      data content formats
+  M      -(AF|ArchiveFormat)   file archive formats
+  O      -(DO|DisplayOrder)    display order indices
+  B      -(QF|QuasarFile)      Quasar backup file names
+  Q      -(QT|QuasarType)      Quasar backyp fie types
+  H      -(FS|FileStatus)      Quasar file archiving status
+  S      -(SZ|Size)            Quasar file sizes
+  J      -(FD|FileDate)        date data last modified on
+  K      -(FT|FileTime)        time data last modified at 
+  D      -(DE|Description)     Quasar file descriptions
+
+  The dataset number per option -DS (-Dataset) is mandatory unless Quasar file 
+  names are provided. An error message is prompted for specialist to pick one
+  dataset number and rerun 'dsarch' if multiple datasets are identified for
+  given Quasar file information without specified dataset number. Quasar file
+  names are expanded automatically to include full paths relative to the dataset 
+  Home Directories if the file names are given without or with incomplete paths.
+
+  Quasar file information can be retrieved for further specified file archive
+  types per option -QT (-QuasarFileType) and Quasar file descriptions per -DE
+  (-Description). Info options -QF and -DE accept wildcard inputs of '%' for
+  matching any number of characters.
+
+3.4.9 Archive Saved Files
+  -AS or -ArchiveSavedFile (Alias: -ArchiveSaved|-ArchSaved|-ArchSavedFile), archives
+  local data files as saved files and saves information of the archived files
+  into RDADB for a given dataset. One or multiple local files can be archived
+  each time.
+
+  dsarch [-(DS|dataset)] dsnnn.n -(AS|ArchiveSavedFile) [Mode Options]
+         [-(LF|LocalFile) LocalFileNames]  # mandatory unless -LD or -LL present
+         [-(LD|LocalDirectory) LocalDirectoryName]  # directory for local file names
+         [-(LL|LocalFileList) LocalFileListName]  # contains a list of local file names
+         [-(SF|SavedFile) SavedFileNames]         # default to -LF
+         [-(GI|GroupIndex) GroupIndices]
+         [-(GN|GroupName) GroupNames]
+         [-(TG|TopGroupIndex) TopGroupIndices]
+         [-(PO|PatternOffset) PatternStringOffset]
+         [-(ST|SavedFileType) SavedFileTypes]
+         [-(FS|FileStatus) SavedFileStatus]       # P-Public or I-Internal
+         [-(LC|Location) StorageLocationFlags]
+         [-(DF|DataFormat) DataFormat]            # BINARY, ASCII, NetCDF and etc.
+         [-(AF|ArchiveFormat) FileArchiveFormat]  # tarred, compressed and etc. 
+         [-(DO|DisplayOrder] DisplayOrderIndices]
+         [-(SZ|Size) FileSizes]
+         [-(MC|MD5Checksum) MD5ChecksumValues]
+         [-(DE|Description] SavedFileDescriptions]
+         [-(VS|ValidSize) MinSizeForValidFile]
+         [-(LN|LoginName) LoginAccountName]
+         [-(AL|AsyncLimit) AsyncProcessLimit]
+         [-(QS|QsubOptions)  PBSBatchOptions]
+         [-(BP|BatchProcess) [BatchControlInfo]]
+         [-(DD|DeleteDir) DeleteLocalDirLevel]
+         [-(DB|Debug) DebugModeInfo]
+
+  Mode options that can be specified for archive Saved file action:
+    -(BG|BackGround) - background process to turn off screen display for both 
+                       standard outputs and errors
+    -(CL|CleanLocal) - cleans local files after they are all archived onto
+                       RDA Server successfully
+   -(EM|EMailNotice) - sends email for summary and errors for this action
+       -(GZ|GMTZone) - uses GMT dates/times as controlling times
+ -(KP|KeepLocalPath) - retains the path names of local files as relative paths
+                       to data home directory on RDA Server
+     -(MD|MyDataset) - overrides the default specialist and enables RDADB 
+                       information to be set by any one
+       -(NE|NoEmail) - does not send email to the specialist for failed action
+        -(NT|NoTrim) - skip trimming of spaces and comments from input
+                       values to speed up reading input file(s)
+ -(OE|OverrideExist) - overrides existing Saved files
+    -(RO|ResetOrder) - resets the ordering indices of the list of file names
+                       on RDA Server according to the order they are given per
+                       option -SF. Reordering filelist can be also accomplished
+                       by giving option -ON (-OrderNames), which tells Action
+                       -SS to reorder all the files of given dataset and the
+                       involved groups
+   -(SC|SetChecksum) - evaluates the md5 checksum values for data files on
+                       RDA Server and saves them into RDADB
+     -(UZ|UpzipData) - uncompresses online data with one of the uncompressing 
+                       utilities,  'gunzip', 'uncompress', 'unzip' or 'bunzip',
+                       according to the file name extensions of ".gz', '.Z',
+                       '.zip' or '.bz2', respectively
+     -(XC|CrossCopy) - copies files from existing Saved/Object data files
+                       to missing Object/Saved files; information of the Saved
+                       files in RDADB is used for missing data copies
+     -(XM|CrossMove) - moves files from existing Saved/Object data files
+                       to missing Object/Saved files; information of the Saved
+                       files in RDADB is used for missing data copies
+       -(ZD|ZipData) - compresses online data with one of the compressing 
+                       utilities,  'gzip', 'compress', 'zip' or 'bzip',
+                       according to the archiving format 'GZ', 'Z', 'ZIP' or
+                       'BZ2' provided per option -AF (-ARchiveFormat),
+                       respectively
+
+  One or multiple local file names can be provided per option -LF (-LocalFile) 
+  for this action to work. If option -LF is given on command line, '*' and '?'
+  can be used in local file names for wildcard match. File names must include
+  relative or absolute paths if local data files are not located in the
+  directory where 'dsarch' is started. The local file names are gathered
+  recursively following the sub-directory tree if a local directory per Info
+  option -LD (-LocalDirectory) is present.
+
+  Local file names are used as default for Saved file names unless they are
+  explicitly given per option -SF (-SavedFile). Local files are archived onto 
+  Saved Server under the dataset home directory as default, unless relative or
+  absolute paths are given per option -SP (-SavedPath) or Web path information for
+  the given dataset, and groups if specified, previously saved in RDADB. The
+  original local file names, including paths, are used if Mode option -KP
+  (-KeepLocalPath) is specified. Option -SP is not allowed if Mode option -KP
+  is given. 
+
+  Group information for data files to be archived are given per option -GI
+  (-GroupIndex) or -GN (-GroupName). Pattern matching is used for identify a
+  group index for a given Web file if group index is not given explicitly, and
+  the file record not exists in RDADB yet or Info option -PO (-PatternOffset)
+  if present. The Web or local file name is matched against group pattern values
+  that are previously saved in group records via Action -SG (-SetGroup). If no
+  group index is provided and no group pattern matching, an index value of 0
+  is defaulted for a data file to indicate no group.
+
+  The number of values passed in per Info options must be the same as the number
+  of local file names provided, except for the Info options that are allowed to
+  pass in single values, such as options -GI (-GroupIndex), -DF (-DataFormat),
+  -AF (-ArchiveFormat), -ST (-SavedFileType), and -SP (-SavedPath). If a signle
+  group index is provided for multiple given local file names, the group index
+  is shared by all the given data files.
+
+  The location flag is provided via option -LC (-Location). The defualt value
+  is 'G' for archiving a saved file onto Glade Disk only.
+
+3.4.10 Archive Web Files
+  -AW or -ArchiveWebFile (Alias: -ArchiveWeb|-ArchWeb|-ArchWebFile), archives
+  local data files onto RDA Server and saves information of the archived files
+  into RDADB for a given dataset. One or multiple local files can be archived
+  each time.
+
+  dsarch [-(DS|dataset)] dsnnn.n -(AW|ArchiveWebFile) [Mode Options]
+         [-(LF|LocalFile) LocalFileNames]  # mandatory unless -LD or -LL present
+         [-(LD|LocalDirectory) LocalDirectoryName]  # directory for local file names
+         [-(LL|LocalFileList) LocalFileListName]  # contains a list of local file names
+         [-(WF|WebFile) webFileNames]      # default to -LF
+         [-(GI|GroupIndex) GroupIndices]
+         [-(TG|TopGroupIndex) TopGroupIndices]
+         [-(GN|GroupName) GroupNames]
+         [-(PO|PatternOffset) PatternStringOffset]
+         [-(WT|WebFileType) WebFileTypes]  # Data, Ncar Data
+         [-(FS|FileStatus) WebFileStatus]  # P-Public or I-Internal
+         [-(LC|Location) StorageLocationFlags]
+         [-(DF|DataFormat) DataFormat]     # BINARY, ASCII, NetCDF and etc.
+         [-(AF|ArchiveFormat) FileArchiveFormat]  # tarred, compressed and etc. 
+         [-(DO|DisplayOrder] DisplayOrderIndices]
+         [-(SZ|Size) FileSizes]
+         [-(MC|MD5Checksum) MD5ChecksumValues]
+         [-(DE|Description] WebFileDescriptions]
+         [-(VS|ValidSize) MinSizeForValidFile]
+         [-(LN|LoginName) LoginAccountName]
+         [-(AL|AsyncLimit) AsyncProcessLimit]
+         [-(QS|QsubOptions)  PBSBatchOptions]
+         [-(BP|BatchProcess) [BatchControlInfo]]
+         [-(DD|DeleteDir) DeleteLocalDirLevel]
+         [-(DB|Debug) DebugModeInfo]
+
+  Mode options that can be specified for archive web file action:
+    -(BG|BackGround) - background process to turn off screen display for both 
+                       standard outputs and errors
+    -(CL|CleanLocal) - cleans local files after they are all archived onto
+                       RDA Server successfully
+   -(EM|EMailNotice) - sends email for summary and errors for this action
+     -(GX|GatherXML) - evaluates file content metadata from local file
+                       directly by calling 'gatherxml'
+       -(GZ|GMTZone) - uses GMT dates/times as controlling times
+ -(KP|KeepLocalPath) - retains the path names of local files as relative paths
+                       to data home directory on RDA Server
+     -(MD|MyDataset) - overrides the default specialist and enables RDADB 
+                       information to be set by any one
+       -(NE|NoEmail) - does not send email to the specialist for failed action
+        -(NT|NoTrim) - skip trimming of spaces and comments from input
+                       values to speed up reading input file(s)
+ -(OE|OverrideExist) - overrides existing web files
+    -(RO|ResetOrder) - resets the ordering indices of the list of file names
+                       on RDA Server according to the order they are given per
+                       option -SF. Reordering filelist can be also accomplished
+                       by giving option -ON (-OrderNames), which tells Action
+                       -SS to reorder all the files of given dataset and the
+                       involved groups
+   -(SC|SetChecksum) - evaluates the md5 checksum values for data files on
+                       Saved Server and saves them into RDADB
+     -(UZ|UpzipData) - uncompresses online data with one of the uncompressing 
+                       utilities,  'gunzip', 'uncompress', 'unzip' or 'bunzip',
+                       according to the file name extensions of ".gz', '.Z',
+                       '.zip' or '.bz2', respectively
+     -(XC|CrossCopy) - copies files from existing web/Object data files
+                       to missing Object/Web files; information of the Web files
+                       saved in RDADB is used for missing data copies
+     -(XM|CrossMove) - moves files from existing web/Object data files
+                       to missing Object/Web files; information of the Web files
+                       saved in RDADB is used for missing data copies
+       -(ZD|ZipData) - compresses online data with one of the compressing 
+                       utilities,  'gzip', 'compress', 'zip' or 'bzip',
+                       according to the archiving format 'GZ', 'Z', 'ZIP' or
+                       'BZ2' provided per option -AF (-ARchiveFormat),
+                       respectively
+
+  One or multiple local file names can be provided per option -LF (-LocalFile) 
+  for this action to work. If option -LF is given on command line, '*' and '?'
+  can be used in local file names for wildcard match. File names must include
+  relative or absolute paths if local data files are not located in the
+  directory where 'dsarch' is started. The local file names are gathered
+  recursively following the sub-directory tree if a local directory per Info
+  option -LD (-LocalDirectory) is present.
+
+  Local file names are used as default for Web file names unless they are
+  explicitly given per option -WF (-WebFile). Local files are archived onto 
+  RDA Server under the dataset home directory as default, unless relative or
+  absolute paths are given per option -WP (-WebPath) or Web path information for
+  the given dataset, and groups if specified, previously saved in RDADB. The
+  original local file names, including paths, are used if Mode option -KP
+  (-KeepLocalPath) is specified. Option -WP is not allowed if Mode option -KP
+  is given. 
+
+  Group information for data files to be archived are given per option -GI
+  (-GroupIndex) or -GN (-GroupName). Pattern matching is used for identify a
+  group index for a given Web file if group index is not given explicitly, and
+  the file record not exists in RDADB yet or Info option -PO (-PatternOffset)
+  if present. The Web or local file name is matched against group pattern values
+  that are previously saved in group records via Action -SG (-SetGroup). If no
+  group index is provided and no group pattern matching, an index value of 0
+  is defaulted for a data file to indicate no group.
+
+  A web file can be archived as either P (public) or I (internal) for any data type
+  as D (data) or N (ncar data). For a Web file is archived to be under an Internal
+  group, its status is automatically forced to I.
+
+  The number of values passed in per Info options must be the same as the number
+  of local file names provided, except for the Info options that are allowed to
+  pass in single values, such as options -GI (-GroupIndex), -DF (-DataFormat),
+  -AF (-ArchiveFormat), -WT (-WebFileType), and -WP (-WebPath). If a single
+  group index is provided for multiple given local file names, the group index
+  is shared by all the given data files.
+
+  The location flag is provided via option -LC (-Location). The defualt value
+  is 'G' for archiving a web file onto Glade Disk only.
+
+3.4.11 Archive Help Files
+  -AH or -ArchiveHelpFile (Alias: -ArchiveHelp|-ArchHelp|-ArchHelpFile),
+  archives local files as files and saved information of the archived files
+  into RDADB for a given dataset. One or multiple local files can be archived
+  each time.
+
+  dsarch [-(DS|dataset)] dsnnn.n -(AH|ArchiveHelpFile) [Mode Options]
+         -(LF|LocalFile) LocalFileNames
+         [-(HF|HelpFile) HelpFileNames]            # default to -LF
+         [-(HT|HelpFileType) HelpFileTypes]
+         [-(FS|FileStatus) HelpFileStatus]         # P-Public or I-Internal
+         [-(DF|DataFormat) FileContentFormat]      # PDF, Python and etc.
+         [-(AF|ArchiveFormat) FileArchiveFormat]   # tarred, compressed and etc. 
+         [-(DO|DisplayOrder] DisplayOrderIndices]
+         [-(SZ|Size) FileSizes]
+         [-(LC|Location) StorageLocationFlags]
+         [-(MC|MD5Checksum) MD5ChecksumValues]
+         [-(DE|Description] SavedFileDescriptions]
+         [-(VS|ValidSize) MinSizeForValidFile]
+         [-(LN|LoginName) LoginAccountName]
+         [-(QS|QsubOptions)  PBSBatchOptions]
+         [-(BP|BatchProcess) [BatchControlInfo]]
+         [-(DD|DeleteDir) DeleteLocalDirLevel]
+         [-(DB|Debug) DebugModeInfo]
+
+  Mode options that can be specified for archive help file action:
+    -(BG|BackGround) - background process to turn off screen display for both 
+                       standard outputs and errors
+    -(CL|CleanLocal) - cleans local files after they are all archived onto
+                       RDA Web Server successfully
+   -(EM|EMailNotice) - sends email for summary and errors for this action
+       -(GZ|GMTZone) - uses GMT dates/times as controlling times
+ -(KP|KeepLocalPath) - retains the path names of local files as relative paths
+                       to data home directory on RDA Server
+     -(MD|MyDataset) - overrides the default specialist and enables RDADB 
+                       information to be set by any one
+       -(NE|NoEmail) - does not send email to the specialist for failed action
+        -(NT|NoTrim) - skip trimming of spaces and comments from input
+                       values to speed up reading input file(s)
+ -(OE|OverrideExist) - overrides existing web files
+    -(RO|ResetOrder) - resets the ordering indices of the list of file names
+                       on RDA Server according to the order they are given per
+                       option -HF. Reordering filelist can be also accomplished
+                       by giving option -ON (-OrderNames), which tells Action
+                       -SH to reorder all the files of given dataset and the
+                       involved groups
+   -(SC|SetChecksum) - evaluates the md5 checksum values for the help files
+                       and saves them into RDADB
+
+  One or multiple local file names can be provided per option -LF (-LocalFile) 
+  for this action to work. If option -LF is given on command line, '*' and '?'
+  can be used in local file names for wildcard match. File names must include
+  relative or absolute paths if local data files are not located in the
+  directory where 'dsarch' is started. The local file names are gathered
+  recursively following the sub-directory tree if a local directory per Info
+  option -LD (-LocalDirectory) is present.
+
+  Local file names are used as default for Saved file names unless they are
+  explicitly given per option -SF (-SavedFile). The original local file names,
+  including paths, are used if Mode option -KP (-KeepLocalPath) is specified.
+
+  The number of values passed in per Info options must be the same as the number
+  of local file names provided, except for the Info options that are allowed to
+  pass in single values, such as options -DF (-DataFormat), -AF (-ArchiveFormat),
+  and -HT (-HelpFileType).
+
+  The location flag is provided via option -LC (-Location). The defualt value
+  is 'B' for archiving a help file onto both Web Disk and Object Store.
+
+3.4.12 Backup Quasar Files
+  -AQ or -ArchiveQuasarFile (Alias: -ArchiveQuasar|-ArchiveBackupFile|-ArchiveBackup),
+  backs the archived saved and/or Web files up onto Globus Quasar Servers and saves
+  their information into RDADB. All the provided saved and/or web files are backed
+  up into a single Quasar backup file at a time. Another utility program, dsquasar,
+  is normally used to check and collect the newly archived saved and web files.
+  The dsquasar builds input files between 1 and 3 GB, and then call the dsarch to
+  build a tarfile and back the tar file onto Quasar server. Reference to dsquasar
+  help document for detail information.
+
+  dsarch [-(DS|dataset)] dsnnn.n -(AQ|ArchiveQuasarFile) [Mode Options]
+         [-(SF|SavedFile) SavedFileNames]
+         [-(ST|SavedFileType) SavedFileTypes]
+         [-(WF|WebFile) webFileNames]
+         [-(WT|WebFileType) WebFileTypes]
+         [-(LN|LoginName) LoginAccountName]
+         [-(QS|QsubOptions)  PBSBatchOptions]
+         [-(BP|BatchProcess) [BatchControlInfo]]
+         [-(DB|Debug) DebugModeInfo]
+
+  Mode options that can be specified for archive web file action:
+    -(BG|BackGround) - background process to turn off screen display for both 
+                       standard outputs and errors
+   -(EM|EMailNotice) - sends email for summary and errors for this action
+     -(MD|MyDataset) - overrides the default specialist and enables RDADB 
+                       information to be set by any one
+       -(NE|NoEmail) - does not send email to the specialist for failed action
+        -(NT|NoTrim) - skip trimming of spaces and comments from input
+                       values to speed up reading input file(s)
+ -(OE|OverrideExist) - overrides existing web files
+       -(TO|TarOnly) - to tar the given Saved and/or Web files only, without physically
+                       backing up the Quasar file onto the Globus Quasar Server.
+     -(XC|CrossCopy) - copies files from existing Quasar Backup and Disaster Recovery
+                       files to missing Backup/Drdata files; information of the quasar
+                       backup files saved in RDADB is used for missing data copies
+
+  One or multiple Saved/Web file names can be provided per option -SF/-WF,
+  respectively, and for this action to work.
+
+
+3.4.13 Restore Quasar Files
+  -RQ or -RestoreQuasarFile (Alias: -RestoreQuasar|RestoreBackupfile|-RestoreBackup),
+  identifies Quasar files from given saved and/or Web files, retrieves the tarfiles from
+  Globus Quasar Server, and restores the Saved and/or Web files if any missed.
+
+  dsarch [-(DS|dataset)] dsnnn.n -(RQ|RestoreQuasarFile) [Mode Options]
+         [-(QF|QuasarFile) QuasarFileNames]
+         [-(SF|SavedFile) SavedFileNames]
+         [-(ST|SavedFileType) SavedFileTypes]
+         [-(WF|WebFile) webFileNames]
+         [-(WT|WebFileType) WebFileTypes]
+         [-(LN|LoginName) LoginAccountName]
+         [-(QS|QsubOptions)  PBSBatchOptions]
+         [-(BP|BatchProcess) [BatchControlInfo]]
+         [-(DB|Debug) DebugModeInfo]
+
+  Mode options that can be specified for archive web file action:
+    -(BG|BackGround) - background process to turn off screen display for both 
+                       standard outputs and errors
+   -(EM|EMailNotice) - sends email for summary and errors for this action
+     -(MD|MyDataset) - overrides the default specialist and enables RDADB 
+                       information to be set by any one
+       -(NE|NoEmail) - does not send email to the specialist for failed action
+        -(NT|NoTrim) - skip trimming of spaces and comments from input
+                       values to speed up reading input file(s)
+
+  One or multiple Quasar/Saved/Web file names can be provided per option -QF-SF/-WF,
+  for this action to work. If Only Quasar file names are provided, the quasar tarfiles
+  are retrieved from quasar Server, but no Saved or Web files are retored.
+
+
+3.4.14 Move Saved/Web/Help/Quasar Files
+  -MV or -MoveFile, moves files archived on RDA Server from an original dataset
+  per option -OD (-OriginDataset) to a different dataset per option -DS (-Dataset),
+  or from one group to another in the same dataset, or just simply to different
+  file names. One or multiple files can be moved each time.
+  
+  If, after moved, a file name, including path, is different from its original name,
+  the original name is recorded in RDADB with link to the new data file name.
+  
+  Files can be moved cross servers between Web and Saved files if Mode options -TS
+  (-ToSaved) or -TW (-ToWeb).
+
+  dsarch [-(DS|Dataset)] dsnnn.n -(MV|MoveFile) [Mode Options]
+         [-(OD|OriginDataset) OriginalDataset]
+         [-(RF|OriginFile) OriginalSavedFileNames]
+          -(SF|SavedFile) SavedFileNames
+         [-(OG|OriginGroup) OriginalGroupIndices]
+         [-(GI|GroupIndex) NewGroupIndices]
+         [-(OT|OriginType) OriginalFileTypes]
+         [-(ST|SavedFileType) NewSavedFileTypes]
+         [-(LC|Location) StorageLocationFlags]
+         [-(DD|DeleteDir) DeleteDirLevel]
+         [-(LN|LoginName) LoginAccountName]
+         [-(DB|Debug) DebugModeInfo]
+
+      or
+
+  dsarch [-(DS|Dataset)] dsnnn.n -(MV|MoveFile) [Mode Options]
+         [-(OD|OriginDataset) OriginalDataset]
+         [-(RF|OriginFile) OriginalWebFileNames]
+          -(WF|WebFile) WebFileNames
+         [-(OG|OriginGroup) OriginalGroupIndices]
+         [-(GI|GroupIndex) NewGroupIndices]
+         [-(OT|OriginType) OriginalFileTypes]
+         [-(WT|WebFileType) NewWebFileTypes]
+         [-(LC|Location) StorageLocationFlags]
+         [-(DD|DeleteDir) DeleteDirLevel]
+         [-(LN|LoginName) LoginAccountName]
+         [-(DB|Debug) DebugModeInfo]
+
+      or
+
+  dsarch [-(DS|Dataset)] dsnnn.n -(MV|MoveFile) [Mode Options]
+         [-(OD|OriginDataset) OriginalDataset]
+         [-(RF|OriginFile) OriginalHelpFileNames]
+          -(HF|HelpFile) HelpFileNames
+         [-(OT|OriginType) OriginalFileTypes]
+         [-(HT|HelpFileType) NewHelpFileTypes]
+         [-(LC|Location) StorageLocationFlags]
+         [-(DD|DeleteDir) DeleteDirLevel]
+         [-(LN|LoginName) LoginAccountName]
+         [-(DB|Debug) DebugModeInfo]
+
+      or
+
+  dsarch [-(DS|Dataset)] dsnnn.n -(MV|MoveFile) [Mode Options]
+         [-(OD|OriginDataset) OriginalDataset]
+         [-(RF|OriginFile) OriginalQuasarFileNames]
+          -(QF|QuasarFile) QuasarFileNames
+         [-(OT|OriginType) OriginalFileTypes]
+         [-(QT|QuasarFileType) NewQuasarFileTypes]
+         [-(LN|LoginName) LoginAccountName]
+         [-(DB|Debug) DebugModeInfo]
+
+      or
+
+  dsarch [-(DS|Dataset)] dsnnn.n -(MV|MoveFile) [-TS|-TW] [Mode Options]
+         [-(OD|OriginDataset) OriginalDataset]
+         [-(OG|OriginGroup) OriginalGroupIndices]
+         [-(WF|WebFile) WebFileNames]
+         [-(SF|SavedFile) SavedFileNames]
+         [-(GI|GroupIndex) NewGroupIndices]
+         [-(WT|WebFileType) WebFileTypes]
+         [-(ST|SavedFileType) NewSavedFileTypes]
+         [-(LC|Location) StorageLocationFlags]
+         [-(DD|DeleteDir) DeleteDirLevel]
+         [-(LN|LoginName) LoginAccountName]
+         [-(DB|Debug) DebugModeInfo]
+
+
+  Mode options that can be specified for this action:
+      -(MD|MyDataset) - overrides the default specialist and enables RDADB 
+                        information to be set by any one
+         -(NT|NoTrim) - skips trimming of spaces and comments from input
+                        values to speed up reading input file(s)
+        -(NE|NoEmail) - does not send email to the specialist for failed action
+         -(NT|NoTrim) - skip trimming of spaces and comments from input
+                        values to speed up reading input file(s)
+        -(TS|ToSaved) - move Web Files to Saved files
+          -(TW|ToWeb) - move Saved Files to Web files
+   -(KM|KeepMetadata) - works with option -TW to keep the metadata record for later use
+                        after the web file record is moved to savefile
+
+  Use this action to move Saved/Web/Help/Quasar files, Saved File names, Web File Names,
+  Help file names, or Quasar backup file names are provided per option, -SF (-SavedFile),
+  -WF (-WebFile), -HF (-HelpFile), or -QF (-QuasarFile), respectively. It is allowed to
+  move Web to Saved files, or Saved to Web files. A data file is only physically moved
+  if its new and original paths are different. Dataset links for the data files are
+  pointed to the new dataset number. For Saved and Web files, group indices are changed
+  to new ones if specified per option -GI (-GroupIndex).
+
+  If content metadata is gathered for the original Web file, the metadata information
+  is automatically transfered to the new file by cammnd 'rcm'.
+  
+  If a Web file of a dataset under DOI/Version control is moved to a different name,
+  or to a Saved file, its data type is automatically changed to 'V 'as Version
+  controlled type.
+
+
+3.4.15 Delete Saved/Web/Help/Quasar Files
+  -DL or -Delete (Alias: -RM|-Remove|-DeleteFile|-RemoveFile), deletes data
+  files on RDA Servers and their RDADB records.
+
+  dsarch [-(DS|Dataset)] dsnnn.n -(DL|Delete) [Mode Options]
+         [-(SF|SavedFile) SavedFileNames]
+         [-(GI|GroupIndex) GroupIndices]
+          -(ST|SavedFileType) SavedFileTypes
+         [-(DD|DeleteDir) DeleteDirLevel]
+         [-(LN|LoginName) LoginAccountName]
+         [-(DB|Debug) DebugModeInfo]
+
+      or
+
+  dsarch [-(DS|Dataset)] dsnnn.n -(DL|Delete) [Mode Options]
+         [-(WF|WebFile) WebFileNames]
+         [-(GI|GroupIndex) GroupIndices]
+          -(WT|WebFileType) WebFileTypes
+         [-(DD|DeleteDir) DeleteDirLevel]
+         [-(LN|LoginName) LoginAccountName]
+         [-(DB|Debug) DebugModeInfo]
+
+      or
+
+  dsarch [-(DS|Dataset)] dsnnn.n -(DL|Delete) [Mode Options]
+         [-(HF|HelpFile) HelpFileNames]
+          -(HT|HelpFileType) HelpFileTypes
+         [-(DD|DeleteDir) DeleteDirLevel]
+         [-(LN|LoginName) LoginAccountName]
+         [-(DB|Debug) DebugModeInfo]
+
+      or
+
+  dsarch [-(DS|Dataset)] dsnnn.n -(DL|Delete) [Mode Options]
+         [-(QF|QuasarFile) QuasarFileNames]
+          -(HT|HelpFileType) HelpFileTypes
+         [-(DD|DeleteDir) DeleteDirLevel]
+         [-(LN|LoginName) LoginAccountName]
+         [-(DB|Debug) DebugModeInfo]
+
+  Mode options that can be specified for deleting file action:
+     -(DX|DeleteXML) - if present, calling 'dcm' to delete file content metadata
+                       of the Web files to be deleted 
+   -(EM|EMailNotice) - sends email for summary and errors for this action
+     -(MD|MyDataset) - overrides the default specialist and enables RDADB 
+                       information to be set by any one
+       -(NE|NoEmail) - does not send email to the specialist for failed action
+        -(NT|NoTrim) - skip trimming of spaces and comments from input values to
+                       speed up reading input file(s)
+     -(RD|RemoveDir) - removes empty saved or web directories
+
+  Use this action to delete data files on RDA Server. The Saved, Web, Help or Quasar
+  File names are provided per option -SF (-SavedFile), -WF (-WebFile), -HF (-HelpFile),
+  or -QF (-Quasarfile), respectively. 
+  
+  Specify the number of levels of directories via Info option -DD (-DeleteDir) 
+  for the directories to be deleted if Saved or Web files inside them are all
+  deleted.
+
+
+3.5 All Info Actions 
+
+  Information of dataset, groups and data files on RDA Servers can be
+  created, modified and viewed together via actions included in this section:
+  Get All Information - retrieve information of dataset, groups, and files on
+                        RDA Server together for a specified dataset
+  Set All Information - modify information of existing dataset, groups and data
+                        files on RDA Server of a given dataset, and create
+                        new records for groups and data files if they are
+                        not recorded in RDADB yet
+
+3.5.1 Get All Information 
+  -GA or -GetALL, retrieves dataset, group and Saved/Web/Help/Quasar file
+  information for a given dataset. This is a comprehensive action, combining all Get
+  Actions, -GD (-GetDataset), -GG (-GetGroup), -GS (-GetSavedFile), -GW (-GetWebFile),
+  -GH (-GetHelpFile), and -GQ (-GetQuasarFile.
+
+  dsarch [-(DS|dataset)] dsnnn.n -(GA|GetAll)
+         [-(OF|OutputFile|>) OutputFileName] 
+         [-(DB|Debug) DebugModeInfo]
+
+  No Mode option is applied to this action. Information of all available fields
+  is retrieved for dataset, groups and files.
+
+  Section headers are generated as [DATASET] for dataset, [DSGROUP] for
+  groups, [SAVEDFILE] for Saved file information, [WEBFILE] for Web file information,
+  [HELPFILE] for Help file information, and [QUASARFILE] for Quasar file information.
+
+  Info option -OF (-OutputFile|>) is normally used to specify a file name to
+  save the retrieved information for later usage. Result of this action is
+  displayed on screen if no output file is provided. The output file can be
+  edited and treated as a input file to save the changes back to RDADB per
+  action -SA (-SetAll).
+
+3.5.2 Set All Information 
+  -SA or -SetAll, creates and modifies dataset, group and Saved/Web/Help/Quasar
+  file information into RDADB for a given dataset number. This is a comprehensive
+  action, combining all four Set Actions, -SD (-SetDataset), -SG (-SetGroup), -SS
+  (-SetSavedFile), -SW (-SetWebFile), -SH (-SetHelpFile), and -SQ (-SetQuasarFile).
+
+  dsarch  -(SA|SetAll) [Mode Options]
+         [-(LN|LoginName) LoginAccountName]
+          -(IF|InputFile) Input Files 
+         [-(DB|Debug) DebugModeInfo]
+
+  ALL Mode options that can be applied to the Set Actions, -SD, -SG, -SW, -SH
+  and -SQ can be specified for this action. At least one input file is need to
+  execute this action since section headers need to be specified in an input file.
+  One way of creating an input file is to get one per action -GA (-GetALL) for a
+  dataset. The output file can then be edited and used as an input file to set
+  all information of the dataset back to RDADB.
+
+
+3.6 Webpage Actions
+
+  Information changed for dataset/groups/files of a given dataset can be
+  refreshed onto the main and filelist web pages of a given dataset via actions
+  included in this section:  
+  Regenerate Dataset Webpages - regenerate main webpage and try to republish
+                                all the filelists of data on HPSS and RDA Server
+    Increment Of Cache Number - increase the cache control number by 1 for
+                                a specified dataset; therefore, the cached
+                                filelists are refreshed accordingly
+
+3.6.1 Regenerate Dataset Webpages
+  -UW or -UpdateWeb, regenerates main and filelist webpages to catch the
+  changes of dataset/group/file information in RDADB of a given dataset.
+
+  dsarch [-(DS|Dataset)] dsnnn.n -(UW|UpdateWeb)
+         [-(DB|Debug) DebugModeInfo]
+
+  Given a dataset number to refresh its the main and filelist web pages.
+
+  A cache control number of each dataset is increased by 1 each time the
+  changes of dataset/group/file information of the dataset are set into RDADB
+  by 'dsarch'. The new cache number tells webpage utility to refresh the
+  cached group and file information of the dataset. Changes made through other
+  utilities may not modify this cache control number. Specialists can always
+  manually increase this cache number by action -UC (-UpdateCache).
+
+3.6.2 Increment Of Cache Number
+  -UC or -UpdateCache, (alias: -UpdateCacheNumber), increases the cache control number
+  by 1 for a given dataset.
+   
+  dsarch [-(DS|Dataset)] dsnnn.n -(UC|UpdateCache)
+         [-(DB|Debug) DebugModeInfo]
+
+ 
+4 MODE OPTIONS
+
+Use proper Mode options to modify behaviors of Action options. Mode options
+are all optional. No value is allowed to be passed in following any Mode option.
+
+  -BG or -BackGround (Alias: -b), background process. When it presents
+  screen display is turned off for both standard outputs and errors.
+
+  -CL or -CleanLocal (Alias: -CleanLocfile|-CleanLocalFile), when present for
+  archiving actions -AS, or -AW, cleans the local files after they are all archived
+  successfully. If local files are staged temporarily in sub-directories, the
+  sub-directories can be removed too after all the local files are cleaned inside
+  them. Add Info option -DD DirectoryLevel to tell how many level of the local
+  empty directories to be removed.
+
+  -DX or -DeleteXML, if present, calls 'dcm' to delete file content metadata
+  of given Web files for actions -SW (-SetWebFile). This is the default Mode for
+  action -DL (-Delete) of Web files provided via -WF (-WebFile).
+
+  -EM or -EMailNotice, sends an email notice to the specialist who executes the
+  dsarch for certain actions after a action is finished successfully or aborts
+  abnormally. The Actions working with this Mode option include -AS, -AW,, -AH,
+  -AQ, -SS, -SW, -SH, -SQ, -RQ, -MV and -DL. An email notice includes errors
+  happening during the action and a brief summary to show the action progress.
+  This option is ignored if option -d is present.
+
+  Specialists need to be cautious of adding this Mode option to run dsarch.
+  If you run dsarch to archive many files with one at a time, you will receive
+  one email for each file. To make it work better, you include all the files
+  you want to process into a single input file and run dsarch with option -EM
+  against the input file. This way you receive a single email notice instead.
+ 
+  -FO or -FormatOutput, if present, formats column output results for get
+  actions.  A same width, evaluated dynamically, is applied for all values of a
+  given field.
+
+  -GF or -GrowingFile, if present, Action -AW (-ArchiveWebFile) will allow
+  existing Web files being overridden although the data files are
+  under DOI/Version control already. Normally an archived data file can not
+  changed if it is linked to a version control record. This Mode option
+  indicates that the data file is a growing one and needs to be updated.
+  If Action -AW of 'dsarch' is controlled by configuration of 'dsupdt', a
+  growing file is automatically detected and this Mode option is added to the
+  'dsarch' command as needed.
+
+  -GX or -GatherXML (Alias: -Grid2XML), if present, calls 'gatherxml' to 
+  evaluate file content metadata of archived Web files. This is the default
+  Mode for action -MV (-MoveFile) for Web files, to call 'rcm' to move the
+  file content metadata too.
+  
+  -GZ or -GMTZone (Alias: -GMT|GreenwichZone|UTC), uses GMT dates/times as 
+  controlling times for archiving actions, instead of mountain time.
+
+  -KM or -KeepMetadata (Alias: -KeepMeta), for actions -MV (-MoveFile) with
+  option -TS (-ToSaved) to keep the metadata record for later use after
+  the web file is moved to savefile.
+
+  -KP or -KeepPath (Alias: -KeepLocalPath), for actions -AS (-ArchiveSavedFile), -AW
+  (-ArchiveWebFile) and -AH (-ArchiveHelpFile) to archive Saved/Web/Help files with
+  the same file names as the local ones specified by -LF (-LocalFile).  A relative
+  path is reta8ined if it is part of a local file name. Options -SP (-SavedPath)
+  and -WP (-WebPath) are ignored if -KP is given. This Mode option is ignored if
+  Save/Web/Help file names are specified per options -SF (-SavedFile), -WF (-WebFile),
+  and -HF (-HelpFile), respectively.
+  
+  -MD or -MyDataset, allows a specialist to update dataset/group/file
+
+  -NE or -NoEmail, does not send email notice to the specialist for failed action.
+
+  -NT or -NoTrim, skips trimming of spaces and comments from input values to
+  speed up reading input file(s).
+
+  -NV or -NewVersion, adds a new version control record for a specified dataset
+  if this Mode option is present for Action -SV (-SetVersion).
+
+  -OE or -OverrideExist, if present, overrides an existing file.
+
+  -PE or -ShowPeriod, shows period information for dataset, and groups if provided,
+  for action -SD (-SetDataset).
+
+  -RA or -RetryArchive, deprecated, does not do anything.
+
+  -RD or -RemoveDir (Alias: -RemoveDirectory|-RemoveEmptyDir), it works with
+  Actions -DL, -SS and -SW to remove empty directories for a specified dataset,
+  and groups if specified.
+
+  If empty directories are not cleaned after deleting files. Use Actions -SS or
+  -SW with this Mode option, without Saved or Web file names specified, to clean
+  the empty Web or HPSS directories, respectively for a given dataset, and
+  groups if specified.
+
+  -RG or -RecursiveGroup (Alias: -RepeatGroup), when present, gathers subgroups
+  and file information in subgroups recursively for actions -GG (-GetGroup) and
+  -GS/GW (-GetSavedFile/GetWebfile), respectively. Group index must be provided
+  explicitly via Info option -GI (-GroupIndex) for this Mode option to work.
+
+  -RN or -RelativeName, for action -GS (-GetSavedFile) and -GW (-GetWebFile) to
+  show a file name with path relative to the Saved and Web paths set for
+  the dataset or group, respectively.
+
+  -RO or -ResetOrder (Alias: -Reorder), when present, resets the display orders
+  of the given Saved/Web/Help/Quasar file lists as the orders the data files are
+  given for actions -SS (-SetSavedFile), -SW (-SetWebFile), -SH (-SetHelpFile),
+  and -SQ (-SetQuasarFile), respectively. Another way of reordering the data files
+  is to provide explicitly order index values per Info option -DO (-DisplayOrder).
+
+  Specify what fields to order on per option -ON (-OrderNames) to order the
+  files accord for the whole datasets or individual groups.  Check option -ON
+  for examples of ordering Files.
+
+  -RS or -GXRSOptions, works with Mode option -GX (-GatherXML) to pass option
+  R and S to command gatherxml for speeding up.
+
+  -RT or -ResetTIndex (Alias: -ResetTopGroup), for setting actions to reset
+  the top group index for Saved or Web files for dataset, and groups if
+  specified.
+
+  -SC or -SetChecksum, if presents, evaluates the md5 checksum values for data
+  files on RDA Servers and saves them into RDADB
+
+  -TO or -TarOnly, works with Action -AQ (-ArchiveQuasarFile) to tar the given
+  Saved and/or Web files only, without physically backing up the Quasar file
+  onto the Globus Quasar Server.
+
+  -TS or -ToSaved (Alias: -ToSavedFile|-MoveToSaved), when present for Action -MV to
+  move Web files to Saved files.
+
+  -TT or -TotalSummary, when present, gets the statistic summary information
+  for Action options -GS (-GetSavedFile) and -GW (-GetWebFile).
+
+  -TW or -ToWeb (Alias: -ToWebFile|-MoveToWeb), when present for Action -MV to
+  move Saved files to Web files.
+
+  -UZ or -UpzipData (Alias: -Unzip|-UncompressData), uncompresses online data
+  with one of the uncompressing utilities, 'gunzip', 'uncompress', 'unzip'
+  or 'bunzip', according to the file name extensions of ".gz', '.Z', '.zip'
+  or '.bz2', respectively
+
+  -WC or -WithChecksum, when present, checks the MD5 checksums in addition to
+  the data file sizes for online data files on RDA Server.
+
+  -WM or -WithMetadata, for setting actions to reset the dataset/group level
+  content metadata for action -SD/SG (-SetDataset/SetGroup).
+
+  -WN or -WithFileNumber, for setting actions to reevaluate and reset the
+  Saved or Web file counts for dataset, and groups if specified. These file
+  counts can also be viewed for action -GD (-GetDataset) if this Mode option is
+  preset. 
+
+  -XC or -CrossCopy, works with action -AW/-AS to cross copy data files between
+  Web/Saved files on Glade disk and Object files on Object store.
+
+  -XM or -CrossMove, works with action -AW/-AS to cross move data files between
+  Web/Saved files on Glade disk and Object files on Object store. This Mode option
+  is different from -XC that the original files are removed.
+
+  -ZD or -ZipData (Alias: -Zip|-CompressData), when present, Actions -AS
+  (-ArchiveSavedFile) and -AW (-ArchiveWebFile) compress online data with one
+  of the compressing utilities,  'gzip', 'compress', 'zip' and 'bzip', according
+  to the archiving format 'GZ', 'Z', 'ZIP' or 'BZ2' provided per option -AF
+  (-ARchiveFormat), respectively. If the original data files are compressed already,
+  this Mode option is ignored if the same compression, and the files are uncompressed,
+  before compressing, with one of the uncompressing utilities, 'gunzip', 'uncompress',
+  'unzip' or 'bunzip', according to the file name extensions of ".gz', '.Z', '.zip'
+  or '.bz2', respectively.
+
+
+5 INFORMATION OPTIONS
+
+Information options are used to pass information, one or multiple values, into
+'dsarch'. Two types of Info options are used:
+  Single-Value Info Options - pass a single value to 'dsarch'
+   Multi-Value Info Options - pass one or multiple values to 'dsarch'
+
+5.1 Single-Value Info Options
+
+  A single-value Info option is used to pass one value into this application.
+  One value, and one only, must follow a single-value option; otherwise an
+  error message is displayed if no value or more than one value passed in.
+
+  -AL or -AsyncLimit (Alias: -AsynchronousLimit), provides a value of the
+  maximum number of background processes for 'cp' and 'gatherxml' calls. This
+  option is ignored for PBS batch jobs.
+
+  -AO or -ActionOption (Alias: -ActOption), provides an ending sign to idicate
+  the leading option is a Action or Mode option. It is defaults to '<!>'.
+
+  -BL or -ButtonLimit, controlling limit of available file count in filelist
+  to show click buttons for download scripts. The default number is 2.
+
+  -DD or -DeleteDir (Alias: -DeleteDirLevel|-DeleteEmptyDir), it works with
+  Actions -DL (-Delete) or -MV (-MoveFile) for removing how many level of
+  empty directories after all files inside are deleted or moved. It works
+  with Mode option -CL too for Actions -AS and -AW to remove empty local
+  directories after the local files inside of them are all cleaned.
+
+  -DS or -Dataset, for a dataset number, or called dataset ID in form as
+  [a-z]NNNNNN. It is mandatory for most actions.
+
+  -DV or -Divider (Alias: -Delimiter, -Separator),  delimiter for separating
+  columns of multi-value Info options in input files. It is default to '<:>'.
+
+  -ES or -EqualSign, for an equal sign of assigning one value to either a
+  single-value option or multi-value option in input files. It is defaulted
+  to '<=>'.
+
+  -FL or -FileLimit (Alias: -FilecountLimit), sets limit for how many files
+  can be displayed on a single web page of static filelists. Files from
+  multiple groups may be displayed on a single page if the total file count
+  is lower than this limit, while files from a single group may be split into
+  sub-filelists if the file count is beyond this limit. It defaults to 2000
+  and specialists can reset it to a different value for a specified dataset
+  via Action -SD (-SetDataset).
+
+  -FN or -FieldNames, for a string of single letter field names. Values of
+  the selected fields are retrieved per actions -GD (-GetDataset),
+  -GG (-GetGroup), -GS (-GetSavedFile), -GW (-GetWebFile), -GH (-GetHelpFile),
+  and -GQ (-GetQuasarFile). Values of default fields are retrieved according
+  to what GET action is specified. Valid field names are listed in corresponding
+  Get action sections.
+
+  -LD or -LocalDirectory, provides a single local directory, file names under
+  the directory, and the sub-directories recursively if any, are all collected
+  as local files
+
+  -LL or -LocalFileList, provides a single file name and the file holds a list of
+  file names, one file name on each line. These file names are used as the local
+  file names
+
+  -LN or -LoginName, login name of the current user; it defaults to the current
+  login DECS specialist who starts execution of 'dsarch'. Set this option if you
+  try to run this utility for a specialist other than yourself. Normally this
+  is set when this application is started by a daemon or as a cron job. Be
+  careful of using this option since it might override the currently information
+  of dataset/groups/files saved by other specialists in RDADB.
+
+  -OF or -OutputFile, leading an output file name into which the output result
+  of this application is dumped. Output file format is similar to the format of
+  the input files. If this option is not given, the result is displayed on
+  screen.
+ 
+  -ON or -OrderNames, for a string of single letter field names use to order
+  the results of GET actions, -GG (-GetGroup), -GS (-GetSavedFile), -GW
+  (-GetWebFile), -GH (-GetHelpFile), and -GQ (-GetQuasarFile). Upper case is
+  for Ascending order while lower case is for Descending order. This option also
+  force reordering of files in individual groups if any file information is modified
+  per Action options -AS (-ArchiveSavedFile), -AW (-ARchiveWebFile), -SS
+  (-SetSavedFile), -SW (-SetWebFile), -DL (-DeleteFile) and -MV (MoveFile).
+
+  Web filelists of specified dataset and groups can also be accomplished per
+  Action -SW (-SetWebFile) with presenting option -ON, as
+
+  dsarch dsnnn.n -SW -ON OrderNameString [-GI GroupIndices]
+  
+  Without specified group indices, all the files within or without groups
+  will all be reordered.
+
+  -PO or -PatternOffset, given for string offset of pattern matches while
+  assigning group indices to given Saved or Web files by matches the file
+  names to given group wildcard patterns for file set/archive actions.
+  This is a mandatory Info option for matching group indices of files recorded
+  in RDADB already. A binary search is used for pattern matching if an value of
+  >= 0 is provided; while a simple linear search is used if a value of -1 is
+  provided. Value of -1 is defaulted if this option is not provided for matching
+  group index for a file that is not recorded in RDADB yet.
+
+  -QS or -QsubOptions, (Alias: -PBSOptions), specifies options to execute dsarch
+  as a batch job via qsub on PBS nodes. The qsub options must be quoted when prsented
+  on command line, such as, -QS '-l walltime=12:00:00'.
+  
+  -AO or -ActOption,  for setting Action and Mode options in input files. It is
+  default to '<!>'.
+
+  -UD or -UseDSARCH (Alias: -UseRDADB), for flag of using DSARCH to control the
+  given dataset. A value out of 'N', 'Y', 'I', 'P', or 'W' is saved in RDADB
+  for a given dataset per action -SD (-SetDataset). A value other than 'N', at
+  least 'Y', must be set for a dataset before it can manipulated by 'dsarch'.
+  'Y' means the the dataset is ready to be modified by 'dsarch'.  'I', 'P',
+  and 'W' mean that the dataset/group/file information of the specified dataset
+  is ready to be published to web server for internal only, publicly, and Web
+  file list only, correspondingly.
+
+  -VS or -ValidSize, a minimal size for a file to be valid for archiving process.
+  It defaults to 100 bytes and can be reset on command line with the update actions.
+
+  -WI or -WaitInterval, it works for the background processes. When the number of
+  background processes reaches the process limit, this option value tells 'dsarch'
+  to wait this period of time before checking if any background process is finish,
+  so that a new background process can be started for next waiting one.
+  
+  It can be provided to set a different wait interval, such as Second, Minute,
+  Hour or Day. For example, '-WI 5M' is for 5 minutes. A digital value only
+  assumes a unit of Second, and '-WI 300' means 300S, for example. 
+
+
+5.2 Multi-Value Info Options
+
+  A multi-value Info option is used to pass multiple values for one Info option
+  into 'dsarch'. At lease one value must follow each multi-value option.
+
+  -AF or -ArchiveFormat (Alias: -FF|-FileFormat|-ExternalFormat), for file
+  archiving formats of data files being archived onto RDA Servers. The file
+  archive format indicates post process of a data file. Option values, 'BI' -
+  binary blocked, 'C1' or 'CH' - ASCII/character blocked, can be passed
+  in for COS block information of data files; 'TAR' means a tarred file, 'Z'
+  means a compressed file and 'GZ' means a gzipped file, and 'BZ2' means a file
+  is compressed via bzip2. 'C1.TAR.GZ', for example, means a file is COS ASCII
+  blocked and then tarred and then gzipped; the order is important. The maximum
+  length of format string is 10. Additional characters are truncated for length
+  longer than 10. 
+
+  -BD or -BeginDate, for begin date of data files of a given group or the whole
+  dataset, or begin date of a version control record.
+
+  -BF or -BackupFlag, flags set in Datasets and/or groups to control Quasar
+  auto-backup activities; N-No auto-backup (default value for Datasets),
+  B-auto-Backup onto Quasar backup endpoint, D-auto-Backup onto Quasar backup&drdata
+  endpoints, P-the same Backup flags set in parent groups (default values in groups,
+  and parent group index 0 means to follow flags in datasets).
+
+  -BP or -BatchProcess (Alias: -d, -DelayedMode), delayed mode execution. When
+  it presents, the 'dsarch' command is not executed right way, but the command
+  information is recorded into RDADB instead and the command is executed later
+  by the centralized daemon 'dscheck'. One or multiple host names can be specified
+  after option -BP to force the 'dsarch' command be executed on or not on the hosts.
+  For examples, '-d rda-data' to run on host 'rda-data'; '-d rda-data:rda-web-prod'
+  to run on hosts 'rda-data' and 'rda-web-prod'; and '-d \!rda-web-prod:rda-data'
+  to run on all configured hosts other than 'rda-web-prod' and 'rda-data'. Character
+  '!' needs to be escaped for passing in on command line. A upper limit for number
+  of tries can also be passed in with this options, 1 to 99, as '-d 5' for example.
+  It default to 2 for command of 'dsarch' if not specified. And also dsarch actions,
+  -(AS|AW|AH|AQ), will be restarted automatically when this option is present, if
+  the previous processes are failed due to storage system downs. 
+
+  -BS or -BackupStatus, Quasar Backup File status, a single letter status flag,
+  A - files are backed up onto Globus Quasar servers; T - the backup tar files
+  are generated, waiting to be archived; and N - backup file records and input
+  files for Web/Saved file lists are created, waiting to be tarred. 
+ 
+  -BT or -BeginTime, for begin time of data files of a given group or the whole
+  dataset, or begin time of a version control record.
+
+  -DB or -Debug, to turn on debug mode with specified information. This option
+  provides up to 3 values, they are Debug Level, debug log file path and debug
+  log file name. The debug level is mandatory for this option. It can be a
+  single integer value, for example, 1000 means to log debug messages for debug
+  levels 1 to 1000; or a range of values, for example, 200-1000 means to log
+  debug messages from debug levels 200 to 1000. The default debug file path is
+  '$DECSHOME}/dssdb/log' and the default debug file name is 'mydss.dbg'. Provides
+  the second and third values for this option to override the default ones
+  respectively.
+
+  -DE or -Description (Alias: -Desc|-Note|-FileDesc|-FileDescription), for file
+  descriptions of data files. Multiple lines are allowed for a description if it is
+  passed in from an input file specified by Info option -IF (-InputFile). On
+  commandline, a single line description with spaces between words must be quoted
+  in 'single quotes'. It presents a version control note if it is used with
+  version control Actions.
+
+  -DF or -DataFormat (Alias: -TF|-ContentFormat|-InternalFormat), data content
+  format of files being archived onto RDA Servers. This is content format of data
+  files. For examples, NetCDF, IMMA and etc.
+  
+  A default data format can be set for a given dataset. It is used for archive
+  actions when the data format is not provided explicitly. 
+
+  -DN or -DOINumber (Alias: -DOI|-DOIName), for DOI, a Digital Object
+  Identification, of a given dataset for public users to reference against.
+
+  -DO or -DisplayOrder, for display order indices of files of a given group,
+  or of the whole dataset if no groups are set for the dataset. This Info option
+  is ignored if Mode option -RO (-Reorder) is present.
+
+  -ED or -EndDate, for end date of data files of a given group or the whole
+  dataset, or end date of a version control record when it is terminated.
+
+  -ET or -EndTime, for end time of data files of a given group or the whole
+  dataset, or end time of a version control record when it is terminated.
+
+  -EV or -ExternalVerion, external version number. It is only used if a public
+  version number is used for a dataset; otherwise it is defaulted to empty.
+
+  -FD or -FileDate, for date of a data file last modified on. 
+
+  -FS or -FileStatus, File status, a single letter status flag, P - show file
+  to public users; and I - to show file to specialist only.
+ 
+  -FT or -FileTime, for time of a data file last modified at.
+
+  -GI or -GroupIndex, for group indices. This is considered only if a dataset
+  is divided further into groups. To make the grouping works, run this
+  utility program with action -SG (-SetGroup) for a given dataset before
+  archiving files to the dataset. Valid group index values are 1, 2, 3, ....,
+  while 0 means no group which is the default index value.
+
+  If this option is omitted for file archiving options -AS or -AW of a dataset
+  with groups, pattern matching logic is automatically processed; a group index
+  is determined by matching the local file name to group patterns previously
+  saved in RDADB. 
+
+  -GL or -GroupLevel, number of group/subgroup levels to be displayed in the
+  group lists. It defaults to 2. Set it to -2 to display one level initially
+  but the group list can be expanded up to 2 levels if the subgroups exist.
+
+  -GN or -GroupName (Alias: -GroupID), a short string, up to 20 characters, for
+  group ID name. Group names can be set into RDADB for a given dataset per
+  action -SG (-SetGroup). If set, they can be provided per this option to
+  identify group indices, and in addition, they are displayed on webpages of
+  Web filelists instead of group indices.
+  
+  -GP or -GroupPattern, group patterns to match local file names with group
+  indices while archiving Saved or Web files. The group patterns from this
+  option are saved into RDADB for specified groups of a given dataset per
+  action -SG (-SetGroup).
+
+  -GT or -GroupType (Alias: -GroupDataType), set P for Public or I for
+  Internal group types. When a group type is set from P to I, all the public
+  subgroups under it are set to I recursively, and all the public Web files
+  under the groups or its subgroups are set to Internal too.
+
+  -HF or -HelpFile, for Help file names. During Document or software archiving
+  per action -AH (-ArchiveHelpFile), the local file names given by option -LF
+  (-LocalFile) are used as default for the Help file names unless different
+  file names are specified by this option.
+
+  -HT or -HelpFileType (Alias: -HelpType), Help file types,
+  a single letter property flag, D-Document and S-Software. If only one type
+  is passed in, all Help files are assumed to be the same type.
+
+  -ID or -InitialDate, for date of a Help, Document/Software, file last
+  Published/Released on. 
+
+  -IF or -InputFile, for input file names; one or multiple file names may be
+  given on command line. A input file name must start with dataset number as
+  in format of 'dsnnn.n.*' and the dataset number must match the dataset number
+  given per option -DS (-Dataset). This restriction is for prevention that
+  specialists archive data files accidentally into a wrong dataset. Input files
+  are used to hold all valid options and the associated values of Info options
+  that need to be passed in for execution of 'dsarch'.
+
+  In a input file, lines start with sign '#' are considered as comments;
+  Option Names can be given either short, long or alias names. Action and Mode
+  options are given in format of OptionName<!>. Single value Assignment is 
+  given in format of OptionName<=>OptionValue. One option is given on each line.
+  Different setting sign of Action and Mode options can be provided by Info
+  option -AO (-ActOption, default to <!>); and different equal sign of single
+  value assignment can be provided by Info option -ES, (-EqualSign, default to
+  '<=>'). Multi-value assignments can be given in columns delimited with
+  separator specified per option -SP (-Separator, default to '<:>'). It starts
+  with a column title line for multi-value option names and the rest holds
+  values corresponding to each column titles. The value information stops at
+  the end of the file or when a new column name line or another single value
+  assignment appears. If the last column is a multi-line value field, an
+  additional separator must be appended for each line, including the column
+  title line to end lines properly.
+
+  -IV or -InternVerion, internal version index. It is used to indicate a different
+  version of data with minimal changes under the same DOI number. It is defaulted
+  to 1 for a version control record with new created DOI number.
+
+  -KV or -KeyVakue, to set specialist defined key/value pairs via action -SD
+  (-SetDataset). These special key/value pairs can be viewed per option -GD
+  (-GetDataset). Specialists can record key/value pair information for 
+  specified datasets for personal or shared information. A key can be up to
+  40 characters and a value can be up to 128 characters.
+
+  For example, syntax to set a key/value pair of 'test/test it' for d540000 on
+  command line
+
+  dsarch d540000 SD -KV 'test=>test it' 
+
+  and to view this pair
+
+  dsarch d540000 GD -KV test  
+
+  and to view all available key/value pairs
+
+  dsarch d540000 GD -KV all 
+
+  -LC or -Location (Alias: -LocationFlag), Storage localtion flags for CGD data,
+  Web and Saved data files, and Help files, are C-CGD data, G-Glade Disk, O-Object
+  Store, and B-Both Storage Systems. For Help files, an additional flag R is for
+  Remote URL. This flag is also used in dataset table as web online file access
+  location. The valid values are G or O, which mean to access online file on Glade
+  or Object Store, respectively. 
+
+  -LF or -LocalFile (Alias: -LocFile|-SourceFile), for local file names,
+  also called  original or source file names. A local file is a data file that
+  is ready to be archived as Saved, Web or Help file. It is later archived
+  onto RDA servers according to actions -AS (-ArchiveSavedFile), -AW
+  (-ArchiveWebFile) or -AH (-ArchiveHelpFile). UNIX wildcard is acceptable if
+  given on command line to match multiple local file names.  Absolute or
+  relative paths need to be added to the local file names if the data files are
+  not located in the directory where this application is running.
+
+  -MC or -MD5Checksum, providing md5 checksum IDs of of the given data files
+  on RDA Servers.
+
+  -ML or -MetaLink (Alias: -MetadataLink), providing a link to dataset, group or
+  file level content metadata page. This link is normally auto-generated from
+  inside of utility program 'gatherxml', which is triggered when Mode option
+  -GX is present for actions of archiving or setting Web data files.
+
+  Although it is not recommended, specialists are allowed, under certain
+  circumstances, to generate their own detail content meta data and put a link
+  via this option, and it overrides the auto-generated link.
+
+  -ND or -NoteDocument (Alias: -DocumentNote|-DescDocument), for Document
+  descriptions of a given dataset.
+
+  -NI or -NoteInternal (Alias: -InternalNote|-DescInternal|-DI), for internal
+  data descriptions of a given group or the dataset itself.
+
+  -NS or -NoteSoftware (Alias: -SoftwareNote|-DescSoftware), for Software
+  descriptions of a given dataset.
+
+  -NW or -NoteWeb (Alias: -WebNote|-DescWeb|-DW), for descriptions
+  of Web data on RDA Server of a given group or the dataset itself.
+
+  -OB or -OrderBy (Alias: -OrderByPattern), temporal patterns used to order
+  filelist according to the string values of field names specified per
+  option -ON (-OrderNames). 'YYYYmon', for example, means the order should
+  be based on on 4 digit year and three letter lowercase month names as 'jan',
+  'feb', and etc. Check option -ON (-OrderNames) for example of ordering
+  files by temporal patterns.
+
+  -OD or -OriginDataset, for an original dataset number; used for action
+  -MV (-MoveFile).
+
+  -OG or -OriginGroup, for original group indices, used for action -CG 
+  (-ChangeGroup) to change group indices of specified data files of a
+  given dataset. Check option -GI (-GroupIndex) for more information.
+
+  -OT or -OriginType, original web file types. This option is used only
+  for action -MV (-MoveFile) to move files by changing file types.
+
+  -PI or -ParentIndex (Alias: -ParentGroupIndex), for parent group indices.
+  This is considered only if a group is divided further into subgroups. 
+  Subgrouping can continue going down to as many levels as needed.
+
+  -QF or -QuasarFile, for Quasar backup file names. During Quasar backing up
+  per action -AQ (-ArchiveQuasarFile), a quasar file name must be specified
+  by this option.
+
+  -QT or -QuasarFileType (Alias: -QuasarType|-BackupType), Quasar file
+  types, a single letter property flag, B-Quasar Backup only and D-Quasar
+  Backup and Drdata.
+  
+  -RF or -OriginFile, for original Web file names used for action -MV 
+  (-MoveFile) to move data files from one dataset specified by option -OD
+  (-OriginDataset) to a new dataset specified by option -DS (-Dataset).
+  Set this option only when original file names are different from the new
+  ones.
+
+  -SF or -SavedFile, for Saved file names. During Saved data archiving
+  per action -AS (-ArchiveSavedFile), the local file names given by option -LF
+  (-LocalFile) are used as default for the saved file names unless different
+  file names are specified by this option.
+
+  -SP or -SavedPath, for saved file paths relative to the saved data home directory.
+  For action -AS (-ArchiveSavedFile), if this option is not specified, the path
+  values previously saved in RDADB for given dataset, and groups if specified,
+  are used. For action -SG (-SetGroup) and -SD -(-SetDataset), path values given by
+  this option are saved into RDADB for the specified groups and dataset.
+  
+  The group saved paths matching well with groups are important for NCAR internal
+  users to list group/file information on the the data storage disks directly via
+  utility program 'rdals'. One and only one single directory must be assign to a
+  top level group, one additional directory should be appended for each sub-group
+  down. A web path relative to the web data home directory is saved in each group
+  record. In this way, the web path values match exactly the physical directory
+  tree of a specified dataset.
+   
+  -SR or -Source, for source of a Help file contributed from.
+
+  -ST or -SavedFileType (Alias: -SavedType|-SavedArchiveType), Saved file types,
+  a single letter property flag, P-Primary, R-Original, W-Work, S-Scratch, 
+  and V-Version control. If only one type is passed in, all Saved files are
+  assumed to be the same type.
+  
+  -SZ or -Size, for file sizes in bytes. During data archiving the sizes of data
+  files are gathered dynamically from the local files given per option -LF
+  (-LocalFile) unless the sizes are specified by this option otherwise.
+
+  -TG or -TopGroupIndex (Alias: -TopGroup), top group index values for Saved/Web
+  files belong to the top group or its subgroups.
+
+  -TI or -Title, for dataset or group titles. Dataset title is readonly for
+  'dsarch'; use Metadata Editor to modify it. 
+
+  -TL or -ThreddLink, providing a link to file level Thredd Catalog page.
+  Set this value to Y if Thredd Catalog information is gathered for a file.
+
+  -VI or -VersionIndex, version control index to have DOI/Version control on
+  a given dataset.
+
+  -VT or -VersionStatus, version control status, A-Active, P-Pending and H-History.
+
+  -WF or -WebFile, for file names on RDA Servers. During Web data archiving
+  per action -AW (-ArchiveWebFile), the local file names given by option -LF
+  (-LocalFile) are used as default for the Web file names unless different
+  file names are specified by this option.
+
+  -WH or -WebHome, (Alias: -WebDataHome), for web Web data home directory
+  other than the default location. Use -SD -(-SetDataset), to set web data
+  home directory into RDADB for the specified dataset.
+  
+  -WP or -WebPath, for web file paths relative to the Web data home directory. For
+  action -AW (-ArchiveWebFile), if this option is not specified, the path
+  values previously saved in RDADB for given dataset, and groups if specified,
+  are used. For action -SG (-SetGroup) and -SD -(-SetDataset), path values given by
+  this option are saved into RDADB for the specified groups and dataset.
+  
+  The group web paths matching well with groups are important for NCAR internal
+  users to list group/file information on the the data storage disks directly via
+  utility program 'rdals'. One and only one single directory must be assign to a
+  top level group, one additional directory should be appended for each sub-group
+  down. A web path relative to the web data home directory is saved in each group
+  record. In this way, the web path values match exactly the physical directory
+  tree of a specified dataset.
+
+  -WT or -WebFileType (Alias: -WebType|-WebArchiveType), web file types,
+  D-Data and N-NCAR Data. If only one type is passed in, all Saved files are
+  assumed to be the same type.
+
+  -WU or -WebURL (Alias: -URL|-WebAddress), Web URL for a Help file to link it to
+  a remote web server, such as github.com. This option works with Action -SH
+  (-SetHelpFile) to create a remote Document or Software file record in RDADB
+  without local copy on RDA Servers. 
