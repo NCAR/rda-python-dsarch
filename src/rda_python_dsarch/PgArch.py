@@ -736,7 +736,7 @@ def set_localfile_list(cact):
    i = 0
    hi = open(listfile, 'r')
    locfile = hi.realine()
-   while localfile:
+   while locfile:
       locfile = locfile.strip()
       locinfo = PgFile.check_local_file(locfile, chkopt, PgOPT.PGOPT['extlog'])
       if locinfo:
@@ -1396,7 +1396,7 @@ def get_quasar_backfiles(bids):
       if not bids[i]: continue
       if not isinstance(bids[i], int):
          if not re.match(r'^\d+$', bids[i]):
-            bfiles[i] = mssids[i]
+            bfiles[i] = bids[i]
             continue
       pgrec = PgDBI.pgget("bfile", "bfile", "bid = {}".format(bids[i]), PgOPT.PGOPT['extlog'])
       if pgrec:  bfiles[i] = pgrec['bfile']
@@ -1483,7 +1483,7 @@ def gather_delete_files():
       pgrecs = PgDBI.pgmget("sfile", "sfile SF, gindex GI, type ST", get_condition('sfile', "IT"))
    elif 'WT' in PgOPT.params:
       if 'RG' in PgOPT.params: get_subgroups("GW")
-      pgrecs = PgSplit.pgmget_wfile(dsid, "wfile WF, gindex GI, type WT", get_condition('wfile', "IT"))
+      pgrecs = PgSplit.pgmget_wfile(PgOPT.params['DS'], "wfile WF, gindex GI, type WT", get_condition('wfile', "IT"))
 
    if not pgrecs: PgLOG.pglog("No file to delete for given condition", PgOPT.PGOPT['extlog'])
 

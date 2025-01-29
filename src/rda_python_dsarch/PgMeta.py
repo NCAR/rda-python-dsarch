@@ -316,11 +316,11 @@ def record_filenumber(dsid, gindex, act, type, cnt, size):
    if dsid not in GCOUNTS: GCOUNTS[dsid] = {}
    if gindex not in GCOUNTS[dsid]:
       # 0-pms,1-cpm,2-pm,3-mc,4-cdc,5-dc,6-wc,7-ds,8-nc,9-ns,10-sc,11-ss # 12-flag(1-group type is P)
-      GCOUNTS[dsid][gindex] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1]
+      counts = GCOUNTS[dsid][gindex] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1]
       gcnd = "dsid = '{}' AND gindex = {} AND grptype = 'P'".format(dsid, gindex)
       if gindex and not PgDBI.pgget("dsgroup", "", gcnd, PgLOG.LGEREX): counts[12] = 0
-
-   counts = GCOUNTS[dsid][gindex]
+   else:
+      counts = GCOUNTS[dsid][gindex]
    if type and not counts[12]: type = ''
    if act == 1: act = 12  # for all
 

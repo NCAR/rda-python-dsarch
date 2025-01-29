@@ -102,7 +102,7 @@ def start_action(pgname, dsid):
       if 'XC' in PgOPT.params:
          crosscopy_help_files('Copy')
       elif 'XM' in PgOPT.params:
-         crosscopy_Help_files('Move')
+         crosscopy_help_files('Move')
       else:
          archive_help_files()
       if 'CL' in PgOPT.params: PgFile.delete_local_files()
@@ -235,7 +235,7 @@ def start_action(pgname, dsid):
          ALLCNT = len(PgOPT.params['HF'])
          PgArch.cache_group_info(ALLCNT)
          PgArch.get_next_disp_order()   # in case not empty
-         set_HELPfile_info()
+         set_helpfile_info()
       if PgOPT.get_input_info(PgOPT.params['IF'], "SAVEDFILE") and 'SF' in PgOPT.params:
          PgArch.check_enough_options('SS', PgOPT.OPTS['SS'][0])
          ALLCNT = len(PgOPT.params['SF'])
@@ -874,7 +874,7 @@ def archive_saved_files():
          if 'ST' in PgOPT.params and PgOPT.params['ST'][i]:
             type = PgOPT.params['ST'][i]
             if PgOPT.PGOPT['SDTYP'].find(type) < 0:
-               PgLOG.pglog("{}-{}: Invalid Saved file Type '{}' to Archive".format(dsid, afile, s), PgOPT.PGOPT['extlog'])
+               PgLOG.pglog("{}-{}: Invalid Saved file Type '{}' to Archive".format(dsid, sfile, s), PgOPT.PGOPT['extlog'])
                continue
          else:
             PgLOG.pglog("{}-{}: Miss Saved file Type to Archive".format(dsid, sfile), PgOPT.PGOPT['extlog'])
@@ -1181,7 +1181,7 @@ def crosscopy_help_files(aname):
 
    PgOPT.validate_multiple_values(tname, ALLCNT)
    if PgLOG.PGLOG['DSCHECK']:
-      bidx = PgCMd.set_dscheck_fcount(ALLCNT, PgOPT.PGOPT['extlog'])
+      bidx = PgCMD.set_dscheck_fcount(ALLCNT, PgOPT.PGOPT['extlog'])
       if bidx > 0:
          PgLOG.pglog("{} of {} file{} processed for HELP archive".format(bidx, ALLCNT, s), PgOPT.PGOPT['emllog'])
          if bidx == ALLCNT: return
@@ -1340,7 +1340,7 @@ def crosscopy_saved_files(aname):
 
    PgOPT.validate_multiple_values(tname, ALLCNT)
    if PgLOG.PGLOG['DSCHECK']:
-      bidx = PgCMd.set_dscheck_fcount(ALLCNT, PgOPT.PGOPT['extlog'])
+      bidx = PgCMD.set_dscheck_fcount(ALLCNT, PgOPT.PGOPT['extlog'])
       if bidx > 0:
          PgLOG.pglog("{} of {} file{} processed for SAVED archive".format(bidx, ALLCNT, s), PgOPT.PGOPT['emllog'])
          if bidx == ALLCNT: return
@@ -1369,7 +1369,7 @@ def crosscopy_saved_files(aname):
          if 'ST' in PgOPT.params and PgOPT.params['ST'][i]:
             type = PgOPT.params['ST'][i]
             if PgOPT.PGOPT['SDTYP'].find(type) < 0:
-               PgLOG.pglog("{}-{}: Invalid Saved file Type '{}' to Archive".format(dsid, afile, type), PgOPT.PGOPT['emerol'])
+               PgLOG.pglog("{}-{}: Invalid Saved file Type '{}' to Archive".format(dsid, sfile, type), PgOPT.PGOPT['emerol'])
                continue
          else:
             PgLOG.pglog("{}-{}: Miss Saved file Type to Archive".format(dsid, sfile), PgOPT.PGOPT['errlog'])
@@ -1888,7 +1888,7 @@ def restore_backup_webfiles():
          if PgLOG.PGLOG['DSCHECK']:
             PgCMD.set_dscheck_dcount(i, chksize, PgOPT.PGOPT['extlog'])
          if 'EM' in PgOPT.params:
-            PgLOG.PGLOG['PRGMSG'] = "{}/{} of {} web file{} restored/processed".format(acnt, i, ALLCNT, s)
+            PgLOG.PGLOG['PRGMSG'] = "{}/{} of {} web file{} restored/processed".format(wcnt, i, ALLCNT, s)
       wfile = PgOPT.params['WF'][i]
       type = PgOPT.params['WT'][i]
       pgrec = PgSplit.pgget_wfile(dsid, "*", "wfile = '{}' AND type = '{}'".format(wfile, type), PgOPT.PGOPT['extlog'])
@@ -1912,7 +1912,7 @@ def restore_backup_webfiles():
       else:
          tarfile = TARFILES[pgrec['bid']]
          ainfo = get_backup_member_file(pgrec, tarfile, tardir)
-         tarcmd = "tar -xvf {} -C {} {}".format(TARFILES[pgrec['bid']], tardir, wfile)
+         tarcmd = "tar -xvf {} -C {} {}".format(tarfile, tardir, wfile)
          PgLOG.pgsystem(tarcmd, PgOPT.PGOPT['extlog'], 5)
          ainfo = PgFile.check_local_file(afile, 0, PgOPT.PGOPT['extlog'])
          if not ainfo:
@@ -1989,7 +1989,7 @@ def restore_backup_savedfiles():
          if PgLOG.PGLOG['DSCHECK']:
             PgCMD.set_dscheck_dcount(i, chksize, PgOPT.PGOPT['extlog'])
          if 'EM' in PgOPT.params:
-            PgLOG.PGLOG['PRGMSG'] = "{}/{} of {} saved file{} restored/processed".format(acnt, i, ALLCNT, s)
+            PgLOG.PGLOG['PRGMSG'] = "{}/{} of {} saved file{} restored/processed".format(scnt, i, ALLCNT, s)
       sfile = PgOPT.params['SF'][i]
       type = PgOPT.params['ST'][i]
       pgrec = PgDBI.pgget(tname, "*", "sfile = '{}' AND type = '{}' AND {}".format(sfile, type, dcnd), PgOPT.PGOPT['extlog'])
@@ -2011,7 +2011,9 @@ def restore_backup_savedfiles():
       if ainfo:
          PgLOG.pglog(afile + ": File exists already", PgOPT.PGOPT['wrnlog'])
       else:
-         tarcmd = "tar -xvf {} -C {} {}".format(TARFILES[pgrec['bid']], tardir, sfile)
+         tarfile = TARFILES[pgrec['bid']]
+         ainfo = get_backup_member_file(pgrec, tarfile, tardir)
+         tarcmd = "tar -xvf {} -C {} {}".format(tarfile, tardir, sfile)
          PgLOG.pgsystem(tarcmd, PgOPT.PGOPT['extlog'], 5)
          ainfo = PgFile.check_local_file(afile, 0, PgOPT.PGOPT['extlog'])
          if not ainfo:
@@ -2058,7 +2060,7 @@ def crosscopy_backup_files():
 
    PgOPT.validate_multiple_values(tname, ALLCNT)
    if PgLOG.PGLOG['DSCHECK']:
-      bidx = PgCMd.set_dscheck_fcount(ALLCNT, PgOPT.PGOPT['extlog'])
+      bidx = PgCMD.set_dscheck_fcount(ALLCNT, PgOPT.PGOPT['extlog'])
       if bidx > 0:
          PgLOG.pglog("{} of {} file{} processed for Quasar archive".format(bidx, ALLCNT, s), PgOPT.PGOPT['emllog'])
          if bidx == ALLCNT: return
@@ -2078,15 +2080,15 @@ def crosscopy_backup_files():
             if PgLOG.PGLOG['DSCHECK']:
                PgCMD.set_dscheck_dcount(i, chksize, PgOPT.PGOPT['extlog'])
             if 'EM' in PgOPT.params:
-               PgLOG.PGLOG['PRGMSG'] = "{}/{} of {} Quasar file{} archived/processed".format(acnt, i, ALLCNT, s)
+               PgLOG.PGLOG['PRGMSG'] = "{}/{} of {} Quasar file{} archived/processed".format(bcnt, i, ALLCNT, s)
          bfile = PgOPT.params['QF'][i]
          if not (efiles[i] and bfile): continue
          efiles[i] = 0
          (bfile, qfile) = get_backup_filenames(bfile, dsid)
          binfo = "{}-{}".format(dsid, bfile)
-         pgrec = PgDBI.pgget(tname, "*", "{} and bfile = '{}'".format(dcnd, sfile, type), PgOPT.PGOPT['extlog'])
+         pgrec = PgDBI.pgget(tname, "*", "{} and bfile = '{}'".format(dcnd, bfile), PgOPT.PGOPT['extlog'])
          if not pgrec:
-            PgLOG.pglog(sinfo + ": Fail to Cross Copy for Quasar file not in RDADB", PgOPT.PGOPT['emlerr'])
+            PgLOG.pglog(binfo + ": Fail to Cross Copy for Quasar file not in RDADB", PgOPT.PGOPT['emlerr'])
             continue
          if pgrec and PgOPT.params['QF'][i] != bfile: PgOPT.params['QF'][i] = bfile
          barch = darch = 1
@@ -2099,7 +2101,7 @@ def crosscopy_backup_files():
             efiles[i] = 1
             dflags['B'] = bpoint
             continue
-         info = PgFile.check_backup_file(ofile, dpoint, 0, PgOPT.PGOPT['emerol'])
+         info = PgFile.check_backup_file(bfile, dpoint, 0, PgOPT.PGOPT['emerol'])
          if info:
             darch = 0
          elif info is not None:
@@ -2122,13 +2124,13 @@ def crosscopy_backup_files():
                dflags['B'] = bpoint
                continue
             bcnt += 1
-         elif oarch:
+         elif darch:
             if not PgFile.endpoint_copy_endpoint(qfile, qfile, dpoint, bpoint, PgOPT.PGOPT['emerol']|OVERRIDE):
                errcnt += 1
                efiles[i] = 1
                dflags['D'] = dpoint
                continue
-            ocnt += 1
+            dcnt += 1
 
          if PgSIG.PGSIG['BPROC'] > 1:
             qfiles[i] = qfile
@@ -2139,8 +2141,8 @@ def crosscopy_backup_files():
 
          if PgSIG.PGSIG['BPROC'] < 2:
             if not fnames: fnames = PgOPT.get_field_keys(tname)  # get setting fields if not yet
-            bid = set_one_backupfile(i, pgrec, bfile, fnames, qtype)
-            if not sid:
+            bid = set_one_backfile(i, pgrec, bfile, fnames, qtype)
+            if not bid:
                PgOPT.params['QF'][i] = None
                continue
 
@@ -2162,8 +2164,8 @@ def crosscopy_backup_files():
             validate_backarch(qfiles[i], "{}-{}".format(bpoint, qfiles[i]), i)
          elif qfiles[i]:
             validate_backarch(qfiles[i], "{}-{}".format(dpoint, qfiles[i]), i)
-   if bcnt > 0: PgLOG.pglog("{} of {} Backup file{} Cross Copied for {}".format(acnt, ALLCNT, s, dsid), PgOPT.PGOPT['emllog'])
-   if dcnt > 0: PgLOG.pglog("{} of {} Drdata file{} Cross Copied for {}".format(ocnt, ALLCNT, s, dsid), PgOPT.PGOPT['emllog'])
+   if bcnt > 0: PgLOG.pglog("{} of {} Backup file{} Cross Copied for {}".format(bcnt, ALLCNT, s, dsid), PgOPT.PGOPT['emllog'])
+   if dcnt > 0: PgLOG.pglog("{} of {} Drdata file{} Cross Copied for {}".format(dcnt, ALLCNT, s, dsid), PgOPT.PGOPT['emllog'])
    if PgLOG.PGLOG['DSCHECK']:
       PgCMD.set_dscheck_dcount(ALLCNT, chksize, PgOPT.PGOPT['extlog'])
    PgLOG.pglog("{} of {} Quasar Backup file record{} modified for {}!".format(MODCNT, ALLCNT, s, dsid), PgOPT.PGOPT['emllog'])
@@ -2466,7 +2468,7 @@ def set_group_info():
 
          if pgrec:
             modcnt += PgDBI.pgupdt(tname, record, "gidx = {}".format(pgrec['gidx']), PgLOG.LGEREX)
-            if pindex: tcnt += PgMeta.reset_top_gindex(dsid, gindex, 6)
+            if pindex: tcnt += PgMeta.reset_top_group_index(dsid, gindex, 6)
             if 'grptype' in record:
                PgOPT.params['WN'] = 6
                CHGGRPS[gindex] = 1
@@ -2964,7 +2966,7 @@ def set_helpfile_info():
       olocflag = pgrec['locflag'] if pgrec else ''
       locflag = PgOPT.params['LC'][i] if 'LC' in PgOPT.params else olocflag
       if olocflag and locflag != olocflag:
-         PgLOG.pglog("{}-{}: Cannot reset Help file Location Flag {} to {}".format(dsid, file, olocflag, locflag), PgOPT.PGOPT['errlog'])
+         PgLOG.pglog("{}-{}: Cannot reset Help file Location Flag {} to {}".format(dsid, hfile, olocflag, locflag), PgOPT.PGOPT['errlog'])
          continue
       getmc = 0 if 'WU' in PgOPT.params or (pgrec and pgrec['url']) else 1
       if getmc and not PgOPT.params['MC'][i] and ('SC' in PgOPT.params or not (pgrec and pgrec['checksum'])):
@@ -3506,6 +3508,7 @@ def move_help_files():
    dcnd = "dsid = '{}'".format(dsid)
    tmpds = None
    bidx = chksize = 0
+   bucket = "rda-data"
    rcnt = len(PgLOG.PGLOG['WEBHOSTS'])
    s = 's' if ALLCNT > 1 else ''
 
@@ -3593,7 +3596,7 @@ def move_help_files():
          hcnt += 1
 
       if omove and oolds[i] != onews[i]:
-         if not PgFile.move_object_file(onews[i], oolds[i], bucket, bucket,  PgOPT.PGOPT['emerol']|OVERRIDE):
+         if not PgFile.move_object_file(onews[i], oolds[i], bucket, bucket, PgOPT.PGOPT['emerol']|OVERRIDE):
             RETSTAT = 1
             continue
          if PgLOG.PGLOG['DSCHECK']: chksize += pgrec['data_size']
@@ -4820,10 +4823,10 @@ def reset_top_group_index(dsid, act):
    if 'GI' in PgOPT.params:
       for gindex in PgOPT.params['GI']:
          if gindex is None or gindex in cgidxs: continue
-         tcnt += reset_top_gindex(dsid, gindex, act)
+         tcnt += reset_top_group_index(dsid, gindex, act)
          cgidxs[gindex] = gindex
    else:
-      tcnt += reset_top_gindex(dsid, 0, act)
+      tcnt += reset_top_group_index(dsid, 0, act)
 
    return tcnt
 
@@ -4831,6 +4834,8 @@ def reset_top_group_index(dsid, act):
 # set the re-archived file counts for groups
 #
 def set_rearchive_filenumber(dsid, bidx, total, act):
+
+   global CHGGRPS
 
    if 'GI' in PgOPT.params:
       lmt = bidx + 20
@@ -4918,7 +4923,7 @@ def copy_alter_local(wfile, ahome):
    bproc = PgSIG.PGSIG['BPROC']
    afile = re.sub(PgLOG.PGLOG['DSDHOME'], ahome, afile)
    if bproc > 1: PgSIG.PGSIG['BPROC'] = 1
-   local_copy_local(afile, wfile, PgOPT.PGOPT['emerol']|OVERRIDE)
+   PgFile.local_copy_local(afile, wfile, PgOPT.PGOPT['emerol']|OVERRIDE)
    if bproc != PgSIG.PGSIG['BPROC']: PgSIG.PGSIG['BPROC'] = bproc
 
 #
@@ -4952,7 +4957,7 @@ def get_version_info():
    pgrecs = PgDBI.pgmget(tname, "*", condition + ocnd, PgOPT.PGOPT['extlog'])
 
    PgOPT.OUTPUT.write("{}{}{}\n".format(PgOPT.OPTS['DS'][1], PgOPT.params['ES'], dsid))
-   if pgrecs and 'FO' in PgOPT.params: lens = PgUtil.all_column_widths(pgrecs, flds, hash)
+   if pgrecs and 'FO' in PgOPT.params: lens = PgUtil.all_column_widths(pgrecs, fnames, hash)
    PgOPT.OUTPUT.write(PgOPT.get_string_titles(fnames, hash, lens) + "\n")
    if pgrecs:
       cnt = PgOPT.print_column_format(pgrecs, fnames, hash, lens)
@@ -5141,9 +5146,9 @@ def terminate_version_info():
             PgLOG.pglog("{}: Cannot terminate for DOI {} is asscoated to Version control {}".format(vinfo, pgrec['doi'], orec['vindex']), PgLOG.LOGERR)
             continue
          doicnt += 1
+         record = {'status' : "H"}
          record['end_date'] = PgOPT.params['ED'][i] if 'ED' in PgOPT.params else PgUtil.curdate()
          record['end_time'] = PgOPT.params['ET'][i] if 'ET' in PgOPT.params else PgUtil.curtime()
-         record['status'] = "H"
          if PgDBI.pgupdt("dsvrsn", record, cnd, PgOPT.PGOPT['extlog']):
             PgLOG.pglog(vinfo + ": Set status to 'H' to terminate", PgOPT.PGOPT['wrnlog'])
             modcnt += 1
