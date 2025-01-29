@@ -1210,7 +1210,7 @@ def crosscopy_help_files(aname):
          if 'HT' in PgOPT.params and PgOPT.params['HT'][i]:
             type = PgOPT.params['HT'][i]
             if type not in PgOPT.HTYPE:
-               PgLOG.pglog("{}-{}: Invalid Help file Type '{}' to Archive".format(dsid, afile, type), PgOPT.PGOPT['emerol'])
+               PgLOG.pglog("{}-{}: Invalid Help file Type '{}' to Archive".format(dsid, hfile, type), PgOPT.PGOPT['emerol'])
                continue
          else:
             PgLOG.pglog("{}-{}: Miss Help file Type to Archive".format(dsid, hfile), PgOPT.PGOPT['errlog'])
