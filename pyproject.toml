@@ -22,10 +22,13 @@ classifiers = [
 ]
 
 [tool.setuptools]
+include-package-data = true
 
-package_data = {
-    "rda_pyhton_dsarch": ["docs/dsarch.usg"]
-}
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+"rda_pyhton_dsarch": ["docs/dsarch.usg"]
 
 [project.urls]
 "Homepage" = "https://github.com/NCAR/rda-python-dsarch"
