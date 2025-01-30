@@ -20,7 +20,6 @@ from rda_python_common import PgLOG
 from rda_python_common import PgFile
 from rda_python_common import PgUtil
 from rda_python_common import PgOPT
-from rda_python_common import PgDOCS
 from rda_python_common import PgSIG
 from rda_python_common import PgCMD
 from rda_python_common import PgGLBS
@@ -302,8 +301,6 @@ def start_action(pgname, dsid):
    elif PgOPT.PGOPT['ACTS'] == PgOPT.OPTS['TV'][0]:
       ALLCNT = len(PgOPT.params['VI'])
       terminate_version_info()
-   elif PgOPT.PGOPT['ACTS'] == PgOPT.OPTS['HD'][0]:
-      PgDOCS.process_docs(pgname, PgOPT.OPTS, PgOPT.ALIAS)
    elif PgOPT.PGOPT['ACTS'] == PgOPT.OPTS['UC'][0]:
       PgDBI.reset_rdadb_version(dsid)
    if not (setds or PgOPT.PGOPT['CACT'] == 'SA'):
