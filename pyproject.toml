@@ -21,6 +21,12 @@ classifiers = [
     "Development Status :: 5 - Production/Stable",
 ]
 
+[tool.setuptools]
+
+package_data = {
+    "rda_pyhton_dsarch": ["docs/dsarch.usg"]
+}
+
 [project.urls]
 "Homepage" = "https://github.com/NCAR/rda-python-dsarch"
 
