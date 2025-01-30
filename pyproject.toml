@@ -25,4 +25,4 @@ classifiers = [
 "Homepage" = "https://github.com/NCAR/rda-python-dsarch"
 
 [project.scripts]
-dsarch.py = "rda_python_dsarch.dsarch:main"
+"dsarch.py" = "rda_python_dsarch.dsarch:main"
