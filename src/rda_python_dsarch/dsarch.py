@@ -22,7 +22,6 @@ from rda_python_common import PgUtil
 from rda_python_common import PgOPT
 from rda_python_common import PgSIG
 from rda_python_common import PgCMD
-from rda_python_common import PgGLBS
 from rda_python_common import PgDBI
 from rda_python_common import PgSplit
 from . import PgMeta
@@ -1661,7 +1660,7 @@ def tar_backup_savedfiles(tarfile, tinfo, ccnt, chkstat):
       if not pgrec:
          PgLOG.pglog("{}-{}: Saved file record not in RDADB".format(dsid, sfile), PgOPT.PGOPT['extlog'])
       elif chkstat and pgrec['bid'] and pgrec['bid'] != tinfo['bid']:
-         PgGLBS.file_backup_status(pgrec, 0, PgOPT.PGOPT['extlog'])
+         PgFile.file_backup_status(pgrec, 0, PgOPT.PGOPT['extlog'])
       if not stype: stype = pgrec['type']
       if pgrec['locflag'] == 'O':
          tardir = tarhome
@@ -1750,7 +1749,7 @@ def tar_backup_webfiles(tarfile, tinfo, ccnt, chkstat):
       if not pgrec:
          PgLOG.pglog("{}-{}: Web file record not in RDADB".format(dsid, wfile), PgOPT.PGOPT['extlog'])
       elif chkstat and pgrec['bid'] and pgrec['bid'] != tinfo['bid']:
-         PgGLBS.file_backup_status(pgrec, 0, PgOPT.PGOPT['extlog'])
+         PgFile.file_backup_status(pgrec, 0, PgOPT.PGOPT['extlog'])
       if pgrec['locflag'] == 'O':
          tardir = tarhome
          webfile = "{}/{}".format(tardir, wfile)
