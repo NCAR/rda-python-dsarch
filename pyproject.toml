@@ -28,7 +28,7 @@ include-package-data = true
 where = ["src"]
 
 [tool.setuptools.package-data]
-"rda_pyhton_dsarch" = ["dsarch.usg", "dsarch.c"]
+"rda_python_dsarch" = ["dsarch.usg", "dsarch.c"]
 
 [project.urls]
 "Homepage" = "https://github.com/NCAR/rda-python-dsarch"
