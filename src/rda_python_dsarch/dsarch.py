@@ -5,6 +5,8 @@
 #     Title: dsarch
 #    Author: Zaihua Ji, zji@ucar.edu
 #      Date: 09/29/2020
+#            2025-01-25 transferred to package rda_python_dsarch from
+#            https://github.com/NCAR/rda-utility-programs.git
 #   Purpose: utility program to archive data files of a given dataset onto RDA
 #            server; and save information of data files into RDADB
 #
