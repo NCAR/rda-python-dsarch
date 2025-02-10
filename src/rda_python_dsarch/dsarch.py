@@ -5,6 +5,8 @@
 #     Title: dsarch
 #    Author: Zaihua Ji, zji@ucar.edu
 #      Date: 09/29/2020
+#            2025-01-25 transferred to package rda_python_dsarch from
+#            https://github.com/NCAR/rda-utility-programs.git
 #   Purpose: utility program to archive data files of a given dataset onto RDA
 #            server; and save information of data files into RDADB
 #
@@ -1549,8 +1551,8 @@ def archive_backup_file():
 
    info = PgFile.check_local_file(tarfile, 33)   # 1+32
    fsize = info['data_size'] if info else 0
-   if fsize < tinfo['size']:
-      PgLOG.pglog("{}: Backup file size {} is less than total file size {}".format(tarfile, fsize, tinfo['size']), PgOPT.PGOPT['extlog'])
+#   if fsize < tinfo['size']:
+#      PgLOG.pglog("{}: Backup file size {} is less than total file size {}".format(tarfile, fsize, tinfo['size']), PgOPT.PGOPT['extlog'])
    if fsize < PgLOG.PGLOG['ONEGBS']:
       PgLOG.pglog("{}: Backup file size {} is less than one GB".format(tarfile, fsize), PgOPT.PGOPT['extlog'])
    record = {'type' : qtype, 'data_format' : tinfo['dfmt'], 'data_size' : fsize,
