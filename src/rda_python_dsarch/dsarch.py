@@ -1551,8 +1551,8 @@ def archive_backup_file():
 
    info = PgFile.check_local_file(tarfile, 33)   # 1+32
    fsize = info['data_size'] if info else 0
-   if fsize < tinfo['size']:
-      PgLOG.pglog("{}: Backup file size {} is less than total file size {}".format(tarfile, fsize, tinfo['size']), PgOPT.PGOPT['extlog'])
+#   if fsize < tinfo['size']:
+#      PgLOG.pglog("{}: Backup file size {} is less than total file size {}".format(tarfile, fsize, tinfo['size']), PgOPT.PGOPT['extlog'])
    if fsize < PgLOG.PGLOG['ONEGBS']:
       PgLOG.pglog("{}: Backup file size {} is less than one GB".format(tarfile, fsize), PgOPT.PGOPT['extlog'])
    record = {'type' : qtype, 'data_format' : tinfo['dfmt'], 'data_size' : fsize,
