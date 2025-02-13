@@ -8,14 +8,16 @@
  *
  * Instruction:
  *    after python -m pip install rda_python_dsarch
- *    cd ../rda_python_dsarch/
+ *    cd $ENVHOME/lib/python3.*/site-packages/rda_python_dsarch/
  *    cp dsarch.c $ENVHOME/bin/
  *    cd $ENVHOME/bin/
  *    sudo -u CommonUser gcc -o dsarch $ENVHOME/bin/dsarch.c
  *    sudo -u CommonUser chmod 4750 dsarch
  *
- *    $ENVHOME: /glade/u/home/rdadata/rdamsenv on DECS machines, and
- *              /glade/work/zji/conda-envs/pg-rda on DAV
+ *           *: python 3 release number, for example n = 10 in Python 3.10.12
+ *  CommonUser: rdadata, for RDAMS configuration
+ *    $ENVHOME: /glade/u/home/rdadata/rdamsenv (venv) on DECS machines, and
+ *              /glade/work/rdadata/conda-envs/pg-rda (conda) on DAV;
  *
  \***************************************************************************************/
 
