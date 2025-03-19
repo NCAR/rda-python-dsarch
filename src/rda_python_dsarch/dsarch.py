@@ -2491,7 +2491,7 @@ def set_for_internal_group(gindex):
    gcnd = "gindex = {} AND status = 'P'".format(gindex)
    cnd = "{} AND {}".format(dcnd, gcnd)
 
-   pgrecs = PgSplit.pgget_wfile(dsid, 'wfile, type', gcnd, PgOPT.PGOPT['extlog'])
+   pgrecs = PgSplit.pgmget_wfile(dsid, 'wfile, type', gcnd, PgOPT.PGOPT['extlog'])
    cnt = len(pgrecs['wfile']) if pgrecs else 0
    srec = {'status' : 'I'}
    if cnt:
