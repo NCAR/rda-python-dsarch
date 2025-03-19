@@ -42,7 +42,7 @@ ERRMSG = ''
 def main():
 
    pgname = "dsarch"
-   PgLOG.PGLOG['PUSGDIR'] = op.dirname(op.abspath(__file__))
+   PgLOG.set_help_path(__file__)
    PgOPT.parsing_input(pgname)
    PgLOG.set_suid(PgLOG.PGLOG['EUID'] if PgOPT.OPTS[PgOPT.PGOPT['CACT']][2] > 0 else PgLOG.PGLOG['RUID'])
    
@@ -2491,7 +2491,7 @@ def set_for_internal_group(gindex):
    gcnd = "gindex = {} AND status = 'P'".format(gindex)
    cnd = "{} AND {}".format(dcnd, gcnd)
 
-   pgrecs = PgSplit.pgget_wfile(dsid, 'wfile, type', gcnd, PgOPT.PGOPT['extlog'])
+   pgrecs = PgSplit.pgmget_wfile(dsid, 'wfile, type', gcnd, PgOPT.PGOPT['extlog'])
    cnt = len(pgrecs['wfile']) if pgrecs else 0
    srec = {'status' : 'I'}
    if cnt:
