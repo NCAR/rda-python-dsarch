@@ -2840,7 +2840,7 @@ def set_one_webfile(i, pgrec, file, flds, type, info = None, ndsid = None, sact 
    record = PgOPT.build_record(flds, pgrec, tname, i)
    if pgrec and (pgrec['status'] == 'D' or PgOPT.PGOPT['ACTS']&PgOPT.OPTS['AW'][0]):
       record['uid'] = PgOPT.PGOPT['UID']
-      if not info:
+      if not (info and info['date_modified']):
          info = PgFile.check_local_file(PgArch.get_web_path(i, file, 1, type),
                                         1, PgOPT.PGOPT['emerol'])
       if info:
@@ -2992,7 +2992,7 @@ def set_one_helpfile(i, pgrec, file, flds, type, info = None, ndsid = None):
    record = PgOPT.build_record(flds, pgrec, tname, i)
    if pgrec and (pgrec['status'] == 'D' or PgOPT.PGOPT['ACTS']&PgOPT.OPTS['AH'][0]):
       record['uid'] = PgOPT.PGOPT['UID']
-      if not info:
+      if not (info and info['date_modified']):
          info = PgFile.check_local_file(PgArch.get_help_path(i, file, 1, type), 1, PgOPT.PGOPT['emerol'])
       if info:
          record['data_size'] = info['data_size']
@@ -3161,7 +3161,7 @@ def set_one_savedfile(i, pgrec, file, flds, type, info = None, ndsid = None, sac
    record = PgOPT.build_record(flds, pgrec, tname, i)
    if pgrec and PgOPT.PGOPT['ACTS']&PgOPT.OPTS['AS'][0]:
       record['uid'] = PgOPT.PGOPT['UID']
-      if not info:
+      if not (info and info['date_modified']):
          info = PgFile.check_local_file(PgArch.get_saved_path(i, file, 1, type), 1, PgOPT.PGOPT['emerol'])
       if info:
          record['data_size'] = info['data_size']
