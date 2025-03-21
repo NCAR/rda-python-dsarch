@@ -2889,8 +2889,7 @@ def set_one_webfile(i, pgrec, file, flds, type, info = None, ndsid = None, sact 
          record['uid'] = PgOPT.PGOPT['UID']
          if 'status' not in record: record['status'] = 'P'
          if not info:
-            info = PgFile.check_local_file(PgArch.get_web_path(i, file, 1, type), 
-                                           1, PgOPT.PGOPT['emerol'])
+            info = PgFile.check_local_file(PgArch.get_web_path(i, file, 1, type), 1, PgOPT.PGOPT['emerol'])
          if info:
             if not info['isfile']: return PgLOG.pglog("file: is a directory", PgOPT.PGOPT['emlerr'])
             record['data_size'] = info['data_size']
@@ -3031,15 +3030,15 @@ def set_one_helpfile(i, pgrec, file, flds, type, info = None, ndsid = None):
          if 'status' not in record: record['status'] = 'P'
          if not (info or 'url' in record):
             info = PgFile.check_local_file(PgArch.get_help_path(i, file, 1, type), 1, PgOPT.PGOPT['emerol'])
-            if info:
-               if not info['isfile']: return PgLOG.pglog("file: is a directory", PgOPT.PGOPT['emlerr'])
-               record['data_size'] = info['data_size']
-               record['date_modified'] = info['date_modified']
-               record['time_modified'] = info['time_modified']
-               record['date_created'] = info['date_created'] if 'date_created' in info else record['date_modified']
-               record['time_created'] = info['time_created'] if 'time_created' in info else record['time_modified']
-            else:
-               return PgLOG.pglog("{}-{}: {}".format(type, file, PgLOG.PGLOG['MISSFILE']), PgOPT.PGOPT['emlerr'])
+         if info:
+            if not info['isfile']: return PgLOG.pglog("file: is a directory", PgOPT.PGOPT['emlerr'])
+            record['data_size'] = info['data_size']
+            record['date_modified'] = info['date_modified']
+            record['time_modified'] = info['time_modified']
+            record['date_created'] = info['date_created'] if 'date_created' in info else record['date_modified']
+            record['time_created'] = info['time_created'] if 'time_created' in info else record['time_modified']
+         else:
+            return PgLOG.pglog("{}-{}: {}".format(type, file, PgLOG.PGLOG['MISSFILE']), PgOPT.PGOPT['emlerr'])
          if 'disp_order' not in record:
             record['disp_order'] = PgArch.get_next_disp_order(dsid, 0, tname, type)
          hid = PgDBI.pgadd(tname, record, PgLOG.LGEREX|PgLOG.AUTOID)
