@@ -3037,6 +3037,9 @@ def set_one_helpfile(i, pgrec, file, flds, type, info = None, ndsid = None):
             record['time_modified'] = info['time_modified']
             record['date_created'] = info['date_created'] if 'date_created' in info else record['date_modified']
             record['time_created'] = info['time_created'] if 'time_created' in info else record['time_modified']
+         elif 'url' in record:
+            record['locflag'] = 'R'
+            record['date_modified'] = PgUtil.curdate()
          else:
             return PgLOG.pglog("{}-{}: {}".format(type, file, PgLOG.PGLOG['MISSFILE']), PgOPT.PGOPT['emlerr'])
          if 'disp_order' not in record:
