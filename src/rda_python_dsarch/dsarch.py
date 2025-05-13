@@ -1006,7 +1006,7 @@ def archive_saved_files():
 #
 def crosscopy_web_files(aname):
 
-   global ALLCNT, MODCNT, RETSTAT
+   global MODCNT, RETSTAT
    tname = 'wfile'
    dsid = PgOPT.params['DS']
    s = 's' if ALLCNT > 1 else ''
@@ -1167,7 +1167,7 @@ def crosscopy_web_files(aname):
 #
 def crosscopy_help_files(aname):
 
-   global ALLCNT, MODCNT, RETSTAT
+   global MODCNT, RETSTAT
    tname = 'hfile'
    dsid = PgOPT.params['DS']
    dcnd = "dsid = '{}'".format(dsid)
@@ -1326,7 +1326,7 @@ def crosscopy_help_files(aname):
 #
 def crosscopy_saved_files(aname):
 
-   global ALLCNT, MODCNT, RETSTAT
+   global MODCNT, RETSTAT
    tname = 'sfile'
    dsid = PgOPT.params['DS']
    dcnd = "dsid = '{}'".format(dsid)
@@ -2044,7 +2044,7 @@ def restore_backup_savedfiles():
 #
 def crosscopy_backup_files():
 
-   global ALLCNT, MODCNT, RETSTAT
+   global MODCNT, RETSTAT
    tname = 'bfile'
    qtype = 'D'
    dsid = PgOPT.params['DS']
@@ -3808,7 +3808,6 @@ def saved_to_web_files():
 #
 def delete_web_files():
 
-   global RETSTAT
    tname = 'wfile'
    dsid = PgOPT.params['DS']
    bucket = "rda-data"
@@ -3922,7 +3921,6 @@ def delete_web_files():
 #
 def delete_help_files():
 
-   global RETSTAT
    tname = 'hfile'
    dsid = PgOPT.params['DS']
    bucket = "rda-data"
