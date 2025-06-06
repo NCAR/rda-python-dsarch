@@ -209,7 +209,8 @@ categories:
          [-(UD|UseDSARCH) UseDSARCHFlag]   # Y, P, W, I, or N
          [-(LC|Location) AccessLocationFlag]   # C - CGD, G - Glade, O - Object Store
          [-(BF|BackupFlag) QuasarBackupFlag]   # B - Backup, D - Backup & Drdata
-         [-(DF|DataFormat) DataFormat]     # BINARY, ASCII, NetCDF and etc.
+         [-(DA|AccessFlag) DataAccessFlags]    # B - Both, C - Complete, F - Faceted, or N - No
+         [-(DF|DataFormat) DataFormat]         # BINARY, ASCII, NetCDF and etc.
          [-(WH|WebHome) WebDataHomeDirectory]
          [-(WP|WebPath) WebFilePath]
          [-(SP|SavedPath) SavedFilePath]
@@ -279,28 +280,29 @@ categories:
 
   Valid dataset field names and their corresponding Info options:
 
-  Names  Info Options         Descriptions
-  T      -(TI|Title)          dataset title 
-  S      -(SP|SavedPath)      path relative to Saved home directory
-  H      -(WH|WebHome)        path for the web data home directory
-  W      -(WP|WebPath)        path relative to web home directory
-  F      -(DF|DataFormat)     default data content format
-  U      -(UD|UseDSARCH)      use DSARCH flag
-  L      -(LC|Location)       Online web file access location flags
-  Q      -(BF|BackupFlag)     Quasar Backup flags
-  V      -(GL|GroupLevel)     number of group levels to display
-  C      -(FL|FileLimit)      file count limit for separate group filelists
-  B      -(BL|ButtonLimit)    file count limit for showing script buttons
-  A      -(ML|MetaLink)       a link to content meta at the dataset level
-  W      -(NW|NoteWeb)        web data description
-  I      -(NI|NoteInternal)   internal data description
-  D      -(ND|NoteDocument)   document description
-  N      -(NS|NoteSoftware)   software description
-  G      -(GI|GroupIndex)     Group Indices to identify groups for periods
-  J      -(BD|BeginDate)      date data begin for dataset/group
-  K      -(BT|BeginTime)      time data begin for dataset/group
-  X      -(ED|EndDate)        date data end for dataset/group
-  Y      -(ET|EndTime)        time data end for dataset/group
+  Names  Info Options          Descriptions
+  T      -(TI|Title)           dataset title 
+  S      -(SP|SavedPath)       path relative to Saved home directory
+  H      -(WH|WebHome)         path for the web data home directory
+  W      -(WP|WebPath)         path relative to web home directory
+  F      -(DF|DataFormat)      default data content format
+  U      -(UD|UseDSARCH)       use DSARCH flag
+  L      -(LC|Location)        Online web file access location flags
+  Q      -(BF|BackupFlag)      Quasar Backup flags
+  A      -(DA|DataAccessFlag)  dataset data file list access flags
+  V      -(GL|GroupLevel)      number of group levels to display
+  C      -(FL|FileLimit)       file count limit for separate group filelists
+  B      -(BL|ButtonLimit)     file count limit for showing script buttons
+  M      -(ML|MetaLink)        a link to content meta at the dataset level
+  W      -(NW|NoteWeb)         web data description
+  I      -(NI|NoteInternal)    internal data description
+  D      -(ND|NoteDocument)    document description
+  N      -(NS|NoteSoftware)    software description
+  G      -(GI|GroupIndex)      Group Indices to identify groups for periods
+  J      -(BD|BeginDate)       date data begin for dataset/group
+  K      -(BT|BeginTime)       time data begin for dataset/group
+  X      -(ED|EndDate)         date data end for dataset/group
+  Y      -(ET|EndTime)         time data end for dataset/group
 
   Info option -OF (-OutputFile) is used to specify a file name to save the
   retrieved information for later usage. Result of this action is displayed
@@ -495,6 +497,7 @@ VersionIndex<:>InternalVersion<:>ExternalVersion<:>DOINumber<:>VersionStatus<:>B
          [-(GT|GroupType) GroupTypes]
          [-(GP|GroupPattern) FileNamePatterns]
          [-(BF|BackupFlag) QuasarBackupFlags]
+         [-(DA|AccessFlag) DataAccessFlags]    # B - Both, C - Complete, F - Faceted or N - No
          [-(SP|SavedPath) SavedFilePaths]   # relative to dataset saved home dir
          [-(WP|WebPath) WebFilePaths]       # relative to dataset data home dir
          [-(ML|MetaLink) MetadataLinks]
@@ -575,19 +578,20 @@ QSCAT observations.<:>
 
   Valid group field names and their corresponding Info options:
 
-  Names  Info Options         Descriptions
-  I      -(GI|GroupIndex)     group indices
-  G      -(GN|GroupName)      group names, IDs
-  X      -(PI|ParentIndex)    parent group indices
-  T      -(TI|Title)          group titles 
-  R      -(GT|GroupType)      group types
-  P      -(GP|GroupPattern)   common file name patterns for each group
-  Q      -(BF|BackupFlag)     Quasar Backup flags
-  S      -(SP|SavedPath)      path relative to saved home directory for groups
-  W      -(WP|WebPath)        path relative to web home directory for groups
-  A      -(ML|MetaLink)       a link to content meta at the group level
-  D      -(NW|NoteWeb)        group description of data on RDA Server
-  N      -(NI|NoteInternal)   group description of internal HPSS data
+  Names  Info Options          Descriptions
+  I      -(GI|GroupIndex)      group indices
+  G      -(GN|GroupName)       group names, IDs
+  X      -(PI|ParentIndex)     parent group indices
+  T      -(TI|Title)           group titles 
+  R      -(GT|GroupType)       group types
+  P      -(GP|GroupPattern)    common file name patterns for each group
+  Q      -(BF|BackupFlag)      Quasar Backup flags
+  A      -(DA|DataAccessFlag)  top group data file list access flags
+  S      -(SP|SavedPath)       path relative to saved home directory for groups
+  W      -(WP|WebPath)         path relative to web home directory for groups
+  M      -(ML|MetaLink)        a link to content meta at the group level
+  D      -(NW|NoteWeb)         group description of data on RDA Server
+  N      -(NI|NoteInternal)    group description of internal HPSS data
 
   Group information can be retrieved for specified groups per option -GI
   (-GroupIndex) or -GN (-GroupName), or per option -PI (-ParentIndex). Info
@@ -2172,6 +2176,10 @@ Information options are used to pass information, one or multiple values, into
  
   -BT or -BeginTime, for begin time of data files of a given group or the whole
   dataset, or begin time of a version control record.
+
+  -DA or -AcessFlag, (Alias: -DataAccessFlag, -FileListFlag). flags to show web file
+  lists at Dataset and/or top group levels; B-Both Filelists (default value),
+  C-Complete File List, F-Faceted Browse or N-No File List.
 
   -DB or -Debug, to turn on debug mode with specified information. This option
   provides up to 3 values, they are Debug Level, debug log file path and debug
