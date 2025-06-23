@@ -141,6 +141,7 @@ PgOPT.OPTS = {                         # (!= 0) - setting actions
    'BP' : [2, 'BatchProcess',  0, ''],
    'BS' : [2, 'BackStatus',    1, 'NTA'],
    'BT' : [2, 'BeginTime',    32],
+   'DA' : [2, 'DataAccess',    1, 'BCFN'],
    'DB' : [2, 'Debug',         0],
    'DE' : [2, 'Description',  65],
    'DF' : [2, 'DataFormat',    1],
@@ -205,6 +206,7 @@ PgOPT.ALIAS = {
    'BG' : ['b'],
    'BP' : ['d', 'DelayedMode'],
    'CL' : ['CleanLocFile', 'CleanLocalFile'],
+   'DA' : ['DataAccessflag', 'FileListFlag'],
    'DD' : ['DeleteDirLevel', 'DeleteEmptyDir'],
    'DE' : ['Desc', 'Note', 'FileDesc', 'FileDescription'],
    'DF' : ['TF', 'ContentFormat'],
@@ -281,10 +283,11 @@ PgOPT.TBLHASH['dataset'] = {         # condition flag, 0-int, 1-string, -1-exclu
    'U' : ['UD', "use_rdadb",    1],
    'L' : ['LC', "locflag",      1],
    'Q' : ['BF', "backflag",     1],
+   'A' : ['DA', "accessflag",   1],
    'V' : ['GL', "grouplevel",   0],
    'C' : ['FL', "filelimit",    0],
    'B' : ['BL', "buttonlimit",  0],
-   'A' : ['ML', "meta_link",   -1],
+   'M' : ['ML', "meta_link",   -1],
    'P' : ['NW', "wnote",       -1],
    'I' : ['NI', "inote",       -1],
    'D' : ['ND', "dnote",       -1],
@@ -306,10 +309,11 @@ PgOPT.TBLHASH['dsgroup'] = {
    'T' : ['TI', "title",     1],
    'R' : ['GT', "grptype",   1],
    'Q' : ['BF', "backflag",  1],
+   'A' : ['DA', "accessflag",   1],
    'P' : ['GP', "pattern",   1],
    'S' : ['SP', "savedpath", 1],
    'W' : ['WP', "webpath",   1],
-   'A' : ['ML', "meta_link", 1],
+   'M' : ['ML', "meta_link", 1],
    'D' : ['NW', "wnote",     1],
    'N' : ['NI', "inote",     1]
  }
@@ -404,9 +408,9 @@ PgOPT.TBLHASH['dsvrsn'] = {
 # global info to be used by the whole application
 PgOPT.PGOPT['MSET']  = "SA"
 #default fields for getting info
-PgOPT.PGOPT['dataset'] = "SWFULQ"
+PgOPT.PGOPT['dataset'] = "SWFULQA"
 PgOPT.PGOPT['dsperiod'] = "GJKXY"
-PgOPT.PGOPT['dsgroup'] = "IGXTPQSW"
+PgOPT.PGOPT['dsgroup'] = "IGXTPQASW"
 PgOPT.PGOPT['wfile'] = "FTIVMNLHS"
 PgOPT.PGOPT['sfile'] = "FTIVMNLHS"
 PgOPT.PGOPT['bfile'] = "FNMTHS"
@@ -415,9 +419,9 @@ PgOPT.PGOPT['dsvrsn'] = "VIEDSJX"
 PgOPT.PGOPT['UACTS'] = (PgOPT.OPTS['AQ'][0]|PgOPT.OPTS['SD'][0]|PgOPT.OPTS['DL'][0])
 
 #all fields for getting info
-PgOPT.PGOPT['dsall'] = "TSHWFULQVCBAPIDNGJKXYIJKXY"   # include 'pdall'
+PgOPT.PGOPT['dsall'] = "TSHWFULQAVCBMPIDNGJKXYIJKXY"   # include 'pdall'
 PgOPT.PGOPT['pdall'] = "GJKXY"
-PgOPT.PGOPT['gpall'] = "IGXTRQPSWADN"
+PgOPT.PGOPT['gpall'] = "IGXTRQAPSWMDN"
 PgOPT.PGOPT['wfall'] = "FTCIXVMNOBQLHSJKAED"
 PgOPT.PGOPT['sfall'] = "FTCIXVMNOBQLHSJKD"
 PgOPT.PGOPT['bfall'] = "FNMOTHSCJKD"
