@@ -592,7 +592,7 @@ def process_meta_gather(cate, logact = PgLOG.LOGWRN):
          cmd += ary[0]
          if PgSIG.start_background(cmd, act, opt, 1):
             cnt += 1
-            if PgLOG.PGLOG['DSCHECK'] and cnt > 0 and (cnt%20) == 0:
+            if PgLOG.PGLOG['DSCHECK'] and cnt > 0 and (cnt%10) == 0:
                PgCMD.add_dscheck_dcount(10, 0, logact)
          elif PgLOG.PGLOG['SYSERR']:
             PgDBI.record_dscheck_error(PgLOG.PGLOG['SYSERR'])
@@ -607,9 +607,6 @@ def process_meta_gather(cate, logact = PgLOG.LOGWRN):
          else:
             for tidx in TIDXS:
                PgLOG.pgsystem("{}{}".format(sx, tidx), act, opt)
-
-      if PgLOG.PGLOG['DSCHECK'] and (cnt%20) > 0:
-         PgCMD.add_dscheck_dcount(int((cnt%20)/2), 0, logact)
 
    del META[c]
    TIDXS = {}

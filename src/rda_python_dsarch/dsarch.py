@@ -390,11 +390,11 @@ def archive_web_files():
    while True:
       for i in range(bidx, ALLCNT):
          if PgSIG.PGSIG['BPROC'] < 2 and i > bidx and ((i-bidx)%20) == 0:
-            if PgLOG.PGLOG['DSCHECK']:
-               PgCMD.set_dscheck_dcount(i, chksize, PgOPT.PGOPT['extlog'])
             if metacnt >= PgOPT.PGOPT['RSMAX']:
                metatotal += PgMeta.process_metadata("W", metacnt, PgOPT.PGOPT['emerol'])
                metacnt = 0
+            if PgLOG.PGLOG['DSCHECK'] and metacnt == 0:
+               PgCMD.set_dscheck_dcount(i, chksize, PgOPT.PGOPT['extlog'])
             if 'EM' in PgOPT.params:
                PgLOG.PGLOG['PRGMSG'] = "{}/{} of {} web file{} archived/processed".format(acnt, i, ALLCNT, s)
          lfile = locfile = PgOPT.params['LF'][i]
@@ -2760,11 +2760,11 @@ def set_webfile_info(include = None):
    reorder = metatotal = metacnt = ADDCNT = MODCNT = 0
    for i in range(bidx, ALLCNT):
       if i > bidx and ((i-bidx)%20) == 0:
-         if PgLOG.PGLOG['DSCHECK']:
-            PgCMD.add_dscheck_dcount(20, 0, PgOPT.PGOPT['extlog'])
          if metacnt >= PgOPT.PGOPT['RSMAX']:
             metatotal += PgMeta.process_metadata("W", metacnt, PgOPT.PGOPT['emerol'])
             metacnt = 0
+         if PgLOG.PGLOG['DSCHECK'] and metacnt == 0:
+            PgCMD.set_dscheck_dcount(i, 0, PgOPT.PGOPT['extlog'])
          if 'EM' in PgOPT.params:
             PgLOG.PGLOG['PRGMSG'] = "{}/{}/{} of {} {} Web file record{} added/modified/processed".format(ADDCNT, MODCNT, i, ALLCNT, dsid, s)
       if not PgOPT.params['WF'][i]: continue
