@@ -1657,7 +1657,6 @@ IMMA_2.4_2007.tar<:>37<:>IMMA<:>Z.TAR<:>D<:>656820224<:>
          [-(LN|LoginName) LoginAccountName]
          [-(DB|Debug) DebugModeInfo]
 
-
   Mode options that can be specified for this action:
       -(MD|MyDataset) - overrides the default specialist and enables RDADB 
                         information to be set by any one
@@ -2178,8 +2177,8 @@ Information options are used to pass information, one or multiple values, into
   dataset, or begin time of a version control record.
 
   -DA or -AcessFlag, (Alias: -DataAccessFlag, -FileListFlag). flags to show web file
-  lists at Dataset and/or top group levels; B-Both Filelists (default value),
-  C-Complete File List, F-Faceted Browse or N-No File List.
+  lists at Dataset and/or top group levels; B-Both Filelists,
+  C-Complete File List (default value), F-Faceted Browse or N-No File List.
 
   -DB or -Debug, to turn on debug mode with specified information. This option
   provides up to 3 values, they are Debug Level, debug log file path and debug
