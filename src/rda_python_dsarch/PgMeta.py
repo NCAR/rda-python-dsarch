@@ -595,7 +595,7 @@ def process_meta_gather(cate, logact = PgLOG.LOGWRN):
             if PgLOG.PGLOG['DSCHECK'] and cnt > 0 and (cnt%10) == 0:
                PgCMD.add_dscheck_dcount(10, 0, logact)
          elif PgLOG.PGLOG['SYSERR']:
-            PgDBI.record_dscheck_error(PgLOG.PGLOG['SYSERR'])
+            PgDBI.record_dscheck_error(PgLOG.PGLOG['SYSERR'], act)
    PgLOG.PGLOG['ERR2STD'] = []
 
    if cnt > 0:
@@ -642,7 +642,7 @@ def process_meta_delete(cate, logact = PgLOG.LOGWRN):
          if PgSIG.start_background(cmd, act, opt, 1):
             cnt += dcnt
          elif PgLOG.PGLOG['SYSERR']:
-            PgDBI.record_dscheck_error(PgLOG.PGLOG['SYSERR'])
+            PgDBI.record_dscheck_error(PgLOG.PGLOG['SYSERR'], act)
    PgLOG.PGLOG['ERR2STD'] = []
 
    if cnt > 0:
@@ -667,7 +667,7 @@ def delete_file_metadata(dsid, file, logact = PgLOG.LOGWRN):
    PgLOG.PGLOG['ERR2STD'] = ["Warning: "]
    switch_logfile("gatherxml")
    if not PgLOG.pgsystem("{} -d {} {}".format(CMD['DX'], d, file), logact, opt) and PgLOG.PGLOG['SYSERR']:
-      PgDBI.record_dscheck_error(PgLOG.PGLOG['SYSERR'])
+      PgDBI.record_dscheck_error(PgLOG.PGLOG['SYSERR'], logact)
    PgLOG.PGLOG['ERR2STD'] = []
    switch_logfile()
 
@@ -705,7 +705,7 @@ def process_meta_move(cate, logact = PgLOG.LOGWRN):
          if PgSIG.start_background(cmd, act, opt, 1):
             cnt += 1
          elif PgLOG.PGLOG['SYSERR']:
-            PgDBI.record_dscheck_error(PgLOG.PGLOG['SYSERR'])
+            PgDBI.record_dscheck_error(PgLOG.PGLOG['SYSERR'], act)
    PgLOG.PGLOG['ERR2STD'] = []
 
    if cnt > 0:
@@ -741,7 +741,7 @@ def process_meta_summary(cate, logact = PgLOG.LOGWRN):
          if PgSIG.start_background(cmd, act, opt, 1):
             cnt += 1
          elif PgLOG.PGLOG['SYSERR']:
-            PgDBI.record_dscheck_error(PgLOG.PGLOG['SYSERR'])
+            PgDBI.record_dscheck_error(PgLOG.PGLOG['SYSERR'], act)
    PgLOG.PGLOG['ERR2STD'] = []
 
    if cnt > 0:
