@@ -2040,7 +2040,7 @@ def restore_backup_savedfiles():
    if 'EM' in PgOPT.params: PgLOG.PGLOG['PRGMSG'] = ""
 
 #
-# cross copy quasar backup files between Globus endpoints rda-quasar and rda-quasar-drdata
+# cross copy quasar backup files between Globus endpoints gdex-quasar and gdex-quasar-drdata
 #
 def crosscopy_backup_files():
 
@@ -2052,8 +2052,8 @@ def crosscopy_backup_files():
    s = 's' if ALLCNT > 1 else ''
    bidx = chksize = 0
    dflags = {}
-   bpoint = 'rda-quasar'
-   dpoint = 'rda-quasar-drdata'
+   bpoint = 'gdex-quasar'
+   dpoint = 'gdex-quasar-drdata'
    PgLOG.pglog("Cross Copy {} Quasar file{} of {} ...".format(ALLCNT, s, dsid), PgLOG.WARNLG)
 
    PgOPT.validate_multiple_values(tname, ALLCNT)
@@ -3326,7 +3326,7 @@ def set_one_backfile(i, pgrec, file, flds, type, ndsid = None, record = None):
          record['dsid'] = dsid
          record['uid'] = PgOPT.PGOPT['UID']
          if 'status' not in record: record['status'] = 'A'
-         info = PgFile.check_backup_file("/{}/{}".format(dsid, file), 'rda-quasar', 1, PgOPT.PGOPT['emerol'])
+         info = PgFile.check_backup_file("/{}/{}".format(dsid, file), 'gdex-quasar', 1, PgOPT.PGOPT['emerol'])
          if info:
             if not info['isfile']: return PgLOG.pglog(file + ": is a directory", PgOPT.PGOPT['emlerr'])
             record['data_size'] = info['data_size']
@@ -4156,8 +4156,8 @@ def move_backup_files():
    tname = 'bfile'
    dsid = PgOPT.params['DS']
    dcnd = "dsid = '{}'".format(dsid)
-   bkend = "rda-quasar"
-   drend = 'rda-quasar-drdata'
+   bkend = "gdex-quasar"
+   drend = 'gdex-quasar-drdata'
    bidx = chksize = 0
 
    tmpds = None
@@ -4566,8 +4566,8 @@ def delete_backup_files():
    dsid = PgOPT.params['DS']
    dcnd = "dsid = '{}'".format(dsid)
    brec = {'bid' : 0}
-   bkend = "rda-quasar"
-   drend = "rda-quasar-drdata"
+   bkend = "gdex-quasar"
+   drend = "gdex-quasar-drdata"
    s = 's' if ALLCNT > 1 else ''
    PgLOG.pglog("Delete {} Backup file{} from {} ...".format(ALLCNT, s, dsid), PgLOG.WARNLG)
 
