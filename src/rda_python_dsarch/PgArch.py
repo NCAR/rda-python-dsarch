@@ -693,12 +693,37 @@ def check_enough_options(cact, acts):
       if 'EM' not in PgOPT.params: PgLOG.PGLOG['LOGMASK'] &= ~PgLOG.EMLALL   # turn off email if not yet
       PgOPT.PGOPT['emerol'] |= PgLOG.EXITLG
       # set command line Batch options
+      set_qsub_walltime()
       PgCMD.set_batch_options(PgOPT.params, 1)
       PgCMD.init_dscheck(0, '', "dsarch", PgOPT.params['DS'], cact, PgLOG.PGLOG['CURDIR'], PgOPT.params['LN'],
                          PgOPT.params['BP'], PgOPT.PGOPT['emerol'])
    if 'EM' in PgOPT.params: PgOPT.PGOPT['emlerr'] = PgLOG.LOGERR|PgLOG.EMEROL
 
    PgSIG.start_none_daemon('dsarch', PgOPT.PGOPT['CACT'], PgOPT.params['LN'], 1, PgOPT.params['WI'], 1, PgOPT.params['AL'])
+
+#
+# set qsub walltime if needed
+#
+def set_qsub_walltime():
+
+   fcnt = 0
+   if 'LF' in PgOPT.params:
+      fcnt = len(PgOPT.params['LF'])
+   elif 'WF' in PgOPT.params:
+      fcnt = len(PgOPT.params['WF'])
+   else:
+      return
+
+   if 'GX' in PgOPT.params: fcnt *= 30
+   hr = int(fcnt/30000)
+   if hr == 6: return
+
+   if hr < 2:
+      hr = 2
+   elif hr > 24:
+      hr = 24
+   PgCMD.set_one_boption('qoptions', '-l walltime={}:00:00'.format(hr), 1)
+   return
 
 #
 # build local file list for given local directory and reset file sizes
