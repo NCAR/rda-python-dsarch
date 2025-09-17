@@ -518,7 +518,7 @@ def archive_web_files():
             elif pgrec:
                info = get_file_origin_info(wfile, pgrec)
             elif locflag == 'O':
-               info = PgFile.check_object_file(ofile, bucket, 1, PgOPT.PGOPT['emerol'])
+               info = PgFile.check_object_file(ofile, bucket, 1, PgOPT.PGOPT['emerol'])               
             wid = set_one_webfile(i, pgrec, wfile, fnames, type, info)
             if not wid:
                PgOPT.params['LF'][i] = PgOPT.params['WF'][i] = None
@@ -1673,7 +1673,7 @@ def tar_backup_savedfiles(tarfile, tinfo, ccnt, chkstat):
       else:
          tardir = "{}/{}".format(dshome, stype)
          savedfile = "{}/{}".format(tardir, sfile) if relative else sfile
-      if not op.isfile(savedfile):
+      if not op.exists(savedfile):
          PgLOG.pglog(savedfile + ": Saved file not exists to backup", PgOPT.PGOPT['extlog'])
       if relative:
          tarcmds[i] = "tar -{}vf {} -C {} {}".format(topt, tarfile, tardir, sfile)
@@ -1761,7 +1761,7 @@ def tar_backup_webfiles(tarfile, tinfo, ccnt, chkstat):
       else:
          tardir = dshome
          webfile = "{}/{}".format(tardir, wfile) if relative else wfile
-      if not op.isfile(webfile):
+      if not op.exists(webfile):
          PgLOG.pglog(webfile + ": Web file not exists to backup", PgOPT.PGOPT['extlog'])
       if relative:
          tarcmds[i] = "tar -{}vf {} -C {} {}".format(topt, tarfile, tardir, wfile)
@@ -2869,6 +2869,8 @@ def set_one_webfile(i, pgrec, file, flds, type, info = None, ndsid = None, sact 
             record['status'] = 'I'
       if 'checksum' in record: PgLOG.pglog("md5({}-{})={}".format(dsid, file, record['checksum']), PgLOG.LOGWRN)
       if 'gindex' in record and record['gindex']: record['tindex'] = PgMeta.get_top_gindex(dsid, record['gindex'])
+      stat = check_file_flag(file, info, record, pgrec)
+      if not stat: return stat
       if pgrec:
          if pgrec['wfile'] != file: record['wfile'] = file
          if 'bid' in record and record['bid'] and pgrec['bid'] and record['bid'] != pgrec['bid']:
@@ -2890,8 +2892,9 @@ def set_one_webfile(i, pgrec, file, flds, type, info = None, ndsid = None, sact 
          if 'status' not in record: record['status'] = 'P'
          if not info:
             info = PgFile.check_local_file(PgArch.get_web_path(i, file, 1, type), 1, PgOPT.PGOPT['emerol'])
+            stat = check_file_flag(file, info, record)
+            if not stat: return stat
          if info:
-            if not info['isfile']: return PgLOG.pglog("file: is a directory", PgOPT.PGOPT['emlerr'])
             record['data_size'] = info['data_size']
             record['date_modified'] = info['date_modified']
             record['time_modified'] = info['time_modified']
@@ -2911,6 +2914,22 @@ def set_one_webfile(i, pgrec, file, flds, type, info = None, ndsid = None, sact 
          PgMeta.save_filenumber(None, sact, 1, fcnt)
 
    return wid
+
+#
+# check 
+#
+def check_file_flag(file, info, record, pgrec = None):
+
+   if not info: return PgLOG.SUCCESS
+
+   fflag = 'F' if info['fileflag'] else 'P'
+   if 'fileflag' in record:
+      if fflag != record['fileflag']:
+         return PgLOG.pglog("{}: Cannot set File Flag '{}' to '{}'".format(file, fflag, record['fileflag']), PgOPT.PGOPT['emlerr'])
+   elif not (pgrec and pgrec['fileflag'] == fflag):
+      record['fileflag'] = fflag
+
+   return PgLOG.SUCCESS
 
 #
 # add or modify Help file information
@@ -3010,6 +3029,8 @@ def set_one_helpfile(i, pgrec, file, flds, type, info = None, ndsid = None):
       if 'url' in record:
          record['locflag'] = 'R'
          record['date_modified'] = PgUtil.curdate()
+      stat = check_file_flag(file, info, record, pgrec)
+      if not stat: return stat
       if pgrec:
          if pgrec['hfile'] != file: record['hfile'] = file
          if not ndsid:
@@ -3030,8 +3051,9 @@ def set_one_helpfile(i, pgrec, file, flds, type, info = None, ndsid = None):
          if 'status' not in record: record['status'] = 'P'
          if not (info or 'url' in record):
             info = PgFile.check_local_file(PgArch.get_help_path(i, file, 1, type), 1, PgOPT.PGOPT['emerol'])
+            stat = check_file_flag(file, info, record, pgrec)
+            if not stat: return stat
          if info:
-            if not info['isfile']: return PgLOG.pglog("file: is a directory", PgOPT.PGOPT['emlerr'])
             record['data_size'] = info['data_size']
             record['date_modified'] = info['date_modified']
             record['time_modified'] = info['time_modified']
@@ -3188,6 +3210,8 @@ def set_one_savedfile(i, pgrec, file, flds, type, info = None, ndsid = None, sac
             record['status'] = 'I'
       if 'checksum' in record and record['checksum']: PgLOG.pglog("md5({}-{})={}".format(dsid, file, record['checksum']), PgLOG.LOGWRN)
       if 'gindex' in record and record['gindex']: record['tindex'] = PgMeta.get_top_gindex(dsid, record['gindex'])
+      stat = check_file_flag(file, info, record, pgrec)
+      if not stat: return stat
       if pgrec:
          if pgrec['sfile'] != file: record['sfile'] = file
          if not ndsid:
@@ -3213,8 +3237,9 @@ def set_one_savedfile(i, pgrec, file, flds, type, info = None, ndsid = None, sac
          if 'status' not in record: record['status'] = 'P'
          if not info:
             info = PgFile.check_local_file(PgArch.get_saved_path(i, file, 1, type), 1, PgOPT.PGOPT['emerol'])
+            stat = check_file_flag(file, info, record, pgrec)
+            if not stat: return stat
          if info:
-            if not info['isfile']: return PgLOG.pglog(file + ": is a directory", PgOPT.PGOPT['emlerr'])
             record['data_size'] = info['data_size']
             record['date_modified'] = info['date_modified']
             record['time_modified'] = info['time_modified']
@@ -4445,7 +4470,7 @@ def web_to_saved_files():
 #
 def get_file_origin_info(fname, pgrec):
 
-   info = {'isfile' : 1, 'data_size' : pgrec['data_size']}
+   info = {'isfile' : (0 if 'fileflag' in pgrec and pgrec['fileflag'] == 'P' else 1), 'data_size' : pgrec['data_size']}
    info['fname'] = op.basename(fname)
    info['date_modified'] = pgrec['date_modified']
    info['time_modified'] = pgrec['time_modified']
