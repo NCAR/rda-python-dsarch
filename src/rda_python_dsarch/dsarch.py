@@ -444,7 +444,7 @@ def archive_web_files():
          vsnctl = 1 if pgrec and pgrec['vindex'] and pgrec['data_size'] else 0
          chksum = PgOPT.params['MC'][i]
          if warch and (vsnctl or not override):
-            info = PgFile.check_local_file(afile, 1, PgOPT.PGOPT['emerol'])
+            info = PgFile.check_local_file(afile, 1, PgOPT.PGOPT['emerol']|PgLOG.PFSIZE)
             if info:
                if pgrec and chksum and pgrec['checksum'] and pgrec['checksum'] == chksum:
                   PgLOG.pglog("Web-{}: Same-Checksum ARCHIVED at {}:{}".format(winfo, info['date_modified'], info['time_modified']), PgOPT.PGOPT['emllog'])
@@ -512,7 +512,7 @@ def archive_web_files():
             if not fnames: fnames = PgOPT.get_field_keys(tname, None, "G")  # get setting fields if not yet
             info = None
             if warch:
-               info = PgFile.check_local_file(afile, 1, PgOPT.PGOPT['emerol'])
+               info = PgFile.check_local_file(afile, 1, PgOPT.PGOPT['emerol']|PgLOG.PFSIZE)
             elif oarch:
                info = PgFile.check_object_file(ofile, bucket, 1, PgOPT.PGOPT['emerol'])
             elif pgrec:
@@ -674,7 +674,7 @@ def archive_help_files():
 
          chksum = PgOPT.params['MC'][i]
          if harch and not OVERRIDE:
-            info = PgFile.check_local_file(afile, 1, PgOPT.PGOPT['emerol'])
+            info = PgFile.check_local_file(afile, 1, PgOPT.PGOPT['emerol']|PgLOG.PFSIZE)
             if info:
                if pgrec and chksum and pgrec['checksum'] and pgrec['checksum'] == chksum:
                   PgLOG.pglog("Help-{}: Same-Checksum ARCHIVED at {}:{}".format(hinfo, info['date_modified'], info['time_modified']), PgOPT.PGOPT['emllog'])
@@ -732,7 +732,7 @@ def archive_help_files():
             if not fnames: fnames = PgOPT.get_field_keys(tname, None, "G")  # get setting fields if not yet
             info = None
             if harch:
-               info = PgFile.check_local_file(afile, 1, PgOPT.PGOPT['emerol'])
+               info = PgFile.check_local_file(afile, 1, PgOPT.PGOPT['emerol']|PgLOG.PFSIZE)
             elif oarch:
                info = PgFile.check_object_file(ofile, bucket, 1, PgOPT.PGOPT['emerol'])
             elif pgrec:
@@ -895,7 +895,7 @@ def archive_saved_files():
          vsnctl = 1 if pgrec and pgrec['vindex'] and pgrec['data_size'] else 0
          chksum = PgOPT.params['MC'][i]
          if sarch and (vsnctl or not override):
-            info = PgFile.check_local_file(afile, 1, PgOPT.PGOPT['emerol'])
+            info = PgFile.check_local_file(afile, 1, PgOPT.PGOPT['emerol']|PgLOG.PFSIZE)
             if info:
                if pgrec and chksum and pgrec['checksum'] and pgrec['checksum'] == chksum:
                   PgLOG.pglog("Saved-{}: Same-Checksum ARCHIVED at {}:{}".format(sinfo, info['date_modified'], info['time_modified']), PgOPT.PGOPT['emllog'])
@@ -959,7 +959,7 @@ def archive_saved_files():
             if not fnames: fnames = PgOPT.get_field_keys(tname, None, "G")  # get setting fields if not yet
             info = None
             if sarch:
-               info = PgFile.check_local_file(afile, 1, PgOPT.PGOPT['emerol'])
+               info = PgFile.check_local_file(afile, 1, PgOPT.PGOPT['emerol']|PgLOG.PFSIZE)
             elif oarch:
                info = PgFile.check_object_file(ofile, bucket, 1, PgOPT.PGOPT['emerol'])
             elif pgrec:
@@ -1059,7 +1059,7 @@ def crosscopy_web_files(aname):
          ofile = PgLOG.join_paths(dsid, wfile)
          warch = oarch = 1
          PgLOG.pglog(winfo + ": Cross {} Web file ...".format(aname),  PgLOG.WARNLG)
-         info = PgFile.check_local_file(afile, 0, PgOPT.PGOPT['emerol'])
+         info = PgFile.check_local_file(afile, 0, PgOPT.PGOPT['emerol']|PgLOG.PFSIZE)
          if info:
             warch = 0
          elif info is not None:
@@ -1231,7 +1231,7 @@ def crosscopy_help_files(aname):
          if pgrec and PgOPT.params['HF'][i] != hfile: PgOPT.params['HF'][i] = hfile
          harch = oarch = 1
          PgLOG.pglog(hinfo + ": Cross {} Help file ...".format(aname),  PgLOG.WARNLG)
-         info = PgFile.check_local_file(afile, 0, PgOPT.PGOPT['emerol'])
+         info = PgFile.check_local_file(afile, 0, PgOPT.PGOPT['emerol']|PgLOG.PFSIZE)
          if info:
             harch = 0
          elif info is not None:
@@ -1385,7 +1385,7 @@ def crosscopy_saved_files(aname):
          if pgrec and PgOPT.params['SF'][i] != sfile: PgOPT.params['SF'][i] = sfile
          sarch = oarch = 1
          PgLOG.pglog(sinfo + ": Cross {} Saved file ...".format(aname),  PgLOG.WARNLG)
-         info = PgFile.check_local_file(afile, 0, PgOPT.PGOPT['emerol'])
+         info = PgFile.check_local_file(afile, 0, PgOPT.PGOPT['emerol']|PgLOG.PFSIZE)
          if info:
             sarch = 0
          elif info is not None:
@@ -1951,12 +1951,12 @@ def get_backup_member_file(pgrec, tarfile, tardir):
    tarcmd = "tar -xvf {} -C {} {}".format(tarfile, tardir, mfile)
    PgLOG.pgsystem(tarcmd, PgOPT.PGOPT['extlog'], 5)
    afile = '{}/{}'.format(tardir, mfile)
-   ainfo = PgFile.check_local_file(afile, 0, PgOPT.PGOPT['extlog'])
+   ainfo = PgFile.check_local_file(afile, 0, PgOPT.PGOPT['extlog']|PgLOG.PFSIZE)
 
    if ainfo and mfile != wfile:
       nfile = '{}/{}'.format(tardir, wfile)
       PgFile.move_local_file(nfile, afile, PgOPT.PGOPT['extlog'])     
-      ainfo = PgFile.check_local_file(nfile, 0, PgOPT.PGOPT['extlog'])
+      ainfo = PgFile.check_local_file(nfile, 0, PgOPT.PGOPT['extlog']|PgLOG.PFSIZE)
 
    return ainfo
 
@@ -2177,7 +2177,7 @@ def crosscopy_backup_files():
 #
 def validate_gladearch(file, ofile, i):
 
-   info = PgFile.check_local_file(file, 6, PgOPT.PGOPT['errlog'])
+   info = PgFile.check_local_file(file, 6, PgOPT.PGOPT['errlog']|PgLOG.PFSIZE)
    if not info:
       PgLOG.pglog("Error archiving {} to {}".format(ofile, file), PgLOG.LGEREX)
    elif PgOPT.OPTS['SZ'][2]&2 and PgOPT.params['SZ'] and info['data_size'] != PgOPT.params['SZ'][i]:
@@ -2842,7 +2842,7 @@ def set_one_webfile(i, pgrec, file, flds, type, info = None, ndsid = None, sact 
       record['uid'] = PgOPT.PGOPT['UID']
       if not (info and info['date_modified']):
          info = PgFile.check_local_file(PgArch.get_web_path(i, file, 1, type),
-                                        1, PgOPT.PGOPT['emerol'])
+                                        1, PgOPT.PGOPT['emerol']|PgLOG.PFSIZE)
       if info:
          record['data_size'] = info['data_size']
          record['date_modified'] = info['date_modified']
@@ -2891,7 +2891,7 @@ def set_one_webfile(i, pgrec, file, flds, type, info = None, ndsid = None, sact 
          record['uid'] = PgOPT.PGOPT['UID']
          if 'status' not in record: record['status'] = 'P'
          if not info:
-            info = PgFile.check_local_file(PgArch.get_web_path(i, file, 1, type), 1, PgOPT.PGOPT['emerol'])
+            info = PgFile.check_local_file(PgArch.get_web_path(i, file, 1, type), 1, PgOPT.PGOPT['emerol']|PgLOG.PFSIZE)
             stat = check_file_flag(file, info, record)
             if not stat: return stat
          if info:
@@ -2922,7 +2922,7 @@ def check_file_flag(file, info, record, pgrec = None):
 
    if not info: return PgLOG.SUCCESS
 
-   fflag = 'F' if info['fileflag'] else 'P'
+   fflag = 'F' if info['isfile'] else 'P'
    if 'fileflag' in record:
       if fflag != record['fileflag']:
          return PgLOG.pglog("{}: Cannot set File Flag '{}' to '{}'".format(file, fflag, record['fileflag']), PgOPT.PGOPT['emlerr'])
@@ -3011,7 +3011,7 @@ def set_one_helpfile(i, pgrec, file, flds, type, info = None, ndsid = None):
    if pgrec and (pgrec['status'] == 'D' or PgOPT.PGOPT['ACTS']&PgOPT.OPTS['AH'][0]):
       record['uid'] = PgOPT.PGOPT['UID']
       if not (info and info['date_modified']):
-         info = PgFile.check_local_file(PgArch.get_help_path(i, file, 1, type), 1, PgOPT.PGOPT['emerol'])
+         info = PgFile.check_local_file(PgArch.get_help_path(i, file, 1, type), 1, PgOPT.PGOPT['emerol']|PgLOG.PFSIZE)
       if info:
          record['data_size'] = info['data_size']
          record['date_modified'] = info['date_modified']
@@ -3050,7 +3050,7 @@ def set_one_helpfile(i, pgrec, file, flds, type, info = None, ndsid = None):
          record['uid'] = PgOPT.PGOPT['UID']
          if 'status' not in record: record['status'] = 'P'
          if not (info or 'url' in record):
-            info = PgFile.check_local_file(PgArch.get_help_path(i, file, 1, type), 1, PgOPT.PGOPT['emerol'])
+            info = PgFile.check_local_file(PgArch.get_help_path(i, file, 1, type), 1, PgOPT.PGOPT['emerol']|PgLOG.PFSIZE)
             stat = check_file_flag(file, info, record, pgrec)
             if not stat: return stat
          if info:
@@ -3186,7 +3186,7 @@ def set_one_savedfile(i, pgrec, file, flds, type, info = None, ndsid = None, sac
    if pgrec and PgOPT.PGOPT['ACTS']&PgOPT.OPTS['AS'][0]:
       record['uid'] = PgOPT.PGOPT['UID']
       if not (info and info['date_modified']):
-         info = PgFile.check_local_file(PgArch.get_saved_path(i, file, 1, type), 1, PgOPT.PGOPT['emerol'])
+         info = PgFile.check_local_file(PgArch.get_saved_path(i, file, 1, type), 1, PgOPT.PGOPT['emerol']|PgLOG.PFSIZE)
       if info:
          record['data_size'] = info['data_size']
          record['date_modified'] = info['date_modified']
@@ -3236,7 +3236,7 @@ def set_one_savedfile(i, pgrec, file, flds, type, info = None, ndsid = None, sac
          record['uid'] = PgOPT.PGOPT['UID']
          if 'status' not in record: record['status'] = 'P'
          if not info:
-            info = PgFile.check_local_file(PgArch.get_saved_path(i, file, 1, type), 1, PgOPT.PGOPT['emerol'])
+            info = PgFile.check_local_file(PgArch.get_saved_path(i, file, 1, type), 1, PgOPT.PGOPT['emerol']|PgLOG.PFSIZE)
             stat = check_file_flag(file, info, record, pgrec)
             if not stat: return stat
          if info:
