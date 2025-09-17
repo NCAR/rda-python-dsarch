@@ -151,6 +151,7 @@ PgOPT.OPTS = {                         # (!= 0) - setting actions
    'ET' : [2, 'EndTime',      32],
    'EV' : [2, 'ExternalVersion', 1],
    'FD' : [2, 'FileDate',    257],
+   'FF' : [2, 'FileFlag',      1, 'FP'],
    'FS' : [2, 'FileStatus',    1, 'PI'],
    'FT' : [2, 'FileTime',     33],
    'GI' : [2, 'GroupIndex',   17],
@@ -196,7 +197,7 @@ PgOPT.OPTS = {                         # (!= 0) - setting actions
 }
 
 PgOPT.ALIAS = {
-   'AF' : ['FF', 'FileFormat', 'ExternalFormat'],
+   'AF' : ['FileFormat', 'ExternalFormat'],
    'AL' : ['AsynchronousLimit'],
    'AO' : ['ActOption'],
    'AH' : ['ArchiveHelp', 'ArchHelp', 'ArchHelpFile'],
@@ -332,6 +333,7 @@ PgOPT.TBLHASH['wfile'] = {
    'Q' : ['QT', "btype",               1, "bfile.type"],
    'L' : ['LC', "locflag",             1],
    'H' : ['FS', "wfile.status",        1],
+   'P' : ['FF', "fileflag",            1],
    'S' : ['SZ', "wfile.data_size",     0],
    'J' : ['FD', "wfile.date_modified", 1],
    'K' : ['FT', "wfile.time_modified", 1],
@@ -354,6 +356,7 @@ PgOPT.TBLHASH['sfile'] = {
    'Q' : ['QT', "btype",               1, "bfile.type"],
    'L' : ['LC', "locflag",             1],
    'H' : ['FS', "sfile.status",        1],
+   'P' : ['FF', "fileflag",            1],
    'S' : ['SZ', "sfile.data_size",     0],
    'J' : ['FD', "sfile.date_modified", 1],
    'K' : ['FT', "sfile.time_modified", 1],
@@ -383,6 +386,7 @@ PgOPT.TBLHASH['hfile'] = {
    'N' : ['DF', "data_format",     1],
    'O' : ['DO', "disp_order",     -1],
    'H' : ['FS', "status",          1],
+   'P' : ['FF', "fileflag",        1],
    'S' : ['SZ', "data_size",       0],
    'R' : ['SR', "source",          1],
    'I' : ['ID', "init_date",       1],
@@ -411,10 +415,10 @@ PgOPT.PGOPT['MSET']  = "SA"
 PgOPT.PGOPT['dataset'] = "SWFULQA"
 PgOPT.PGOPT['dsperiod'] = "GJKXY"
 PgOPT.PGOPT['dsgroup'] = "IGXTPQASW"
-PgOPT.PGOPT['wfile'] = "FTIVMNLHS"
-PgOPT.PGOPT['sfile'] = "FTIVMNLHS"
+PgOPT.PGOPT['wfile'] = "FTIVMNLHPS"
+PgOPT.PGOPT['sfile'] = "FTIVMNLHPS"
 PgOPT.PGOPT['bfile'] = "FNMTHS"
-PgOPT.PGOPT['hfile'] = 'FMNLTHSU'
+PgOPT.PGOPT['hfile'] = 'FMNLTHPSU'
 PgOPT.PGOPT['dsvrsn'] = "VIEDSJX"
 PgOPT.PGOPT['UACTS'] = (PgOPT.OPTS['AQ'][0]|PgOPT.OPTS['SD'][0]|PgOPT.OPTS['DL'][0])
 
@@ -422,10 +426,10 @@ PgOPT.PGOPT['UACTS'] = (PgOPT.OPTS['AQ'][0]|PgOPT.OPTS['SD'][0]|PgOPT.OPTS['DL']
 PgOPT.PGOPT['dsall'] = "TSHWFULQAVCBMPIDNGJKXYIJKXY"   # include 'pdall'
 PgOPT.PGOPT['pdall'] = "GJKXY"
 PgOPT.PGOPT['gpall'] = "IGXTRQAPSWMDN"
-PgOPT.PGOPT['wfall'] = "FTCIXVMNOBQLHSJKAED"
-PgOPT.PGOPT['sfall'] = "FTCIXVMNOBQLHSJKD"
+PgOPT.PGOPT['wfall'] = "FTCIXVMNOBQLHPSJKAED"
+PgOPT.PGOPT['sfall'] = "FTCIXVMNOBQLHPSJKD"
 PgOPT.PGOPT['bfall'] = "FNMOTHSCJKD"
-PgOPT.PGOPT['hfall'] = 'FTLCMNOHSRIJKUD'
+PgOPT.PGOPT['hfall'] = 'FTLCMNOHPSRIJKUD'
 PgOPT.PGOPT['vrsnall'] = "VIEDSJKXYN"
 
 # PgOPT.PGOPT['ofile'] reserved for original type 'B' hpps file name

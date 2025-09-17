@@ -734,6 +734,7 @@ d260001-G2: DS-552780725 DC-522 WC-522 SS-465789806 SC-51
          [-(PO|PatternOffset) PatternStringOffset]
          [-(ST|SavedFileType) SavedFileTypes]   # Primary, VersionControl, Work, oRiginal
          [-(FS|FileStatus) SavedFileStatus]     # Public or Interal file
+         [-(FF|FileFlag) FilesOrPaths]          # file type flag, File or Path
          [-(LC|Location) StorageLocationFlags]  # CGD data; Glade, Object or Both
          [-(DF|DataFormat) DataFormats]         # BINARY, ASCII, NetCDF and etc.
          [-(AF|ArchiveFormat) FileArchiveFormats]   # tarred, Compressed and etc.
@@ -796,6 +797,7 @@ d260001-G2: DS-552780725 DC-522 WC-522 SS-465789806 SC-51
          [-(SF|SavedFile) SavedFileNames]
          [-(ST|SavedFileType) SavedFileTypes]
          [-(FS|FileStatus) SavedFileStatus]
+         [-(FF|FileFlag) FilesOrPaths]          # file type flag, File or Path
          [-(LC|Location) StorageLocationFlags]
          [-(GI|GroupIndex) GroupIndices]
          [-(GN|GroupName) GroupNames]
@@ -831,6 +833,7 @@ d260001-G2: DS-552780725 DC-522 WC-522 SS-465789806 SC-51
   Q      -(QT|QuasarType)      Quasar backyp file types
   L      -(LC|Location)        Saved file storage location flag
   H      -(FS|FileStatus)      Saved file archiving status
+  P      -(FF|FileFlag)        File type flag, File or Path
   S      -(SZ|Size)            Saved file sizes
   J      -(FD|FileDate)        date data last modified on
   K      -(FT|FileTime)        time data last modified at 
@@ -866,6 +869,7 @@ d260001-G2: DS-552780725 DC-522 WC-522 SS-465789806 SC-51
          [-(WT|WebFileType) WebFileTypes]     # Web Data or NCAR Data
          [-(LC|Location) StorageLocationFlags]
          [-(FS|FileStatus) WebFileStatus]     # Public or interal file
+         [-(FF|FileFlag) FilesOrPaths]        # file type flag, File or Path
          [-(DF|DataFormat) DataFormats]       # BINARY, ASCII, NetCDF and etc.
          [-(AF|ArchiveFormat) FileArchiveFormats]  # tarred, Compressed and etc.
          [-(DO|DisplayOrder] DisplayOrderIndices]
@@ -940,6 +944,7 @@ d260001-G2: DS-552780725 DC-522 WC-522 SS-465789806 SC-51
          [-(WF|WebFile) WebFileNames]
          [-(WT|WebFileType) WebFileTypes]
          [-(FS|FileStatus) WebFileStatus]
+         [-(FF|FileFlag) FilesOrPaths]          # file type flag, File or Path
          [-(LC|Location) StorageLocationFlags]
          [-(GI|GroupIndex) GroupIndices]
          [-(GN|GroupName) GroupNames]
@@ -975,6 +980,7 @@ d260001-G2: DS-552780725 DC-522 WC-522 SS-465789806 SC-51
   Q      -(QT|QuasarType)      Quasar backyp fie types
   L      -(LC|Location)        Web file storage location flag
   H      -(FS|FileStatus)      Web file archiving status
+  P      -(FF|FileFlag)        File type flag, File or Path
   S      -(SZ|Size)            Web file sizes
   J      -(FD|FileDate)        date data last modified on
   K      -(FT|FileTime)        time data last modified at 
@@ -1021,10 +1027,11 @@ IMMA_2.4_2007.tar<:>37<:>IMMA<:>Z.TAR<:>D<:>656820224<:>
          [-(SR|Source) ContributionSource]
          [-(ON|OrderNames) OrderNameString]
          [-(OB|OrderBy) OrderByPattern]
-         [-(HT|HelpFileType) HelpFileTypes]  # Document or Software
-         [-(FS|FileStatus) HelpFileStatus]     # Public or Interal file
+         [-(HT|HelpFileType) HelpFileTypes]     # Document or Software
+         [-(FS|FileStatus) HelpFileStatus]      # Public or Interal file
+         [-(FF|FileFlag) FilesOrPaths]          # file type flag, File or Path
          [-(LC|Location) StorageLocationFlags]  # Glade, Object, Both or Remote
-         [-(DF|DataFormat) DataFormats]       # Python, PDF, and etc.
+         [-(DF|DataFormat) DataFormats]         # Python, PDF, and etc.
          [-(AF|ArchiveFormat) FileArchiveFormats]  # tarred, Compressed and etc.
          [-(DO|DisplayOrder] DisplayOrderIndices]
          [-(SZ|Size) FileSizes]
@@ -1075,6 +1082,7 @@ IMMA_2.4_2007.tar<:>37<:>IMMA<:>Z.TAR<:>D<:>656820224<:>
          [-(HF|HelpFile) HelpFileNames]
          [-(HT|HelpFileType) HelpFileTypes]     # Document or Software
          [-(FS|FileStatus) SavedFileStatus]
+         [-(FF|FileFlag) FilesOrPaths]          # file type flag, File or Path
          [-(LC|Location) StorageLocationFlags]
          [-(SR|Source) ContributionSource]
          [-(DE|Description) SavedFileDescriptions]
@@ -1098,6 +1106,7 @@ IMMA_2.4_2007.tar<:>37<:>IMMA<:>Z.TAR<:>D<:>656820224<:>
   O      -(DO|DisplayOrder)    display order indices
   T      -(HT|HelpFileType)    Help file archiving types
   H      -(FS|FileStatus)      Help file archiving status
+  P      -(FF|FileFlag)        File type flag, File or Path
   L      -(LC|Location)        Help file storage location flag
   S      -(SZ|Size)            Help file sizes
   R      -(SR|Source)          Help file contribution source
@@ -1235,6 +1244,7 @@ IMMA_2.4_2007.tar<:>37<:>IMMA<:>Z.TAR<:>D<:>656820224<:>
          [-(PO|PatternOffset) PatternStringOffset]
          [-(ST|SavedFileType) SavedFileTypes]
          [-(FS|FileStatus) SavedFileStatus]       # P-Public or I-Internal
+         [-(FF|FileFlag) FilesOrPaths]            # file type flag, File or Path
          [-(LC|Location) StorageLocationFlags]
          [-(DF|DataFormat) DataFormat]            # BINARY, ASCII, NetCDF and etc.
          [-(AF|ArchiveFormat) FileArchiveFormat]  # tarred, compressed and etc. 
@@ -1334,16 +1344,17 @@ IMMA_2.4_2007.tar<:>37<:>IMMA<:>Z.TAR<:>D<:>656820224<:>
   dsarch [-(DS|dataset)] dsnnn.n -(AW|ArchiveWebFile) [Mode Options]
          [-(LF|LocalFile) LocalFileNames]  # mandatory unless -LD or -LL present
          [-(LD|LocalDirectory) LocalDirectoryName]  # directory for local file names
-         [-(LL|LocalFileList) LocalFileListName]  # contains a list of local file names
-         [-(WF|WebFile) webFileNames]      # default to -LF
+         [-(LL|LocalFileList) LocalFileListName]    # contains a list of local file names
+         [-(WF|WebFile) webFileNames]               # default to -LF
          [-(GI|GroupIndex) GroupIndices]
          [-(TG|TopGroupIndex) TopGroupIndices]
          [-(GN|GroupName) GroupNames]
          [-(PO|PatternOffset) PatternStringOffset]
-         [-(WT|WebFileType) WebFileTypes]  # Data, Ncar Data
-         [-(FS|FileStatus) WebFileStatus]  # P-Public or I-Internal
+         [-(WT|WebFileType) WebFileTypes]       # Data, Ncar Data
+         [-(FS|FileStatus) WebFileStatus]       # P-Public or I-Internal
+         [-(FF|FileFlag) FilesOrPaths]          # file type flag, File or Path
          [-(LC|Location) StorageLocationFlags]
-         [-(DF|DataFormat) DataFormat]     # BINARY, ASCII, NetCDF and etc.
+         [-(DF|DataFormat) DataFormat]            # BINARY, ASCII, NetCDF and etc.
          [-(AF|ArchiveFormat) FileArchiveFormat]  # tarred, compressed and etc. 
          [-(DO|DisplayOrder] DisplayOrderIndices]
          [-(SZ|Size) FileSizes]
@@ -1449,6 +1460,7 @@ IMMA_2.4_2007.tar<:>37<:>IMMA<:>Z.TAR<:>D<:>656820224<:>
          [-(HF|HelpFile) HelpFileNames]            # default to -LF
          [-(HT|HelpFileType) HelpFileTypes]
          [-(FS|FileStatus) HelpFileStatus]         # P-Public or I-Internal
+         [-(FF|FileFlag) FilesOrPaths]             # file type flag, File or Path
          [-(DF|DataFormat) FileContentFormat]      # PDF, Python and etc.
          [-(AF|ArchiveFormat) FileArchiveFormat]   # tarred, compressed and etc. 
          [-(DO|DisplayOrder] DisplayOrderIndices]
@@ -2221,6 +2233,8 @@ Information options are used to pass information, one or multiple values, into
   version number is used for a dataset; otherwise it is defaulted to empty.
 
   -FD or -FileDate, for date of a data file last modified on. 
+
+  -FF or -FileFlag, File type flag, F for File and P for Path.
 
   -FS or -FileStatus, File status, a single letter status flag, P - show file
   to public users; and I - to show file to specialist only.
