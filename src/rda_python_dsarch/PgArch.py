@@ -488,7 +488,7 @@ def check_enough_options(cact, acts):
       "Miss file names per -SF(-SavedFile), -WF(-WebFile), -HF(-HelpFile) Or -QF(-QuasarFile)",
       "Miss Help file types per -HT(-HelpFileType)",
       "Miss Quasar file types per -QT(-QuasarFileType)",
-      "Miss RDA Server file names per -WF(-WebFile)",
+      "Miss GDEX Server file names per -WF(-WebFile)",
       "Miss Saved file types per -ST(-SavedFileType)",
       "13",
       "14",
@@ -718,7 +718,7 @@ def set_qsub_walltime():
    else:
       return
 
-   if 'GX' in PgOPT.params: fcnt *= 30
+   if 'GX' in PgOPT.params or 'DX' in PgOPT.params: fcnt *= 30
    hr = int(fcnt/30000)
    if hr == 6: return
 
