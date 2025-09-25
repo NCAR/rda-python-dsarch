@@ -718,7 +718,10 @@ def set_qsub_walltime():
    else:
       return
 
-   if 'GX' in PgOPT.params or 'DX' in PgOPT.params: fcnt *= 30
+   if 'GX' in PgOPT.params:
+      fcnt *= 30
+   elif 'DX' in PgOPT.params:
+      fcnt *= 10
    hr = int(fcnt/30000)
    if hr == 6: return
 
