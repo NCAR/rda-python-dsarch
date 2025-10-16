@@ -35,4 +35,4 @@ where = ["src"]
 "Homepage" = "https://github.com/NCAR/rda-python-dsarch"
 
 [project.scripts]
-"dsarch.py" = "rda_python_dsarch.dsarch:main"
+"dsarch" = "rda_python_dsarch.dsarch:main"
