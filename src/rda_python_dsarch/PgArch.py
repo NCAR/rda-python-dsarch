@@ -719,7 +719,7 @@ def set_qsub_walltime():
       return
 
    if 'GX' in PgOPT.params:
-      fcnt *= 50
+      fcnt *= 100
    elif 'DX' in PgOPT.params:
       fcnt *= 10
    hr = int(fcnt/30000)
