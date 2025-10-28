@@ -2447,7 +2447,7 @@ def set_group_info():
          level = 1
          pindex = record['pindex'] if 'pindex' in record and record['pindex'] else 0
          if pindex:
-            if abs(pindex) >= abs(gindex):
+            if abs(pindex) >= abs(int(gindex)):
                PgLOG.pglog("{}-{}: Parent Group Index {} must be smaller than current Index!".format(dsid, gindex, pindex), PgLOG.LGEREX)
             prec = PgDBI.pgget(tname, 'grptype', "{} AND gindex = {}".format(dcnd, pindex), PgLOG.LGEREX)
             if not prec:
