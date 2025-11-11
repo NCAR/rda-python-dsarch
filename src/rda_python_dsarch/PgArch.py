@@ -490,7 +490,7 @@ def check_enough_options(cact, acts):
       "Miss Quasar file types per -QT(-QuasarFileType)",
       "Miss GDEX Server file names per -WF(-WebFile)",
       "Miss Saved file types per -ST(-SavedFileType)",
-      "13",
+      "Cannot Cross Copy/Move (-XC/-XM) Saved Files",
       "14",
       "Miss Use-RDADB flag, ('Y', 'P', 'W', 'I'), per -UD(-UseRDADB) for ",
       "16",
@@ -556,8 +556,9 @@ def check_enough_options(cact, acts):
       elif 'ST' not in PgOPT.params:
          erridx = 12
       elif 'XC' in PgOPT.params or 'XM' in PgOPT.params:
-         if 'SF' not in PgOPT.params:
-            erridx = 17
+         erridx = 13
+#         if 'SF' not in PgOPT.params:
+#            erridx = 17
       elif 'LF' not in PgOPT.params:
          erridx = 5
       elif 'DF' not in PgOPT.params:
