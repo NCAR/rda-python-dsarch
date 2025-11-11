@@ -340,7 +340,7 @@ def archive_web_files():
    tname = 'wfile'
    dftloc = None
    dsid = PgOPT.params['DS']
-   bucket = "rda-data"    # default object store bucket
+   bucket = PgLOG.PGLOG['OBJCTBKT']    # default object store bucket
    s = 's' if ALLCNT > 1 else ''
    bidx = chksize = 0
    dslocflags = set()
@@ -577,7 +577,7 @@ def archive_help_files():
    global ADDCNT, MODCNT, RETSTAT
    tname = 'hfile'
    dsid = PgOPT.params['DS']
-   bucket = 'rda-data'
+   bucket = PgLOG.PGLOG['OBJCTBKT']
    dcnd = "dsid = '{}'".format(dsid)
    s = 's' if ALLCNT > 1 else ''
    bidx = chksize = 0
@@ -789,7 +789,7 @@ def archive_saved_files():
    s = 's' if ALLCNT > 1 else ''
    bidx = chksize = 0
    dflags = {}
-   bucket = "rda-decsdata"    # object store bucket 
+   bucket = "gdex-decsdata"    # object store bucket 
    PgLOG.pglog("Archive {} Saved file{} of {} ...".format(ALLCNT, s, dsid), PgLOG.WARNLG)
 
    if 'ZD' in PgOPT.params or 'UZ' in PgOPT.params:
@@ -862,6 +862,7 @@ def archive_saved_files():
          else:
             oarch = 0
             sarch = 1
+         if oarch: PgLOG.pglog(lfile + ": Cannot Archive Saved File onto Boreas", PgOPT.PGOPT['extlog'])
          if not PgOPT.params['MC'][i]: PgOPT.params['MC'][i] = PgFile.get_md5sum(lfile)  # re-get MD5 Checksum
          if not (PgOPT.params['SZ'][i] and PgOPT.params['SZ'][i] == lsize):
             PgOPT.params['SZ'][i] = lsize
@@ -1012,7 +1013,7 @@ def crosscopy_web_files(aname):
    s = 's' if ALLCNT > 1 else ''
    bidx = chksize = 0
    dflags = {}
-   bucket = "rda-data"  # object store bucket
+   bucket = PgLOG.PGLOG['OBJCTBKT']  # object store bucket
    PgLOG.pglog("Cross {} {} Web file{} of {} ...".format(aname, ALLCNT, s, dsid), PgLOG.WARNLG)
 
    PgOPT.validate_multiple_values(tname, ALLCNT)
@@ -1174,7 +1175,7 @@ def crosscopy_help_files(aname):
    s = 's' if ALLCNT > 1 else ''
    bidx = chksize = 0
    dflags = {}
-   bucket = "rda-data"
+   bucket = PgLOG.PGLOG['OBJCTBKT']
    PgLOG.pglog("Cross {} {} Help file{} of {} ...".format(aname, ALLCNT, s, dsid), PgLOG.WARNLG)
 
    PgOPT.validate_multiple_values(tname, ALLCNT)
@@ -1333,7 +1334,7 @@ def crosscopy_saved_files(aname):
    s = 's' if ALLCNT > 1 else ''
    bidx = chksize = 0
    dflags = {}
-   bucket = "rda-decsdata"
+   bucket = "gdex-decsdata"
    PgLOG.pglog("Cross {} {} Saved file{} of {} ...".format(aname, ALLCNT, s, dsid), PgLOG.WARNLG)
 
    PgOPT.validate_multiple_values(tname, ALLCNT)
@@ -1668,7 +1669,7 @@ def tar_backup_savedfiles(tarfile, tinfo, ccnt, chkstat):
          tardir = tarhome
          savedfile = "{}/{}".format(tardir, sfile)
          ofile = PgLOG.join_paths(dsid, sfile)
-         PgFile.object_copy_local(savedfile, ofile, 'rda-decsdata', PgOPT.PGOPT['wrnlog'])
+         PgFile.object_copy_local(savedfile, ofile, 'gdex-decsdata', PgOPT.PGOPT['wrnlog'])
          tmpfiles[i] = savedfile
       else:
          tardir = "{}/{}".format(dshome, stype)
@@ -1756,7 +1757,7 @@ def tar_backup_webfiles(tarfile, tinfo, ccnt, chkstat):
          tardir = tarhome
          webfile = "{}/{}".format(tardir, wfile)
          ofile = PgLOG.join_paths(dsid, wfile)
-         PgFile.object_copy_local(webfile, ofile, 'rda-data', PgOPT.PGOPT['wrnlog'])
+         PgFile.object_copy_local(webfile, ofile, PgLOG.PGLOG['OBJCTBKT'], PgOPT.PGOPT['wrnlog'])
          tmpfiles[i] = webfile
       else:
          tardir = dshome
@@ -1864,7 +1865,7 @@ def restore_backup_webfiles():
 
    tname = 'wfile'
    dsid = PgOPT.params['DS']
-   bucket = "rda-data"    # default object store bucket
+   bucket = PgLOG.PGLOG['OBJCTBKT']    # default object store bucket
    s = 's' if ALLCNT > 1 else ''
    wcnt = ocnt = bidx = chksize = 0
    dflags = {}
@@ -1968,7 +1969,7 @@ def restore_backup_savedfiles():
    tname = 'sfile'
    dsid = PgOPT.params['DS']
    dcnd = "dsid = '{}'".format(dsid)
-   bucket = "rda-decsdata"    # default object store bucket
+   bucket = "gdex-decsdata"    # default object store bucket
    s = 's' if ALLCNT > 1 else ''
    scnt = ocnt = bidx = chksize = 0
    dflags = {}
@@ -2797,7 +2798,7 @@ def set_webfile_info(include = None):
       if pgrec and pgrec['type'] and deftype and type != pgrec['type']: type = pgrec['type']
       info = None
       if locflag == 'O' and not pgrec:
-         info = PgFile.check_object_file(PgLOG.join_paths(dsid, file), 'rda-data', 1, PgOPT.PGOPT['emlerr'])
+         info = PgFile.check_object_file(PgLOG.join_paths(dsid, file), PgLOG.PGLOG['OBJCTBKT'], 1, PgOPT.PGOPT['emlerr'])
       wid = set_one_webfile(i, pgrec, file, fnames, type, info)
       if not wid: continue
       wfile = PgArch.get_web_path(i, PgOPT.params['WF'][i], 0, type)
@@ -3157,7 +3158,7 @@ def set_savedfile_info():
       if pgrec and PgOPT.params['SF'][i] != file: PgOPT.params['SF'][i] = file
       info = None
       if locflag == 'O' and not pgrec:
-         info = PgFile.check_object_file(PgLOG.join_paths(dsid, file), 'rda-decsdata', 1, PgOPT.PGOPT['emlerr'])
+         info = PgFile.check_object_file(PgLOG.join_paths(dsid, file), 'gdex-decsdata', 1, PgOPT.PGOPT['emlerr'])
       set_one_savedfile(i, pgrec, file, fnames, type, info)
 
    PgLOG.pglog("{}/{} of {} Saved file record{} added/modified for {}!".format(ADDCNT, MODCNT, ALLCNT, s, dsid), PgOPT.PGOPT['emllog'])
@@ -3378,7 +3379,7 @@ def move_web_files():
    dcnd = "dsid = '{}'".format(dsid)
    tmpds = tmpgs = None
    bidx = chksize = 0
-   bucket = "rda-data"
+   bucket = PgLOG.PGLOG['OBJCTBKT']
    rcnt = len(PgLOG.PGLOG['WEBHOSTS'])
    s = 's' if ALLCNT > 1 else ''
 
@@ -3493,7 +3494,7 @@ def move_web_files():
          set_web_move(pgrec)
 
       if omove and oolds[i] != onews[i]:
-         if not PgFile.move_object_file(onews[i], oolds[i], bucket, bucket,  PgOPT.PGOPT['emerol']|OVERRIDE):
+         if not PgFile.move_object_file(onews[i], oolds[i], bucket, bucket, PgOPT.PGOPT['emerol']|OVERRIDE):
             RETSTAT = 1
             continue
          if PgLOG.PGLOG['DSCHECK']: chksize += pgrec['data_size']
@@ -3533,7 +3534,7 @@ def move_help_files():
    dcnd = "dsid = '{}'".format(dsid)
    tmpds = None
    bidx = chksize = 0
-   bucket = "rda-data"
+   bucket = PgLOG.PGLOG['OBJCTBKT']
    rcnt = len(PgLOG.PGLOG['WEBHOSTS'])
    s = 's' if ALLCNT > 1 else ''
 
@@ -3647,8 +3648,8 @@ def saved_to_web_files():
    tname = 'wfile'
    dsid = PgOPT.params['DS']
    dcnd = "dsid = '{}'".format(dsid)
-   frombucket = "rda-decsdata"
-   tobucket = "rda-data"
+   frombucket = "gdex-decsdata"
+   tobucket = PgLOG.PGLOG['OBJCTBKT']
    s = 's' if ALLCNT > 1 else ''
    bidx = chksize = 0
    dslocflags = set()
@@ -3754,12 +3755,14 @@ def saved_to_web_files():
           not PgDBI.pgget("dsgroup", "", "{} and gindex = {}".format(dcnd, pgrec['gindex']), PgOPT.PGOPT['extlog'])):
          PgLOG.pglog("Group Index {} is not in RDADB for {}\n".format(pgrec['gindex'], dsid) +
                      "Specify Original/New group index via options -OG/-GI", PgOPT.PGOPT['extlog'])
-      ofrom = sfrom = omove = wmove = 1
-      locflag = pgrec['locflag']
-      if locflag == 'O':
-         sfrom = 0
-      elif locflag == 'G':
-         ofrom = 0
+      sfrom = omove = wmove = 1
+      ofrom = 0
+      locflag = 'G'
+#      locflag = pgrec['locflag']
+#      if locflag == 'O':
+#         sfrom = 0
+#      elif locflag == 'G':
+#         ofrom = 0
       if not PgOPT.params['LC'][i] or PgOPT.params['LC'][i] == 'R':
          PgOPT.params['LC'][i] = locflag
       else:
@@ -3835,7 +3838,7 @@ def delete_web_files():
 
    tname = 'wfile'
    dsid = PgOPT.params['DS']
-   bucket = "rda-data"
+   bucket = PgLOG.PGLOG['OBJCTBKT']
    s = 's' if ALLCNT > 1 else ''
    bidx = chksize = 0
    rcnt = len(PgLOG.PGLOG['WEBHOSTS'])
@@ -3948,7 +3951,7 @@ def delete_help_files():
 
    tname = 'hfile'
    dsid = PgOPT.params['DS']
-   bucket = "rda-data"
+   bucket = PgLOG.PGLOG['OBJCTBKT']
    dcnd = "dsid = '{}'".format(dsid)
    s = 's' if ALLCNT > 1 else ''
    bidx = chksize = 0
@@ -4044,7 +4047,7 @@ def move_saved_files():
    tname = 'sfile'
    dsid = PgOPT.params['DS']
    dcnd = "dsid = '{}'".format(dsid)
-   bucket = "rda-decsdata"
+   bucket = "gdex-decsdata"
    s = 's' if ALLCNT > 1 else ''
    bidx = chksize = 0
 
@@ -4140,11 +4143,12 @@ def move_saved_files():
           not PgDBI.pgget("dsgroup", "", "{} and gindex = {}".format(dcnd, pgrec['gindex']), PgOPT.PGOPT['extlog'])):
          PgLOG.pglog("Group Index {} is not in RDADB for {}\n".format(pgrec['gindex'], dsid) +
                      "Specify Original/New group index via options -OG/-GI", PgOPT.PGOPT['extlog'])
-      omove = smove = 1
-      if pgrec['locflag'] == 'O':
-         smove = 0
-      elif pgrec['locflag'] == 'G':
-         omove = 0
+      omove = 0
+      smove = 1
+#      if pgrec['locflag'] == 'O':
+#         smove = 0
+#      elif pgrec['locflag'] == 'G':
+#         omove = 0
       if smove and aolds[i] != anews[i]:
          if not PgFile.move_local_file(anews[i], aolds[i], PgOPT.PGOPT['emerol']|OVERRIDE):
             RETSTAT = 1
@@ -4287,8 +4291,8 @@ def web_to_saved_files():
    tname = 'sfile'
    dsid = PgOPT.params['DS']
    dcnd = "dsid = '{}'".format(dsid)
-   frombucket = "rda-data"
-   tobucket = "rda-decsdata"
+   frombucket = PgLOG.PGLOG['OBJCTBKT']
+   tobucket = "gdex-decsdata"
    bidx = chksize = 0
 
    tmpds = tmpgs = None
@@ -4394,20 +4398,21 @@ def web_to_saved_files():
           not PgDBI.pgget("dsgroup", "", "{} and gindex = {}".format(dcnd, pgrec['gindex']), PgOPT.PGOPT['extlog'])):
          PgLOG.pglog("Group Index {} is not in RDADB for {}\n".format(pgrec['gindex'], dsid) +
                      "Specify Original/New group index via options -OG/-GI", PgOPT.PGOPT['extlog'])
-      ofrom = wfrom = omove = smove = 1
+      ofrom = wfrom = smove = 1
+      omove = 0
       locflag = pgrec['locflag']
       if locflag == 'O':
          wfrom = 0
       elif locflag == 'G':
          ofrom = 0
-      if not PgOPT.params['LC'][i] or PgOPT.params['LC'][i] == 'R':
-         PgOPT.params['LC'][i] = locflag
-      else:
-         locflag = PgOPT.params['LC'][i]
-      if locflag == 'O':
-         smove = 0
-      elif locflag == 'G':
-         omove = 0
+#      if not PgOPT.params['LC'][i] or PgOPT.params['LC'][i] == 'R':
+#         PgOPT.params['LC'][i] = locflag
+#      else:
+#         locflag = PgOPT.params['LC'][i]
+#      if locflag == 'O':
+#         smove = 0
+#      elif locflag == 'G':
+#         omove = 0
       if smove:
          if wfrom:
             stat = PgFile.move_local_file(anews[i], aolds[i], PgOPT.PGOPT['emerol']|OVERRIDE)
@@ -4487,7 +4492,7 @@ def delete_saved_files():
    tname = 'sfile'
    dsid = PgOPT.params['DS']
    dcnd = "dsid = '{}'".format(dsid)
-   bucket = "rda-decsdata"
+   bucket = "gdex-decsdata"
    s = 's' if ALLCNT > 1 else ''
    PgLOG.pglog("Delete {} Saved file{} from {} ...".format(ALLCNT, s, dsid), PgLOG.WARNLG)
 
@@ -4522,14 +4527,16 @@ def delete_saved_files():
          PgLOG.pglog("{}-{}: Type '{}' Saved file is not in RDADB".format(dsid, sfile, type), PgOPT.PGOPT['errlog'])
          continue
 
-      odel = sdel = oflag = sflag = 1
-      locflag = pgrec['locflag']
-      if locflag == 'O':
-         sflag = 0
-      elif locflag == 'G':
-         oflag = 0
-      elif locflag == 'C':
-         sflag = oflag = 0
+      sdel = oflag = sflag = 1
+      odel = 0
+      locflag = 'G'
+#      locflag = pgrec['locflag']
+#      if locflag == 'O':
+#         sflag = 0
+#      elif locflag == 'G':
+#         oflag = 0
+#      elif locflag == 'C':
+#         sflag = oflag = 0
       if 'LC' in PgOPT.params and PgOPT.params['LC'][i]: locflag = PgOPT.params['LC'][i]
       if locflag == 'O':
          sdel = 0
