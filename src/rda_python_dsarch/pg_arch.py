@@ -914,12 +914,12 @@ class PgArch(PgOPT, PgCMD, PgSplit):
          self.grouptypes[gindex] = 'I' if pgrec and pgrec['grptype'] == 'I' else 'P'
       return self.grouptypes[gindex]
    
-   # intialize the group info of patterns, wself.ebpaths and self.savedpaths for given dataset ID
+   # intialize the group info of patterns, self.webpaths and self.savedpaths for given dataset ID
    # and set group IDs if missed
    def cache_group_info(self, count, noauto = 0):
       pgrec = self.pgget("dataset", "webpath, savedpath", "dsid = '{}'".format(self.params['DS']), self.PGOPT['extlog'])
       if not pgrec: self.pglog("Cannot get dataset info for '{}'".format(self.params['DS']), self.PGOPT['extlog'])
-      wself.ebpaths = {0 : pgrec['webpath']}
+      self.webpaths = {0 : pgrec['webpath']}
       self.savedpaths = {0 : pgrec['savedpath']}
       self.grouptypes = {}
       if not count or 'GI' in self.params: return
@@ -1048,11 +1048,11 @@ class PgArch(PgOPT, PgCMD, PgSplit):
      # find datset/group/user-defined subpath
       if 'WP' not in self.params:
          gindex = self.params['GI'][i] if 'GI' in self.params and self.params['GI'][i] else 0
-         if gindex in wself.ebpaths:
-            webpath = wself.ebpaths[gindex]
+         if gindex in self.webpaths:
+            webpath = self.webpaths[gindex]
          else:
             webpath = self.get_group_field_path(gindex, self.params['DS'], 'webpath')
-            wself.ebpaths[gindex] = webpath if webpath else ""
+            self.webpaths[gindex] = webpath if webpath else ""
       elif len(self.params['WP']) == 1:
          webpath = self.params['WP'][0]
       else:
@@ -1368,9 +1368,9 @@ class PgArch(PgOPT, PgCMD, PgSplit):
             if i > 0 and self.params['GI'][i] == self.params['GI'][i-1]: continue
             for type in types:
                if saved:
-                  cdirs.add(get_saved_path(i, None, 1, type))
+                  cdirs.add(self.get_saved_path(i, None, 1, type))
                else:
-                  cdirs.add(get_web_path(i, None, 1, type))
+                  cdirs.add(self.get_web_path(i, None, 1, type))
          for cdir in cdirs:
             self.clean_empty_directory(cdir, self.PGLOG['GPFSHOST'])
    
