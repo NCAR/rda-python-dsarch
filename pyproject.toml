@@ -22,14 +22,10 @@ dependencies = [
   "rda_python_setuid",
 ]
 
-[tool.setuptools]
-include-package-data = true
-
-[tool.setuptools.packages.find]
-where = ["src"]
-
-[tool.setuptools.package-data]
-"rda_python_dsarch" = ["dsarch.usg"]
+[tool.pytest.ini_options]
+pythonpath = [
+  "src"
+]
 
 [project.urls]
 "Homepage" = "https://github.com/NCAR/rda-python-dsarch"
