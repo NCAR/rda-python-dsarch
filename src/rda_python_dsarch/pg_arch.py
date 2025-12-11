@@ -14,7 +14,7 @@ import time
 import re
 import os
 from os import path as op
-from rda_python_common.pg_meta import PgSplit
+from rda_python_common.pg_split import PgSplit
 from rda_python_common.pg_cmd import PgCMD
 from rda_python_common.pg_opt import PgOPT
 
