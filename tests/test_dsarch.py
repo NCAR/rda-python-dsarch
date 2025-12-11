@@ -3,4 +3,8 @@
 import pytest
 
 def test_something():
-   pass
+   import rda_python_dsarch.PgArch
+   import rda_python_dsarch.PgMeta
+   import rda_python_dsarch.pg_arch
+   import rda_python_dsarch.pg_meta
+   import rda_python_dsarch.dsarch
