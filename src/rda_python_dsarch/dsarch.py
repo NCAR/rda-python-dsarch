@@ -20,7 +20,7 @@ from .pg_arch import PgArch
 class DsArch(PgArch, PgMeta):
    def __init__(self):
       super().__init__()  # initialize parent class
-      self.ERRCNT = self.RETSTAT = self.ALLCNT = self.ADDCNT = self.MODCNT = self.self.OVERRIDE = 0
+      self.ERRCNT = self.RETSTAT = self.ALLCNT = self.ADDCNT = self.MODCNT = self.OVERRIDE = 0
       self.TARFILES = {}
       self.VINDEX = {}
       self.CHGGRPS = {}
