@@ -679,7 +679,7 @@ class PgMeta(PgCMD, PgSplit):
       pgrecs = self.pgmget("dsgroup", "gindex", pcnd, self.LGEREX)
       cnt = len(pgrecs['gindex']) if pgrecs else 0
       for i in range(cnt):
-         tcnt += self.reset_top_gindex(dsid, pgrecs['gindex'][i])
+         tcnt += self.reset_top_gindex(dsid, pgrecs['gindex'][i], act)
       return tcnt
    
    # reset metalink in table wfile

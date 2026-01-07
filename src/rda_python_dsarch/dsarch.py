@@ -306,7 +306,6 @@ class DsArch(PgArch, PgMeta):
                self.cmdlog(None, 0, self.LOGWRN|self.SNDEML)
             else:
                self.cmdlog()
-      self.pgexit(0)
 
    # archive web/object files
    def archive_web_files(self):
@@ -2240,7 +2239,7 @@ class DsArch(PgArch, PgMeta):
             if not pgrec or level != pgrec['level']: record['level'] = level
             if pgrec:
                modcnt += self.pgupdt(tname, record, "gidx = {}".format(pgrec['gidx']), self.LGEREX)
-               if pindex: tcnt += self.reset_top_group_index(dsid, gindex, 6)
+               if pindex: tcnt += self.reset_top_gindex(dsid, gindex, 6)
                if 'grptype' in record:
                   self.params['WN'] = 6
                   self.CHGGRPS[gindex] = 1
@@ -4375,10 +4374,10 @@ class DsArch(PgArch, PgMeta):
       if 'GI' in self.params:
          for gindex in self.params['GI']:
             if gindex is None or gindex in cgidxs: continue
-            tcnt += self.reset_top_group_index(dsid, gindex, act)
+            tcnt += self.reset_top_gindex(dsid, gindex, act)
             cgidxs[gindex] = gindex
       else:
-         tcnt += self.reset_top_group_index(dsid, 0, act)
+         tcnt += self.reset_top_gindex(dsid, 0, act)
       return tcnt
 
    # set the re-archived file counts for groups
