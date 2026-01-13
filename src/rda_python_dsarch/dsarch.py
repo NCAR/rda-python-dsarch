@@ -77,13 +77,8 @@ class DsArch(PgArch, PgMeta):
       elif self.PGOPT['ACTS'] == self.OPTS['AS'][0]:
          self.ALLCNT = len(self.params['SF']) if 'SF' in self.params else len(self.params['LF'])
          self.cache_group_info(self.ALLCNT)
-         if 'XC' in self.params:
-            self.crosscopy_saved_files('Copy')
-         elif 'XM' in self.params:
-            self.crosscopy_saved_files('Move')
-         else:
-            self.archive_saved_files()
-            if 'CL' in self.params: self.delete_local_files()
+         self.archive_saved_files()
+         if 'CL' in self.params: self.delete_local_files()
       elif self.PGOPT['ACTS'] == self.OPTS['AW'][0]:
          self.ALLCNT = len(self.params['WF']) if 'WF' in self.params else len(self.params['LF'])
          if 'ML' in self.params and 'GX' in self.params: del self.params['ML']
@@ -726,13 +721,12 @@ class DsArch(PgArch, PgMeta):
    # archive save files
    def archive_saved_files(self):
       tname = 'sfile'
-      dftloc = None
+      dftloc = 'G'
       dsid = self.params['DS']
       dcnd = "dsid = '{}'".format(dsid)
       s = 's' if self.ALLCNT > 1 else ''
       bidx = chksize = 0
       dflags = {}
-      bucket = "gdex-decsdata"    # object store bucket 
       self.pglog("Archive {} Saved file{} of {} ...".format(self.ALLCNT, s, dsid), self.WARNLG)
       if 'ZD' in self.params or 'UZ' in self.params:
          self.compress_localfile_list(self.PGOPT['CACT'], self.ALLCNT)
@@ -752,18 +746,17 @@ class DsArch(PgArch, PgMeta):
          self.params['AF'] = [None]*self.ALLCNT
          self.OPTS['AF'][2] |= 2
       if 'LC' not in self.params:
-         self.params['LC'] = [None]*self.ALLCNT
+         self.params['LC'] = [dftloc]*self.ALLCNT
          self.OPTS['LC'][2] |= 2
       if 'SZ' not in self.params:
          self.params['SZ'] = [0]*self.ALLCNT
          self.OPTS['SZ'][2] |= 2
       if 'MC' not in self.params: self.params['MC'] = [None]*self.ALLCNT
-      reorder = errcnt = self.ADDCNT = self.MODCNT = bgcnt = acnt = ocnt = 0
+      reorder = errcnt = self.ADDCNT = self.MODCNT = bgcnt = acnt = 0
       perrcnt = self.ALLCNT
       efiles = [1]*self.ALLCNT
       if self.PGSIG['BPROC'] > 1:
          afiles = [None]*self.ALLCNT
-         ofiles = [None]*self.ALLCNT
          lfiles = [None]*self.ALLCNT
       fnames = None
       override = self.OVERRIDE
@@ -789,19 +782,9 @@ class DsArch(PgArch, PgMeta):
                   self.params['LF'][i] = self.params['SF'][i] = None
                continue
             locflag = self.params['LC'][i]
-            if not locflag or locflag == 'R':
-               if not dftloc: dftloc = self.get_dataset_locflag(dsid)
-               locflag = self.params['LC'][i] = dftloc
             if locflag == 'C': self.pglog(lfile + ": Cannot Archive Saved File for CGD data", self.PGOPT['extlog'])
-            if locflag == 'B':
-               oarch = sarch = 1
-            elif locflag == 'O':
-               oarch = 1
-               sarch = 0
-            else:
-               oarch = 0
-               sarch = 1
-            if oarch: self.pglog(lfile + ": Cannot Archive Saved File onto Boreas", self.PGOPT['extlog'])
+            locflag = self.params['LC'][i] = dftloc
+            sarch = 1
             if not self.params['MC'][i]: self.params['MC'][i] = self.get_md5sum(lfile)  # re-get MD5 Checksum
             if not (self.params['SZ'][i] and self.params['SZ'][i] == lsize):
                self.params['SZ'][i] = lsize
@@ -817,9 +800,8 @@ class DsArch(PgArch, PgMeta):
             else:
                self.pglog("{}-{}: Miss Saved file Type to Archive".format(dsid, sfile), self.PGOPT['extlog'])
                continue
-            afile = (self.get_saved_path(i, sfile, 1, type) if sarch else None)
+            afile = self.get_saved_path(i, sfile, 1, type)
             sfile = self.get_saved_path(i, sfile, 0, type)
-            ofile = (self.join_paths(dsid, sfile) if oarch else None)
             pgrec = self.pgget(tname, "*", "{} AND sfile = '{}' AND type = '{}'".format(dcnd, sfile, type), self.PGOPT['extlog'])
             if not pgrec:
                pgrec = self.pgget(tname, "type", "{} AND sfile = '{}'".format(dcnd, sfile), self.PGOPT['extlog'])
@@ -851,45 +833,15 @@ class DsArch(PgArch, PgMeta):
                   efiles[i] = 1
                   dflags['G'] = self.PGLOG['DECSHOME']
                   continue
-            if oarch:
-               replace = 0
-               info = self.check_object_file(ofile, bucket, 1, self.PGOPT['emerol'])
-               if info:
-                  if pgrec and chksum and pgrec['checksum'] and pgrec['checksum'] == chksum:
-                     self.pglog("Object-{}-{}: Same-Checksum ARCHIVED at {}:{}".format(bucket, ofile, info['date_modified'], info['time_modified']), self.PGOPT['emllog'])
-                     oarch = 0
-                  elif info['data_size'] == lsize:
-                     self.pglog("Object-{}-{}: Same-Size ARCHIVED at {}:{}".format(bucket, ofile, info['date_modified'], info['time_modified']), self.PGOPT['wrnlog'])
-                     oarch = 0
-                  elif vsnctl and not override:
-                     self.pglog("Object-{}-{}: Cannot rearchive version controlled file".format(bucket, ofile), self.PGOPT['extlog'])
-                     self.params['SF'][i] = None
-                     continue
-                  else:
-                     replace = 1
-               elif info is not None:
+            if sarch:
+               if not self.local_copy_local(afile, lfile, self.PGOPT['emerol']|override):
                   errcnt += 1
                   efiles[i] = 1
-                  dflags['O'] = bucket
                   continue
-            if (oarch + sarch) > 0:
-               if sarch:
-                  if not self.local_copy_local(afile, lfile, self.PGOPT['emerol']|override):
-                     errcnt += 1
-                     efiles[i] = 1
-                     continue
-                  acnt += 1
-               if oarch:
-                  if replace: self.delete_object_file(ofile, bucket)
-                  if not self.local_copy_object(ofile, lfile, bucket, None, self.PGOPT['emerol']|override):
-                     errcnt += 1
-                     efiles[i] = 1
-                     continue
-                  ocnt += 1
+               acnt += 1
                if self.PGLOG['DSCHECK']: chksize += lsize
                if self.PGSIG['BPROC'] > 1:
                   afiles[i] = afile
-                  ofiles[i] = ofile
                   lfiles[i] = lfile
                   bgcnt += 1
             if self.PGSIG['BPROC'] < 2:
@@ -897,12 +849,8 @@ class DsArch(PgArch, PgMeta):
                info = None
                if sarch:
                   info = self.check_local_file(afile, 1, self.PGOPT['emerol']|self.PFSIZE)
-               elif oarch:
-                  info = self.check_object_file(ofile, bucket, 1, self.PGOPT['emerol'])
                elif pgrec:
                   info = self.get_file_origin_info(sfile, pgrec)
-               elif locflag == 'O':
-                  info = self.check_object_file(ofile, bucket, 1, self.PGOPT['emerol'])
                sid = self.set_one_savedfile(i, pgrec, sfile, fnames, type, info)
                if not sid:
                   self.params['LF'][i] = self.params['SF'][i] = None
@@ -922,11 +870,8 @@ class DsArch(PgArch, PgMeta):
          self.check_background(None, 0, self.LOGWRN, 1)
          for i in range(self.ALLCNT):
             if afiles[i]: self.validate_gladearch(afiles[i], lfiles[i], i)
-            if ofiles[i]: self.validate_objectarch(ofiles[i], lfiles[i], bucket, i)
       if acnt > 0:
          self.pglog("{} of {} Saved file{} archived for {}".format(acnt, self.ALLCNT, s, dsid), self.PGOPT['emllog'])
-      if ocnt > 0:
-         self.pglog("{] of {} Object file{} archived for {}".format(ocnt, self.ALLCNT, s, dsid), self.PGOPT['emllog'])
       if self.PGLOG['DSCHECK']:
          self.set_dscheck_dcount(self.ALLCNT, chksize, self.PGOPT['extlog'])
       self.pglog("{}/{} of {} Saved file record{} added/modified for {}!".format(self.ADDCNT, self.MODCNT, self.ALLCNT, s, dsid), self.PGOPT['emllog'])
@@ -1230,147 +1175,6 @@ class DsArch(PgArch, PgMeta):
          self.reset_rdadb_version(dsid)
       if 'EM' in self.params: self.PGLOG['PRGMSG'] = ""
 
-   # cross copy save files between glade and object store
-   def crosscopy_saved_files(self, aname):
-      tname = 'sfile'
-      dsid = self.params['DS']
-      dcnd = "dsid = '{}'".format(dsid)
-      s = 's' if self.ALLCNT > 1 else ''
-      bidx = chksize = 0
-      dflags = {}
-      bucket = "gdex-decsdata"
-      self.pglog("Cross {} {} Saved file{} of {} ...".format(aname, self.ALLCNT, s, dsid), self.WARNLG)
-      self.validate_multiple_values(tname, self.ALLCNT)
-      if self.PGLOG['DSCHECK']:
-         bidx = self.set_dscheck_fcount(self.ALLCNT, self.PGOPT['extlog'])
-         if bidx > 0:
-            self.pglog("{} of {} file{} processed for SAVED archive".format(bidx, self.ALLCNT, s), self.PGOPT['emllog'])
-            if bidx == self.ALLCNT: return
-            self.set_rearchive_filenumber(dsid, bidx, self.ALLCNT, 4)
-            chksize = self.PGLOG['DSCHECK']['size']
-      reorder = errcnt = self.MODCNT = bgcnt = acnt = ocnt = 0
-      perrcnt = self.ALLCNT
-      efiles = [1]*self.ALLCNT
-      self.params['LC'] = ['B']*self.ALLCNT
-      if self.PGSIG['BPROC'] > 1:
-         afiles = [None]*self.ALLCNT
-         ofiles = [None]*self.ALLCNT
-         sarchs = [None]*self.ALLCNT
-      fnames = None
-      while True:
-         for i in range(bidx, self.ALLCNT):
-            if self.PGSIG['BPROC'] < 2 and i > bidx and ((i-bidx)%20) == 0:
-               if self.PGLOG['DSCHECK']:
-                  self.set_dscheck_dcount(i, chksize, self.PGOPT['extlog'])
-               if 'EM' in self.params:
-                  self.PGLOG['PRGMSG'] = "{}/{} of {} saved file{} archived/processed".format(acnt, i, self.ALLCNT, s)
-            sfile = self.params['SF'][i]
-            if not (efiles[i] and sfile): continue
-            efiles[i] = 0
-            if 'ST' in self.params and self.params['ST'][i]:
-               type = self.params['ST'][i]
-               if self.PGOPT['SDTYP'].find(type) < 0:
-                  self.pglog("{}-{}: Invalid Saved file Type '{}' to Archive".format(dsid, sfile, type), self.PGOPT['emerol'])
-                  continue
-            else:
-               self.pglog("{}-{}: Miss Saved file Type to Archive".format(dsid, sfile), self.PGOPT['errlog'])
-               continue
-            sfile = self.get_saved_path(i, sfile, 0, type)
-            afile = self.get_saved_path(i, sfile, 1, type)
-            ofile = self.join_paths(dsid, sfile)
-            sinfo = "{}-{}-{}".format(dsid, type, sfile)
-            pgrec = self.pgget(tname, "*", "{} and sfile = '{}' AND type = '{}'".format(dcnd, sfile, type), self.PGOPT['extlog'])
-            if not pgrec:
-               self.pglog("{}: Fail to Cross {} for Saved file not in RDADB".format(sinfo, aname), self.PGOPT['emlerr'])
-               continue
-            elif pgrec['locflag'] == 'C':
-               self.pglog("{}: Fail to Cross {} Saved File for CGD data".format(sinfo, aname), self.PGOPT['extlog'])
-            if pgrec and self.params['SF'][i] != sfile: self.params['SF'][i] = sfile
-            sarch = oarch = 1
-            self.pglog(sinfo + ": Cross {} Saved file ...".format(aname),  self.WARNLG)
-            info = self.check_local_file(afile, 0, self.PGOPT['emerol']|self.PFSIZE)
-            if info:
-               sarch = 0
-            elif info is not None:
-               errcnt += 1
-               efiles[i] = 1
-               dflags['G'] = self.PGLOG['DECSHOME']
-               continue
-            info = self.check_object_file(ofile, bucket, 1, self.PGOPT['emerol'])
-            if info:
-               oarch = 0
-            elif info is not None:
-               errcnt += 1
-               efiles[i] = 1
-               dflags['O'] = bucket
-               continue
-            if sarch and oarch:
-               self.pglog(sinfo + ": Cannot Cross {}, Neither Saved Nor Object file Exists".format(aname), self.PGOPT['errlog'])
-               continue
-            elif not (sarch or oarch) and pgrec['locflag'] == 'B':
-               self.pglog(sinfo + ": No need Cross {}, Both Saved & Object Exist".format(aname), self.PGOPT['wrnlog'])
-               continue
-            if sarch:
-               if not self.object_copy_local(afile, ofile, bucket, self.PGOPT['emerol']|self.OVERRIDE):
-                  errcnt += 1
-                  efiles[i] = 1
-                  dflags['G'] = self.PGLOG['DECSHOME']
-                  continue
-               if aname == 'Move':
-                  self.params['LC'][i] = 'G'
-                  self.delete_object_file(ofile, bucket, self.PGOPT['extlog'])
-               acnt += 1
-            elif oarch:
-               if not self.local_copy_object(ofile, afile, bucket, None, self.PGOPT['emerol']|self.OVERRIDE):
-                  errcnt += 1
-                  efiles[i] = 1
-                  dflags['O'] = bucket
-                  continue
-               if aname == 'Move':
-                  self.params['LC'][i] = 'O'
-                  self.delete_local_file(afile, self.PGOPT['extlog'])
-               ocnt += 1
-            if self.PGSIG['BPROC'] > 1:
-               afiles[i] = afile
-               ofiles[i] = ofile
-               sarchs[i] = sarch
-               bgcnt += 1
-            if self.PGLOG['DSCHECK']: chksize += pgrec['data_size']
-            if self.PGSIG['BPROC'] < 2:
-               if not fnames: fnames = self.get_field_keys(tname, None, "G")  # get setting fields if not yet
-               info = self.get_file_origin_info(sfile, pgrec)
-               sid = self.set_one_savedfile(i, pgrec, sfile, fnames, type, info)
-               if not sid:
-                  self.params['SF'][i] = None
-                  continue
-         if errcnt == 0 or errcnt >= perrcnt or self.PGLOG['DSCHECK']: break
-         perrcnt = errcnt
-         self.pglog("Recopy {} Saved file{} for {}".format(errcnt, self.ALLCNT, s, dsid), self.PGOPT['emllog'])
-         errcnt = self.reset_errmsg(0)
-      if errcnt:
-         self.RETSTAT = self.reset_errmsg(errcnt)
-         for i in range(bidx, self.ALLCNT):
-            if efiles[i]: self.params['SF'][i] = ''
-         if self.PGLOG['DSCHECK']:
-            self.check_storage_dflags(dflags, self.PGLOG['DSCHECK'], self.PGOPT['emerol'])
-      if bgcnt:
-         self.check_background(None, 0, self.LOGWRN, 1)
-         for i in range(self.ALLCNT):
-            if sarchs[i]:
-               self.validate_gladearch(afiles[i], "{}-{}".format(bucket, ofiles[i]), i)
-            elif ofiles[i]:
-               self.validate_objectarch(ofiles[i], afiles[i], bucket, i)
-      astr = 'Moved' if aname == 'Move' else 'Copied'
-      if acnt > 0: self.pglog("{} of {} Saved file{} Cross {} for {}".format(acnt, self.ALLCNT, s, astr, dsid), self.PGOPT['emllog'])
-      if ocnt > 0: self.pglog("{} of {} Object file{} Cross {} for {}".format(ocnt, self.ALLCNT, s, astr, dsid), self.PGOPT['emllog'])
-      if self.PGLOG['DSCHECK']:
-         self.set_dscheck_dcount(self.ALLCNT, chksize, self.PGOPT['extlog'])
-      self.pglog("{} of {} Saved file record{} modified for {}!".format(self.MODCNT, self.ALLCNT, s, dsid), self.PGOPT['emllog'])
-      if 'ON' in self.params: reorder = self.reorder_files(dsid, self.params['ON'], tname)
-      if (self.MODCNT + reorder) > 0:
-         self.reset_rdadb_version(dsid)
-      if 'EM' in self.params: self.PGLOG['PRGMSG'] = ""
-
    # get backup file names in RDADB and on Quaser server for given dataset id
    def get_backup_filenames(self, bfile, dsid):
       ms = re.match(r'^/{}/(.+)$'.format(dsid), bfile)
@@ -1421,7 +1225,7 @@ class DsArch(PgArch, PgMeta):
             ifidx += 1
          ccnt *= 3
          self.set_dscheck_fcount(ccnt, self.PGOPT['extlog'])
-      tinfo = {'bid' : 0, 'size' : 0, 'cnt' : 0, 'afmt' : '', 'dfmt' : '', 'sids' : [], 'wids' : []}
+      tinfo = {'bid': 0, 'size': 0, 'cnt': 0, 'afmt': '', 'dfmt': '', 'sids': [], 'wids': []}
       if pgbck: tinfo['bid'] = pgbck['bid']
       ifidx = 1
       while True:
@@ -1434,13 +1238,11 @@ class DsArch(PgArch, PgMeta):
          ifidx += 1
       info = self.check_local_file(tarfile, 33)   # 1+32
       fsize = info['data_size'] if info else 0
-   #   if fsize < tinfo['size']:
-   #      self.pglog("{}: Backup file size {} is less than total file size {}".format(tarfile, fsize, tinfo['size']), self.PGOPT['extlog'])
       if fsize < self.PGLOG['ONEGBS']:
          self.pglog("{}: Backup file size {} is less than one GB".format(tarfile, fsize), self.PGOPT['extlog'])
-      record = {'type' : qtype, 'data_format' : tinfo['dfmt'], 'data_size' : fsize,
-                'uid' : self.PGOPT['UID'], 'checksum' : info['checksum'],
-                'scount' : scnt, 'wcount' : wcnt}
+      record = {'type': qtype, 'data_format': tinfo['dfmt'], 'data_size': fsize,
+                'uid': self.PGOPT['UID'], 'checksum': info['checksum'],
+                'scount': scnt, 'wcount': wcnt}
       record['file_format'] = self.append_format_string(tinfo['afmt'], tfmt, 1)
       record['date_created'] = record['date_modified'] = info['date_modified']
       record['time_created'] = record['time_modified'] = info['time_modified']
@@ -1469,7 +1271,7 @@ class DsArch(PgArch, PgMeta):
          self.pglog("{}: Error add Quaser Backup file name in RDADB for {}".format(bfile, dsid), self.PGOPT['extlog'])
       tcnt = tinfo['cnt']
       tsize = tinfo['size']
-      brec = {'bid' : bid}
+      brec = {'bid': bid}
       if scnt:
          for sid in tinfo['sids']:
             tcnt += self.pgupdt("sfile", brec, "sid = {}".format(sid))
@@ -2261,7 +2063,7 @@ class DsArch(PgArch, PgMeta):
       cnd = "{} AND {}".format(dcnd, gcnd)
       pgrecs = self.pgmget_wfile(dsid, 'wfile, type', gcnd, self.PGOPT['extlog'])
       cnt = len(pgrecs['wfile']) if pgrecs else 0
-      srec = {'status' : 'I'}
+      srec = {'status': 'I'}
       if cnt:
          s = 's' if cnt > 1 else ''
          self.pglog("{}: set {} web file{} to Internal".format(grp, cnt, s), self.PGOPT['wrnlog'])
@@ -3289,7 +3091,6 @@ class DsArch(PgArch, PgMeta):
       tname = 'wfile'
       dsid = self.params['DS']
       dcnd = "dsid = '{}'".format(dsid)
-      frombucket = "gdex-decsdata"
       tobucket = self.PGLOG['OBJCTBKT']
       s = 's' if self.ALLCNT > 1 else ''
       bidx = chksize = 0
@@ -3318,13 +3119,11 @@ class DsArch(PgArch, PgMeta):
       if tmpgs: self.params['GI'] = self.params['OG']
       aolds = [None]*self.ALLCNT
       solds = [None]*self.ALLCNT
-      oolds = [None]*self.ALLCNT
       tolds = [None]*self.ALLCNT
       for i in range(self.ALLCNT):
          type = self.params['OT'][i] if 'OT' in self.params and self.params['OT'][i] else 'V'
          aolds[i] = self.get_saved_path(i, self.params['RF'][i], 5, type)
          solds[i] = self.get_saved_path(i, self.params['RF'][i], 4, type)
-         oolds[i] = self.join_paths(self.params['DS'], solds[i])
          tolds[i] = type
       if tmpds: self.params['DS'] = tmpds
       if tmpgs: self.params['GI'] = tmpgs
@@ -3391,14 +3190,8 @@ class DsArch(PgArch, PgMeta):
              not self.pgget("dsgroup", "", "{} and gindex = {}".format(dcnd, pgrec['gindex']), self.PGOPT['extlog'])):
             self.pglog("Group Index {} is not in RDADB for {}\n".format(pgrec['gindex'], dsid) +
                         "Specify Original/New group index via options -OG/-GI", self.PGOPT['extlog'])
-         sfrom = omove = wmove = 1
-         ofrom = 0
+         omove = wmove = sfrom = 1
          locflag = 'G'
-   #      locflag = pgrec['locflag']
-   #      if locflag == 'O':
-   #         sfrom = 0
-   #      elif locflag == 'G':
-   #         ofrom = 0
          if not self.params['LC'][i] or self.params['LC'][i] == 'R':
             self.params['LC'][i] = locflag
          else:
@@ -3410,31 +3203,21 @@ class DsArch(PgArch, PgMeta):
             omove = 0
             dslocflags.add('G')
          if wmove:
-            if sfrom:
-               stat = self.move_local_file(anews[i], aolds[i], self.PGOPT['emerol']|self.OVERRIDE)
-               sfrom = 0
-            else:
-               stat = self.object_copy_local(anews[i], oolds[i], frombucket, self.PGOPT['emerol']|self.OVERRIDE)
+            stat = self.move_local_file(anews[i], aolds[i], self.PGOPT['emerol']|self.OVERRIDE)
+            sfrom = 0
             if not stat:
                self.RETSTAT = 1
                continue
             wcnt += 1
             if self.PGLOG['DSCHECK']: chksize += pgrec['data_size']
          if omove:
-            if sfrom:
-               stat = self.local_copy_object(onews[i], aolds[i], tobucket, None, self.PGOPT['emerol']|self.OVERRIDE)
-            elif wmove:
-               stat = self.local_copy_object(onews[i], anews[i], tobucket, None, self.PGOPT['emerol']|self.OVERRIDE)
-            else:
-               stat = self.move_object_file(onews[i], oolds[i], tobucket, frombucket, self.PGOPT['emerol']|self.OVERRIDE)
-               ofrom = 0
+            stat = self.local_copy_object(onews[i], aolds[i], tobucket, None, self.PGOPT['emerol']|self.OVERRIDE)
             if not stat:
                self.RETSTAT = 1
                continue
             ocnt += 1
             if self.PGLOG['DSCHECK']: chksize += pgrec['data_size']
          if sfrom: self.delete_local_file(aolds[i], self.PGOPT['emerol'])
-         if ofrom: self.delete_object_file(oolds[i], frombucket, self.PGOPT['emerol'])
          if pgrec['bid'] and not self.params['QF'][i]: self.params['QF'][i] = pgrec['bid']
          if pgrec['gindex'] and not self.params['GI'][i]: self.params['GI'][i] = pgrec['gindex']
          if pgrec['data_size'] and not self.params['SZ'][i]: self.params['SZ'][i] = pgrec['data_size']
@@ -3548,7 +3331,7 @@ class DsArch(PgArch, PgMeta):
          wcnd = "wid = {}".format(pgrec['wid'])
          if (oflag + wflag) > 0:
             locflag = "O" if oflag else "G"
-            lrec = {'locflag' : locflag}
+            lrec = {'locflag': locflag}
             mcnt += self.pgupdt_wfile(dsid, lrec, wcnd, self.LGEREX)
          else:
             ccnt = self.record_filenumber(dsid, pgrec['gindex'], 4, (pgrec['type'] if pgrec['status'] == 'P' else ''), -1, -pgrec['data_size'])
@@ -3682,13 +3465,11 @@ class DsArch(PgArch, PgMeta):
       if tmpgs: self.params['GI'] = self.params['OG']
       aolds = [None]*self.ALLCNT
       solds = [None]*self.ALLCNT
-      oolds = [None]*self.ALLCNT
       tolds = [None]*self.ALLCNT
       for i in range(self.ALLCNT):
          type = self.params['OT'][i] if 'OT' in self.params and self.params['OT'][i] else 'P'
          aolds[i] = self.get_saved_path(i, self.params['RF'][i], 5, type)
          solds[i] = self.get_saved_path(i, self.params['RF'][i], 4, type)
-         oolds[i] = self.get_object_path(solds[i], self.params['DS'])
          tolds[i] = type
       if tmpds: self.params['DS'] = tmpds
       if tmpgs: self.params['GI'] = tmpgs
@@ -3696,13 +3477,11 @@ class DsArch(PgArch, PgMeta):
       init = 1 if (tmpds or tmpgs) else 0
       anews = [None]*self.ALLCNT
       snews = [None]*self.ALLCNT
-      onews = [None]*self.ALLCNT
       tnews = [None]*self.ALLCNT
       for i in range(self.ALLCNT):
          type = self.params['ST'][i] if 'ST' in self.params and self.params['ST'][i] else 'P'
          anews[i] = self.get_saved_path(i, self.params['SF'][i], 5, type, init)
          snews[i] = self.get_saved_path(i, self.params['SF'][i], 4, type)
-         onews[i] = self.get_object_path(snews[i], dsid)
          tnews[i] = type
          init = 0
       fnames = "FIT"
@@ -3714,13 +3493,13 @@ class DsArch(PgArch, PgMeta):
             if bidx == self.ALLCNT: return
             self.set_rearchive_filenumber(dsid, bidx, self.ALLCNT, 4)
             chksize = self.PGLOG['DSCHECK']['size']
-      reorder = self.MODCNT = scnt = ocnt = 0
+      reorder = self.MODCNT = scnt = 0
       for i in range(bidx, self.ALLCNT):
          if i > bidx and ((i-bidx)%20) == 0:
             if self.PGLOG['DSCHECK']:
                self.set_dscheck_dcount(i, chksize, self.PGOPT['extlog'])
             if 'EM' in self.params:
-               self.PGLOG['PRGMSG'] = "{}/{}/{}/{}, Disk/Object/Record/Proccessed, of {}self.ALLCNT Saved files moved".format(scnt, ocnt, self.MODCNT, i, self.ALLCNT, s)
+               self.PGLOG['PRGMSG'] = "{}/{}/{}, Disk/Record/Proccessed, of {} Saved file{} moved".format(scnt, self.MODCNT, i, self.ALLCNT, s)
          type = tolds[i]
          pgrec = self.pgget(tname, "*", "sfile = '{}' AND dsid = '{}' AND type = '{}'".format(solds[i], self.params['OD'], type), self.LGEREX)
          if not pgrec:
@@ -3745,27 +3524,15 @@ class DsArch(PgArch, PgMeta):
              not self.pgget("dsgroup", "", "{} and gindex = {}".format(dcnd, pgrec['gindex']), self.PGOPT['extlog'])):
             self.pglog("Group Index {} is not in RDADB for {}\n".format(pgrec['gindex'], dsid) +
                         "Specify Original/New group index via options -OG/-GI", self.PGOPT['extlog'])
-         omove = 0
-         smove = 1
-   #      if pgrec['locflag'] == 'O':
-   #         smove = 0
-   #      elif pgrec['locflag'] == 'G':
-   #         omove = 0
-         if smove and aolds[i] != anews[i]:
+         if aolds[i] != anews[i]:
             if not self.move_local_file(anews[i], aolds[i], self.PGOPT['emerol']|self.OVERRIDE):
                self.RETSTAT = 1
                continue
             if self.PGLOG['DSCHECK']: chksize += pgrec['data_size']
             scnt += 1
-         if omove and oolds[i] != onews[i]:
-            if not self.move_object_file(onews[i], oolds[i], bucket, bucket, self.PGOPT['emerol']|self.OVERRIDE):
-               self.RETSTAT = 1
-               continue
-            if self.PGLOG['DSCHECK']: chksize += pgrec['data_size']
-            ocnt += 1
          self.set_one_savedfile(i, pgrec, snews[i], fnames, tnews[i], None, tmpds)
          if pgrec['bid']: self.save_move_info(pgrec['bid'], solds[i], type, 'S', self.params['OD'], snews[i], tnews[i], 'S', dsid)
-      self.pglog("{}/{}/{}, Disk/Object/Record, of {} Saved file{} moved".format(scnt, ocnt, self.MODCNT, self.ALLCNT, s), self.PGOPT['emllog'])
+      self.pglog("{}/{}, Disk/Record, of {} Saved file{} moved".format(scnt, self.MODCNT, self.ALLCNT, s), self.PGOPT['emllog'])
       if self.PGLOG['DSCHECK']:
          self.set_dscheck_dcount(self.ALLCNT, chksize, self.PGOPT['extlog'])
       if 'ON' in self.params:
@@ -3880,7 +3647,6 @@ class DsArch(PgArch, PgMeta):
       dsid = self.params['DS']
       dcnd = "dsid = '{}'".format(dsid)
       frombucket = self.PGLOG['OBJCTBKT']
-      tobucket = "gdex-decsdata"
       bidx = chksize = 0
       tmpds = tmpgs = None
       if 'OD' not in self.params:
@@ -3921,20 +3687,18 @@ class DsArch(PgArch, PgMeta):
       init = 1 if (tmpds or tmpgs) else 0
       anews = [None]*self.ALLCNT
       snews = [None]*self.ALLCNT
-      onews = [None]*self.ALLCNT
       tnews = [None]*self.ALLCNT
       for i in range(self.ALLCNT):
          type = self.params['ST'][i] if 'ST' in self.params and self.params['ST'][i] else 'V'
          anews[i] = self.get_saved_path(i, self.params['SF'][i], 5, type, init)
          snews[i] = self.get_saved_path(i, self.params['SF'][i], 4, type)
-         onews[i] = self.join_paths(dsid, snews[i])
          tnews[i] = type
          init = 0
       self.validate_multiple_values(tname, self.ALLCNT)
       if self.PGLOG['DSCHECK']:
          bidx = self.set_dscheck_fcount(self.ALLCNT, self.PGOPT['extlog'])
          if bidx > 0:
-            self.pglog("bidx of self.ALLCNT Web to Saved files processed for move", self.PGOPT['emllog'])
+            self.pglog(f"{bidx} of {self.ALLCNT} Web to Saved files processed for move", self.PGOPT['emllog'])
             if bidx == self.ALLCNT: return
             self.set_rearchive_filenumber(dsid, bidx, self.ALLCNT, 4)
             chksize = self.PGLOG['DSCHECK']['size']
@@ -3961,7 +3725,7 @@ class DsArch(PgArch, PgMeta):
             if self.PGLOG['DSCHECK']:
                self.set_dscheck_dcount(i, chksize, self.PGOPT['extlog'])
             if 'EM' in self.params:
-               self.PGLOG['PRGMSG'] = "{}/{}/{}/{}/{}, Disk/Object/RecordDeleted/RecordAdded/Proccessed, of {}self.ALLCNT Web file{} moved".format(wcnt, ocnt, dcnt, self.ADDCNT, i, self.ALLCNT, s)
+               self.PGLOG['PRGMSG'] = "{}/{}/{}/{}/{}, Disk/Object/RecordDeleted/RecordAdded/Proccessed, of {} Web file{} moved".format(wcnt, ocnt, dcnt, self.ADDCNT, i, self.ALLCNT, s)
          type = tolds[i]
          pgrec = self.pgget_wfile(self.params['OD'], "*", "wfile = '{}' AND type = '{}'".format(wolds[i], type), self.LGEREX)
          if not pgrec:
@@ -3980,45 +3744,23 @@ class DsArch(PgArch, PgMeta):
              not self.pgget("dsgroup", "", "{} and gindex = {}".format(dcnd, pgrec['gindex']), self.PGOPT['extlog'])):
             self.pglog("Group Index {} is not in RDADB for {}\n".format(pgrec['gindex'], dsid) +
                         "Specify Original/New group index via options -OG/-GI", self.PGOPT['extlog'])
-         ofrom = wfrom = smove = 1
-         omove = 0
+         ofrom = wfrom = 1
          locflag = pgrec['locflag']
          if locflag == 'O':
             wfrom = 0
          elif locflag == 'G':
             ofrom = 0
-   #      if not self.params['LC'][i] or self.params['LC'][i] == 'R':
-   #         self.params['LC'][i] = locflag
-   #      else:
-   #         locflag = self.params['LC'][i]
-   #      if locflag == 'O':
-   #         smove = 0
-   #      elif locflag == 'G':
-   #         omove = 0
-         if smove:
-            if wfrom:
-               stat = self.move_local_file(anews[i], aolds[i], self.PGOPT['emerol']|self.OVERRIDE)
-               wfrom = 0
-            else:
-               stat = self.object_copy_local(anews[i], oolds[i], frombucket, self.PGOPT['emerol']|self.OVERRIDE)
-            if not stat:
-               self.RETSTAT = 1
-               continue
+         if wfrom:
+            stat = self.move_local_file(anews[i], aolds[i], self.PGOPT['emerol']|self.OVERRIDE)
+            wfrom = 0
             wcnt += 1
-            if self.PGLOG['DSCHECK']: chksize += pgrec['data_size']
-         if omove:
-            if wfrom:
-               stat = self.local_copy_object(onews[i], aolds[i], tobucket, None, self.PGOPT['emerol']|self.OVERRIDE)
-            elif smove:
-               stat = self.local_copy_object(onews[i], anews[i], tobucket, None, self.PGOPT['emerol']|self.OVERRIDE)
-            else:
-               stat = self.move_object_file(onews[i], oolds[i], tobucket, frombucket, self.PGOPT['emerol']|self.OVERRIDE)
-               ofrom = 0
-            if not stat:
-               self.RETSTAT = 1
-               continue
+         else:
+            stat = self.object_copy_local(anews[i], oolds[i], frombucket, self.PGOPT['emerol']|self.OVERRIDE)
             ocnt += 1
-            if self.PGLOG['DSCHECK']: chksize += pgrec['data_size']
+         if not stat:
+            self.RETSTAT = 1
+            continue
+         if self.PGLOG['DSCHECK']: chksize += pgrec['data_size']
          if wfrom: self.delete_local_file(aolds[i], self.PGOPT['emerol'])
          if ofrom: self.delete_object_file(oolds[i], frombucket, self.PGOPT['emerol'])
          if self.PGOPT['GXTYP'].find(type) > -1 and ('DX' in self.params or pgrec and pgrec['meta_link'] and pgrec['meta_link'] != 'N' and 'KM' not in self.params):
@@ -4052,7 +3794,7 @@ class DsArch(PgArch, PgMeta):
 
    # get date/time/size info from given file record
    def get_file_origin_info(self, fname, pgrec):
-      info = {'isfile' : (0 if 'fileflag' in pgrec and pgrec['fileflag'] == 'P' else 1), 'data_size' : pgrec['data_size']}
+      info = {'isfile': (0 if 'fileflag' in pgrec and pgrec['fileflag'] == 'P' else 1), 'data_size': pgrec['data_size']}
       info['fname'] = op.basename(fname)
       info['date_modified'] = pgrec['date_modified']
       info['time_modified'] = pgrec['time_modified']
@@ -4065,10 +3807,9 @@ class DsArch(PgArch, PgMeta):
       tname = 'sfile'
       dsid = self.params['DS']
       dcnd = "dsid = '{}'".format(dsid)
-      bucket = "gdex-decsdata"
       s = 's' if self.ALLCNT > 1 else ''
       self.pglog("Delete {} Saved file{} from {} ...".format(self.ALLCNT, s, dsid), self.WARNLG)
-      bidx = chksize = reorder = scnt = ocnt = dcnt = 0
+      bidx = chksize = reorder = scnt = dcnt = 0
       self.cache_group_info(self.ALLCNT, 0)
       self.validate_multiple_options(self.ALLCNT, ["ST", 'VI', 'QF', 'LC'])
       if self.PGLOG['DSCHECK']:
@@ -4083,7 +3824,7 @@ class DsArch(PgArch, PgMeta):
             if self.PGLOG['DSCHECK']:
                self.set_dscheck_dcount(i, chksize, self.PGOPT['extlog'])
             if 'EM' in self.params:
-               self.PGLOG['PRGMSG'] = "{}/{}/{}/i, Disk/Object/Record/processed, of {} Saved file{} deleted".format(scnt, ocnt, dcnt, i, self.ALLCNT, s)
+               self.PGLOG['PRGMSG'] = "{}/{}/i, Disk/Record/processed, of {} Saved file{} deleted".format(scnt, dcnt, i, self.ALLCNT, s)
          sfile = self.params['SF'][i]
          if 'ST' in self.params and self.params['ST'][i]:
             type = self.params['ST'][i]
@@ -4095,24 +3836,12 @@ class DsArch(PgArch, PgMeta):
          if not pgrec:
             self.pglog("{}-{}: Type '{}' Saved file is not in RDADB".format(dsid, sfile, type), self.PGOPT['errlog'])
             continue
-         sdel = oflag = sflag = 1
-         odel = 0
-         locflag = 'G'
-   #      locflag = pgrec['locflag']
-   #      if locflag == 'O':
-   #         sflag = 0
-   #      elif locflag == 'G':
-   #         oflag = 0
-   #      elif locflag == 'C':
-   #         sflag = oflag = 0
+         sdel = sflag = 1
+         locflag = pgrec['locflag']
+         if locflag != 'G': sflag = 0
          if 'LC' in self.params and self.params['LC'][i]: locflag = self.params['LC'][i]
-         if locflag == 'O':
-            sdel = 0
-         elif locflag == 'G':
-            odel = 0
-         elif locflag == 'C':
-            sdel = odel = 0
-         if (sflag+oflag) == (sdel+odel):
+         if locflag != 'G': sdel = 0
+         if sflag == sdel:
             vindex = self.params['VI'][i] if 'VI' in self.params else pgrec['vindex']
             if vindex:
                self.pglog(sfile + ": Saved file is version controlled, add option -vi 0 to force delete", self.PGOPT['errlog'])
@@ -4129,24 +3858,15 @@ class DsArch(PgArch, PgMeta):
                if self.PGLOG['DSCHECK']: chksize += pgrec['data_size']
             elif self.check_local_file(afile) is None:
                sflag = 0
-         if odel:
-            ofile = self.join_paths(dsid, sfile)
-            if self.delete_object_file(ofile, bucket, self.PGOPT['emerol']):
-               ocnt += 1
-               oflag = 0
-               if self.PGLOG['DSCHECK']: chksize += pgrec['data_size']
-            elif self.check_object_file(ofile, bucket) is None:
-               oflag = 0
-         if (oflag + sflag) > 0:
-            locflag = "O" if oflag else "G"
-            self.pgexec("UPDATE sfile SET locflag = '{}' WHERE sid = {}".format(locflag, pgrec['sid']), self.LGEREX)
+         if sflag > 0:
+            self.pgexec("UPDATE sfile SET locflag = 'G' WHERE sid = {}".format(pgrec['sid']), self.LGEREX)
          else:
             ccnt = self.record_filenumber(dsid, pgrec['gindex'], 8, 'P', -1, -pgrec['data_size'])
             fcnt = self.pgdel_sfile("sid = {}".format(pgrec['sid']), self.LGEREX)
             if fcnt: dcnt += fcnt
             if ccnt: self.save_filenumber(dsid, 8, 1, fcnt)
-      if (scnt + ocnt + dcnt) > 0:
-         self.pglog("{}/{}/{}, Disk/Object/Record, of {} Saved file{} deleted for {}".format(scnt, ocnt, dcnt, self.ALLCNT, s, dsid), self.PGOPT['emllog'])
+      if (scnt + dcnt) > 0:
+         self.pglog("{}/{}, Disk/Record, of {} Saved file{} deleted for {}".format(scnt, dcnt, self.ALLCNT, s, dsid), self.PGOPT['emllog'])
       if self.PGLOG['DSCHECK']:
          self.set_dscheck_dcount(self.ALLCNT, chksize, self.PGOPT['extlog'])
       if 'ON' in self.params:
@@ -4160,7 +3880,7 @@ class DsArch(PgArch, PgMeta):
       tname = 'bfile'
       dsid = self.params['DS']
       dcnd = "dsid = '{}'".format(dsid)
-      brec = {'bid' : 0}
+      brec = {'bid': 0}
       bkend = "gdex-quasar"
       drend = "gdex-quasar-drdata"
       s = 's' if self.ALLCNT > 1 else ''
@@ -4243,7 +3963,7 @@ class DsArch(PgArch, PgMeta):
       metacnt = prdcnt = savedcnt = webcnt = rccnt = pgcnt = modcnt = 0
       twcnt = tscnt = 0
       for i in range(self.ALLCNT):
-         record = {'gindex' : self.params['GI'][i]}
+         record = {'gindex': self.params['GI'][i]}
          gcnd = "gindex = {}".format(self.params['OG'][i])
          cnd = "{} AND {}".format(dcnd, gcnd)
          modcnt += self.pgupdt(tname, record, cnd, self.LGEREX)
@@ -4256,12 +3976,12 @@ class DsArch(PgArch, PgMeta):
          savedcnt += self.pgupdt("sfile", record, cnd, self.LGEREX)
          rccnt += self.pgupdt("rcrqst", record, cnd, self.LGEREX)
          if tgroups[i]:
-            tgrec = {'tindex' : self.params['GI'][i]}
+            tgrec = {'tindex': self.params['GI'][i]}
             tcnd = "tindex = {}".format(self.params['OG'][i])
             cnd = "{} AND {}".format(dcnd, tcnd)
             twcnt += self.pgupdt_wfile(dsid, tgrec, tcnd, self.LGEREX)
             tscnt += self.pgupdt("sfile", tgrec, cnd, self.LGEREX)
-         pgrec = {'pindex' : self.params['GI'][i]}
+         pgrec = {'pindex': self.params['GI'][i]}
          cnd = "pindex = {} AND {}".format(self.params['OG'][i], dcnd)
          pgcnt += self.pgupdt(tname, pgrec, cnd, self.LGEREX)
       self.pglog("{} of {} group{} changed".format(modcnt, self.ALLCNT, s), self.LOGWRN)
@@ -4295,7 +4015,7 @@ class DsArch(PgArch, PgMeta):
          cnt = 0
          getkeys = 1
       if cnt > 0:
-         values = {'okeys' : [], 'value' : []}
+         values = {'okeys': [], 'value': []}
          for i in range(cnt):
             pgrec = self.pgget("dsokeys", "value", "{}AND okey = '{}'".fomrat(cond, kvalues[i]), self.LGWNEX)
             if pgrec:
@@ -4342,7 +4062,7 @@ class DsArch(PgArch, PgMeta):
                pgrec['value'] = value
                mcnt += self.pgupdt("dsokeys", pgrec, cond, self.LGWNEX)
          else:
-            pgrec = {'dsid' : dsid, 'okey' : key, 'value' : value}
+            pgrec = {'dsid': dsid, 'okey': key, 'value': value}
             acnt += self.pgadd("dsokeys", pgrec, self.LGWNEX)
       self.pglog("{}/{}/{} of {} key/value pairs added/modified/deleted for {}!".format(acnt, mcnt, dcnt, cnt, dsid), self.LOGWRN)
       return (acnt + mcnt + dcnt)
@@ -4352,8 +4072,8 @@ class DsArch(PgArch, PgMeta):
       date = self.curdate()
       cond = "wid = {} and date = '{}'".format(pgrec['wid'], date)
       if not self.pgget("wmove", "", cond, self.LGWNEX):
-         record = {'dsid' : pgrec['dsid'], 'uid' : self.PGOPT['UID'],
-                   'wfile' : pgrec['wfile'], 'wid' : pgrec['wid'], 'date' : date}
+         record = {'dsid': pgrec['dsid'], 'uid': self.PGOPT['UID'],
+                   'wfile': pgrec['wfile'], 'wid': pgrec['wid'], 'date': date}
          self.pgadd("wmove", record, self.LGWNEX)
 
    # reset file counts for saved groups
@@ -4588,7 +4308,7 @@ class DsArch(PgArch, PgMeta):
                addcnt += 1
                if not doi: vidx = 0
             if vidx:
-               vrec = {'vindex' : vidx}
+               vrec = {'vindex': vidx}
                vcnd = "type = 'D' AND vindex = 0"
                fcnt = self.pgupdt_wfile(dsid, vrec, vcnd, self.PGOPT['extlog'])
                if fcnt > 0:
@@ -4640,7 +4360,7 @@ class DsArch(PgArch, PgMeta):
                self.pglog("{}: Cannot terminate for DOI {} is asscoated to Version control {}".format(vinfo, pgrec['doi'], orec['vindex']), self.LOGERR)
                continue
             doicnt += 1
-            record = {'status' : "H"}
+            record = {'status': "H"}
             record['end_date'] = self.params['ED'][i] if 'ED' in self.params else self.curdate()
             record['end_time'] = self.params['ET'][i] if 'ET' in self.params else self.curtime()
             if self.pgupdt("dsvrsn", record, cnd, self.PGOPT['extlog']):
