@@ -35,7 +35,7 @@ class PgArch(PgOPT, PgCMD, PgSplit):
          'HS' : '',         # dataset help software path
          'SP' : '',         # dataset savedpath
       }
-      self.ebpaths = {}
+      self.webpaths = {}
       self.savedpaths = {}
       self.grouptypes = {}
       self.CORDERS = {}

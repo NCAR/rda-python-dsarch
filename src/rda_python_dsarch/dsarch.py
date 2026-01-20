@@ -2411,7 +2411,7 @@ class DsArch(PgArch, PgMeta):
                if 'status' in record: self.change_wfile_mode(dsid, file, type, pgrec['status'], record['status'])
             if mlink or pgrec['meta_link'] and pgrec['meta_link'] == 'Y': self.set_meta_link(dsid, file)
          else:
-            if record['wfile'] != file: record['wfile'] = file
+            if 'wfile' not in record or record['wfile'] != file: record['wfile'] = file
             record['uid'] = self.PGOPT['UID']
             if 'status' not in record: record['status'] = 'P'
             if not info:
