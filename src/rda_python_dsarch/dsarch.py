@@ -4123,12 +4123,12 @@ class DsArch(PgArch, PgMeta):
                gindex = "all"
             if not pgrec: continue
             if act == 1 or act&4 and re.search(r'(Y|B|W)', pgrec['meta_link']):
-               self.pgsystem("{} -d {} -rw {}".format(self.PGOPT['scm'], dsid, gindex))
+               self.pgsystem("{} -d {} -rw {}".format(self.PGOPT['scm'], dsid, gindex), self.LOGWRN, 1029)
       else:
          pgrec = self.pgget("dataset", "meta_link", dcnd, self.LGEREX)
          if pgrec:
             if act == 1 or act&4 and re.search(r'(Y|B|W)', pgrec['meta_link']):
-               self.pgsystem("{} -d {} -rw all".format(self.PGOPT['scm'], dsid))
+               self.pgsystem("{} -d {} -rw all".format(self.PGOPT['scm'], dsid, self.LOGWRN, 1029))
    
    # get web file name for given local file name
    def get_archive_filename(self, lfile):
