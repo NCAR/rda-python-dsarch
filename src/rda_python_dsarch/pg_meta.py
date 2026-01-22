@@ -465,7 +465,7 @@ class PgMeta(PgCMD, PgSplit):
       act = logact
       if act&self.EXITLG:
          act &= ~self.EXITLG
-         if self.PGLOG['DSCHECK']: opt |= 256
+         if self.PGLOG['DSCHECK']: opt |= 1280  # 256 + 1024
       self.PGLOG['ERR2STD'] = ["Warning: ", "already up-to-date", "process currently running",
                                 "rsync", "No route to host", "''*'"]
       self.switch_logfile("gatherxml")
@@ -517,7 +517,7 @@ class PgMeta(PgCMD, PgSplit):
       act = logact
       if act&self.EXITLG:
          act &= ~self.EXITLG
-         if self.PGLOG['DSCHECK']: opt |= 256
+         if self.PGLOG['DSCHECK']: opt |= 1280  # 256 + 1024
       self.PGLOG['ERR2STD'] = ["Warning: "]
       self.switch_logfile("gatherxml")
       for d in self.META[c]:
@@ -546,7 +546,7 @@ class PgMeta(PgCMD, PgSplit):
       opt = 5
       if logact&self.EXITLG:
          logact &= ~self.EXITLG
-         if self.PGLOG['DSCHECK']: opt |= 256
+         if self.PGLOG['DSCHECK']: opt |= 1280  # 256 + 1024
       self.PGLOG['ERR2STD'] = ["Warning: "]
       self.switch_logfile("gatherxml")
       if not self.pgsystem("{} -d {} {}".format(self.CMD['DX'], d, file), logact, opt) and self.PGLOG['SYSERR']:
@@ -565,7 +565,7 @@ class PgMeta(PgCMD, PgSplit):
       act = logact
       if act&self.EXITLG:
          act &= ~self.EXITLG
-         if self.PGLOG['DSCHECK']: opt |= 256
+         if self.PGLOG['DSCHECK']: opt |= 1280  # 256 + 1024
       self.PGLOG['ERR2STD'] = ["Warning: "]
       self.switch_logfile("gatherxml")
       for d in self.META[c]:
@@ -605,7 +605,7 @@ class PgMeta(PgCMD, PgSplit):
       act = logact
       if act&self.EXITLG:
          act &= ~self.EXITLG
-         if self.PGLOG['DSCHECK']: opt |= 256
+         if self.PGLOG['DSCHECK']: opt |= 1280  # 256 + 1024
       self.PGLOG['ERR2STD'] = ["Warning: "]
       self.switch_logfile("gatherxml")
       for d in self.META[c]:
