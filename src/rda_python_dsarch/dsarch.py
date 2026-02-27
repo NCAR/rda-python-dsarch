@@ -4149,17 +4149,17 @@ class DsArch(PgArch, PgMeta):
    def reset_errmsg(self, errcnt):
       ret = 0
       if errcnt < 0:   # cache self.ERRMSG globally
-         self.PGLOG['self.ERRCNT'] += self.ERRCNT
-         self.PGLOG['self.ERRMSG'] += self.ERRMSG
+         self.PGLOG['ERRCNT'] += self.ERRCNT
+         self.PGLOG['ERRMSG'] += self.ERRMSG
          self.ERRCNT = 0
          self.ERRMSG = ''
       else:
          if errcnt > 0:  # cache self.ERRMSG locally
-            self.ERRMSG += self.PGLOG['self.ERRMSG']
+            self.ERRMSG += self.PGLOG['ERRMSG']
             self.ERRCNT += errcnt
             ret = 1
-         self.PGLOG['self.ERRCNT'] = 0
-         self.PGLOG['self.ERRMSG'] = ''
+         self.PGLOG['ERRCNT'] = 0
+         self.PGLOG['ERRMSG'] = ''
       return ret
 
    # copy a file to a alternate destination
