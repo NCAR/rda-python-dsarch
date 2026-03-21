@@ -8,8 +8,16 @@
 #   Purpose : python library module for holding some global variables and
 #             functions for dsarch utility
 #    Github : https://github.com/NCAR/rda-python-dsarch.git
-# 
+#
 ###############################################################################
+"""
+pg_arch.py - Global variables and utility functions for the dsarch archive utility.
+
+Provides the PgArch class which holds shared state (option definitions, table
+field mappings, runtime path cache) and helper methods used across all dsarch
+actions such as building SQL conditions, managing file paths, validating input,
+and caching dataset/group metadata.
+"""
 import time
 import re
 import os
@@ -19,8 +27,25 @@ from rda_python_common.pg_cmd import PgCMD
 from rda_python_common.pg_opt import PgOPT
 
 class PgArch(PgOPT, PgCMD, PgSplit):
+   """
+   Mixin class providing shared state and helper methods for the dsarch utility.
+
+   Inherits from PgOPT (option parsing), PgCMD (command execution), and
+   PgSplit (data-splitting utilities).  All dsarch action classes (DsArch)
+   inherit from this class to access option definitions, table field maps,
+   runtime path caching, and file-handling helpers.
+
+   Instance attributes set in __init__:
+      RTPATH      -- dict of cached absolute runtime paths keyed by file type
+      webpaths    -- dict mapping group index to web sub-path
+      savedpaths  -- dict mapping group index to saved sub-path
+      grouptypes  -- dict mapping group index to type string ('P' or 'I')
+      CORDERS     -- dict caching max display orders per group index
+      CTYPE       -- cached web file type used with CORDERS
+   """
 
    def __init__(self):
+      """Initialize PgArch, setting up runtime paths, option definitions, and table field maps."""
       super().__init__()  # initialize parent class
       self.RTPATH = {
          'dsid' : None,   # dsid for the current caching info
@@ -414,8 +439,19 @@ class PgArch(PgOPT, PgCMD, PgSplit):
       self.params['AL'] = 0   # max number of asynchronous background processes
       self.params['WI'] = 30   # wait interval continue update record in queue, in seconds
 
-   # get condition
-   def get_condition(self, tname, include = None, exclude = None, dojoin = 0):
+   def get_condition(self, tname, include=None, exclude=None, dojoin=0):
+      """
+      Build a SQL WHERE clause for the given table from current params.
+
+      Args:
+         tname   -- table name key in self.TBLHASH (e.g. 'wfile', 'dataset')
+         include -- optional string of single-char field keys to include
+         exclude -- optional string of single-char field keys to exclude
+         dojoin  -- if non-zero, prefix field names with '<tname>.'
+
+      Returns:
+         SQL condition string (may be empty for wfile when no WT param set)
+      """
       if tname not in self.TBLHASH: return ""   # should not happen
       hash = self.TBLHASH[tname]
       lname = (tname + '.') if dojoin or tname == 'dsperiod' else ''
@@ -441,9 +477,18 @@ class PgArch(PgOPT, PgCMD, PgSplit):
             noand = 0
       return condition
    
-   # check if enough information entered on command line and/or input file
-   # for given action(s)
    def check_enough_options(self, cact, acts):
+      """
+      Validate that required options are present for the given action.
+
+      Builds local file lists from -LL/-LD if provided, then checks action-specific
+      requirements (dataset ID, file names, group indices, etc.).  Calls
+      self.action_error() to abort with a descriptive message on failure.
+
+      Args:
+         cact -- current action key string (e.g. 'AW', 'AS', 'GD')
+         acts -- bitmask of the action being validated (from self.OPTS[cact][0])
+      """
       errmsg = [
          "Miss original group index per -OG(-OriginGroup)",
          "miss file names per -SF(-SavedFile), -WF(-WebFile) or -QF(-QuasarFile)",
@@ -663,8 +708,16 @@ class PgArch(PgOPT, PgCMD, PgSplit):
       if 'EM' in self.params: self.PGOPT['emlerr'] = self.LOGERR|self.EMEROL
       self.start_none_daemon('dsarch', self.PGOPT['CACT'], self.params['LN'], 1, self.params['WI'], 1, self.params['AL'])
    
-   # set qsub walltime if needed
    def set_qsub_walltime(self):
+      """
+      Set PBS/Torque qsub walltime based on file count and compression options.
+
+      Computes an estimated walltime from the number of local or web files,
+      multiplied by a factor when metadata XML gathering (-GX) or deletion
+      (-DX) is requested.  Clamps the result to [2, 24] hours and updates the
+      qsub options via set_one_boption().  No-ops if the result would be 6 h
+      (the default) or if no file list is present.
+      """
       fcnt = 0
       if 'LF' in self.params:
          fcnt = len(self.params['LF'])
@@ -685,8 +738,19 @@ class PgArch(PgOPT, PgCMD, PgSplit):
       self.set_one_boption('qoptions', '-l walltime={}:00:00'.format(hr), 1)
       return
    
-   # build local file list for given local directory and reset file sizes
    def build_localfile_list(self, cact, dir):
+      """
+      Populate params['LF'] from all files found under a local directory.
+
+      Recursively lists files under *dir*, validates each one, and stores the
+      paths in params['LF'] together with their sizes (and optional MD5
+      checksums when -SC is set).  Aborts with action_error() if -LF was
+      already specified or no files are found.
+
+      Args:
+         cact -- current action key string (used in error messages)
+         dir  -- local directory path to scan recursively
+      """
       chkopt = 32 if 'SC' in self.params else 0
       if 'LF' in self.params:
          self.action_error("Both Value Options -LF (-LocalFile) and -LD (-LocalDirecotry) present", cact)
@@ -704,8 +768,19 @@ class PgArch(PgOPT, PgCMD, PgSplit):
       if chkopt: del self.params['SC']
       if i == 0: self.action_error("NO local file found in Local Directory " + dir, cact)
    
-   # set local files for given local filelist and reset file sizes
    def set_localfile_list(self, cact):
+      """
+      Populate params['LF'] by reading file paths from a list file (-LL).
+
+      Opens the file specified in params['LL'], reads one path per line,
+      validates each file, and stores paths and sizes in params['LF'] and
+      params['SZ'].  Optionally computes MD5 checksums when -SC is set.
+      Aborts with action_error() if -LF was already provided or no valid
+      files are found.
+
+      Args:
+         cact -- current action key string (used in error messages)
+      """
       absolute = 0
       listfile = self.params['LL']
       chkopt = 32 if 'SC' in self.params else 0
@@ -713,7 +788,7 @@ class PgArch(PgOPT, PgCMD, PgSplit):
          self.action_error("Both Value Options -LF (-LocalFile)  and -LL (-LocalFileList) present", cact)
       i = 0
       hi = open(listfile, 'r')
-      locfile = hi.realine()
+      locfile = hi.readline()
       while locfile:
          locfile = locfile.strip()
          locinfo = self.check_local_file(locfile, chkopt, self.PGOPT['extlog'])
@@ -730,8 +805,19 @@ class PgArch(PgOPT, PgCMD, PgSplit):
       if chkopt: del self.params['SC']
       if absolute: del self.params['LL']
    
-   # compress local file list and reset file sizes
    def compress_localfile_list(self, cact, cnt):
+      """
+      Compress local files in-place and update params['LF'] and params['SZ'].
+
+      Calls compress_files() on params['LF'] using the archive formats in
+      params['AF'].  For each file whose path changes after compression,
+      re-validates the compressed file and updates params['LF'][i],
+      params['SZ'][i], and optionally params['MC'][i] (MD5 checksum).
+
+      Args:
+         cact -- current action key string (used in error messages)
+         cnt  -- number of files to process (length of params['LF'])
+      """
       chkopt = 32 if 'SC' in self.params else 0
       locfiles = self.compress_files(self.params['LF'], self.params['AF'], cnt)
       for i in range(cnt):
@@ -746,9 +832,23 @@ class PgArch(PgOPT, PgCMD, PgSplit):
             self.action_error(locfile + ": local file not exists", cact)
       if chkopt: del self.params['SC']
    
-   # get continue display order of an archived data file of given dataset (and group/mssid)
-   # 
-   def get_next_disp_order(self, dsid = None, index = 0, table = None, type = None):
+   def get_next_disp_order(self, dsid=None, index=0, table=None, type=None):
+      """
+      Return the next sequential display-order value for a file in a group.
+
+      Caches the current maximum display order for each (index, type) pair in
+      self.CORDERS to avoid repeated database queries.  When called with no
+      arguments (dsid=None) it resets the cache.
+
+      Args:
+         dsid  -- dataset ID string; None resets the display-order cache
+         index -- group index (0 = dataset level)
+         table -- table name ('wfile', 'sfile', 'hfile', etc.)
+         type  -- web/help/saved file type character (e.g. 'D', 'B')
+
+      Returns:
+         Next integer display order value (current max + 1)
+      """
       if not dsid:
          self.CORDERS = {}   # reinitialize cached display orders
          self.CTYPE = ''
@@ -771,8 +871,20 @@ class PgArch(PgOPT, PgCMD, PgSplit):
       self.CORDERS[index] += 1
       return self.CORDERS[index]
    
-   # identify and return matching data Ids from file name provided
    def get_dsids(self, file, table, dsids):
+      """
+      Find all dataset IDs that own *file* in *table* and accumulate them.
+
+      Queries the database for rows where the named column equals (or LIKE)
+      *file*.  Falls back to a wildcard suffix match when no absolute-path
+      match is found.  Results are merged into *dsids* dict: each key is a
+      dataset ID and the value is a list of matching file names.
+
+      Args:
+         file  -- file name or pattern (may contain '%' for SQL LIKE)
+         table -- table/column name to search (e.g. 'wfile', 'sfile')
+         dsids -- dict to accumulate {dsid: [file, ...]} results into
+      """
       fields = "dsid, " + table
       if file.find('%') > -1:
          fcnd = "{} LIKE '{}'"
@@ -791,8 +903,21 @@ class PgArch(PgOPT, PgCMD, PgSplit):
             else:
                dsids[dsid].append(pgrecs[table][count])
    
-   # get one dataset number; failure if not or multiple
    def get_dsid(self, files, table):
+      """
+      Resolve a single dataset ID from a list of file names.
+
+      Calls get_dsids() for each file and expects exactly one unique dataset
+      ID across all results.  Logs an error and returns None if zero or more
+      than one dataset ID is found.
+
+      Args:
+         files -- list of file name strings to look up
+         table -- table/column name to search (e.g. 'wfile', 'hfile')
+
+      Returns:
+         Dataset ID string if exactly one is matched, else None.
+      """
       dsids = {}
       for file in files:
          self.get_dsids(file, table, dsids)
@@ -812,8 +937,23 @@ class PgArch(PgOPT, PgCMD, PgSplit):
          self.pglog(errmsg + "\nProvide one Dataset via Info option -DS(-Dataset) to run 'dsarch'!", self.PGOPT['extlog'])
       return None
    
-   # reorder the files for group/dataset
    def reorder_files(self, dsid, onames, table):
+      """
+      Reorder file records in *table* and renumber their display_order column.
+
+      Fetches all file records for *dsid* (optionally filtered by group when
+      table is 'sfile'), sorts them by the field pattern in *onames* or the
+      -OB param, then writes sequential display_order values back to the
+      database.
+
+      Args:
+         dsid   -- dataset ID string
+         onames -- order-field name string (passed to append_order_fields) or None
+         table  -- one of 'wfile', 'sfile', 'bfile', 'hfile'
+
+      Returns:
+         Total number of file records reordered.
+      """
       chkgrp = 1
       gcnd = cnd = "dsid = '{}'".format(dsid)
       if table == "wfile":
@@ -888,8 +1028,20 @@ class PgArch(PgOPT, PgCMD, PgSplit):
          self.pglog("No {} file needs reorder for {}!".format(type, dsid), self.PGOPT['wrnlog'])
       return changed
    
-   # set default data format and return -1
    def default_data_format(self, erridx):
+      """
+      Set params['DF'] from the dataset's stored data_format when not supplied.
+
+      If the dataset record has a non-null data_format value, copies it into
+      params['DF'] and clears the error index so validation passes.  Sets the
+      auto-generated flag on the DF option.
+
+      Args:
+         erridx -- current error index (typically 24, "Miss Data Format")
+
+      Returns:
+         -1 if the default was applied successfully, else the original erridx.
+      """
       pgrec = self.pgget("dataset", "data_format", "dsid = '{}'".format(self.params['DS']), self.PGOPT['extlog'])
       if pgrec['data_format']:
          self.params['DF'] = [pgrec['data_format']]
@@ -897,8 +1049,13 @@ class PgArch(PgOPT, PgCMD, PgSplit):
          self.OPTS['DF'][2] |= 2   # set auto-generated flag
       return erridx
    
-   # dump out total file size and count
    def print_statistics(self, sizes):
+      """
+      Write file count and total byte size summary to self.OUTPUT.
+
+      Args:
+         sizes -- list of integer file sizes (one per file processed)
+      """
       count = len(sizes)
       total = 0
       for i in range(count):
@@ -906,17 +1063,39 @@ class PgArch(PgOPT, PgCMD, PgSplit):
       self.OUTPUT.write("#File  Count: {}\n".format(count))
       self.OUTPUT.write("#Total Bytes: {}\n".format(total))
    
-   # get a group type for given index
    def get_group_type(self, dsid, gindex):
+      """
+      Return the group type ('P' or 'I') for the given group index.
+
+      Results are cached in self.grouptypes to avoid repeated database hits.
+      A zero/None index always returns 'P' (Primary).
+
+      Args:
+         dsid   -- dataset ID string (used in the database query)
+         gindex -- integer group index
+
+      Returns:
+         'P' for primary/public groups, 'I' for internal groups.
+      """
       if not gindex: return 'P'   # default to P
       if gindex not in self.grouptypes:   # try to cache it
          pgrec = self.pgget("dsgroup", "grptype", "dsid = '{}' AND gindex = {}".format(self.params['DS'], gindex), self.PGOPT['extlog'])
          self.grouptypes[gindex] = 'I' if pgrec and pgrec['grptype'] == 'I' else 'P'
       return self.grouptypes[gindex]
    
-   # intialize the group info of patterns, self.webpaths and self.savedpaths for given dataset ID
-   # and set group IDs if missed
-   def cache_group_info(self, count, noauto = 0):
+   def cache_group_info(self, count, noauto=0):
+      """
+      Initialize and cache group metadata for the current dataset.
+
+      Loads group records from RDADB into self.webpaths, self.savedpaths, and
+      self.grouptypes.  When file names are present but no group index (-GI)
+      was specified and *noauto* is 0, attempts to auto-match each file to a
+      group using the group's pattern string.
+
+      Args:
+         count  -- total number of files to be processed (used for auto-match)
+         noauto -- if non-zero, skip the automatic group-pattern matching step
+      """
       pgrec = self.pgget("dataset", "webpath, savedpath", "dsid = '{}'".format(self.params['DS']), self.PGOPT['extlog'])
       if not pgrec: self.pglog("Cannot get dataset info for '{}'".format(self.params['DS']), self.PGOPT['extlog'])
       self.webpaths = {0 : pgrec['webpath']}
@@ -1017,20 +1196,48 @@ class PgArch(PgOPT, PgCMD, PgSplit):
          self.OPTS['GI'][2] &= ~(2)   # remove auto-generated flag
          self.OPTS['GI'][2] |= 16   # set writable auto-generated flag
    
-   # change a wfile permission on disk according to the file status
    def change_wfile_mode(self, dsid, wfile, type, ostat, nstat):
+      """
+      Update on-disk permissions for a web file when its status changes.
+
+      Sets the file mode to 0o600 when the new status is 'I' (internal),
+      otherwise restores the configured FILEMODE.  No-ops when old and new
+      status are the same.
+
+      Args:
+         dsid  -- dataset ID string
+         wfile -- relative web file path
+         type  -- web file type character ('D', 'N', 'I', etc.)
+         ostat -- old status character
+         nstat -- new status character
+      """
       if ostat == nstat: return
       if not self.RTPATH['dsid']: self.cache_rtpath(dsid)
       nm = 0o600 if nstat == 'I' else self.PGLOG['FILEMODE']
       self.set_local_mode(self.join_paths(self.RTPATH[type], wfile), nmode = nm)
    
-   # get group WEB file path for given file index and/or file name
-   # opt = 0 - relative path to rtpath
-   #       1 - absolute path
-   #       2 - relative path to rtpath/webpath
-   #       3 - full url path as self.PGLOG['DSSURL']...
-   #       4 - bit for ignore web path
-   def get_web_path(self, i, fname, opt = 0, type = None, init = 0):
+   def get_web_path(self, i, fname, opt=0, type=None, init=0):
+      """
+      Resolve the web file path for file index *i* with filename *fname*.
+
+      Combines the dataset's runtime root path, optional web sub-path, and
+      the file name according to *opt*:
+         0 -- path relative to rtpath (default)
+         1 -- absolute path on disk
+         2 -- path relative to rtpath/webpath sub-directory
+         3 -- full URL (prepends self.PGLOG['DSSURL'])
+         4 -- bit flag to ignore the web sub-path (add to 0-3)
+
+      Args:
+         i     -- file index into params arrays
+         fname -- file name (may already be absolute)
+         opt   -- path format selector (see above)
+         type  -- web file type character; defaults to params['WT'][i] or 'D'
+         init  -- if non-zero, force refresh of the runtime path cache
+
+      Returns:
+         Resolved path string.
+      """
       addwp = 1
       rtpath = None
       if init or not self.RTPATH['dsid']: self.cache_rtpath(self.params['DS'], init)
@@ -1072,11 +1279,26 @@ class PgArch(PgOPT, PgCMD, PgSplit):
       if opt == 3: fname = self.get_url_path(fname)
       return fname
    
-   # get help file path for given file name
-   # opt = 0 - relative path to rtpath
-   #       1 - absolute path
-   #       2 - full url path
-   def get_help_path(self, i, fname, opt = 0, type = None, url = None, init = 0):
+   def get_help_path(self, i, fname, opt=0, type=None, url=None, init=0):
+      """
+      Resolve the help file path for file index *i* with filename *fname*.
+
+      Uses the help-file runtime root path (RTPATH['H<type>']) to form:
+         0 -- path relative to rtpath (default)
+         1 -- absolute path on disk
+         2 -- full URL (prepends *url* or self.PGLOG['DSSURL'])
+
+      Args:
+         i     -- file index into params arrays
+         fname -- file name (may already be absolute)
+         opt   -- path format selector (see above)
+         type  -- help file type character; defaults to params['HT'][i] or 'D'
+         url   -- base URL override; defaults to self.PGLOG['DSSURL']
+         init  -- if non-zero, force refresh of the runtime path cache
+
+      Returns:
+         Resolved path string.
+      """
       rtpath = None
       if init or not self.RTPATH['dsid']: self.cache_rtpath(self.params['DS'], init)
       if not type: type = self.params['HT'][i] if 'HT' in self.params and self.params['HT'][i] else 'D'
@@ -1091,12 +1313,26 @@ class PgArch(PgOPT, PgCMD, PgSplit):
          fname = self.get_url_path(fname, url)
       return fname
    
-   # get group saved file path for given file index and/or file name
-   # opt = 0 - relative path to rtpath
-   #       1 - absolute path
-   #       2 - relative path to rtpath/savedpath
-   #       4 - bit for ignore saved path
-   def get_saved_path(self, i, fname, opt = 0, type = None, init = 0):
+   def get_saved_path(self, i, fname, opt=0, type=None, init=0):
+      """
+      Resolve the saved file path for file index *i* with filename *fname*.
+
+      Uses the saved-file runtime root path (RTPATH['SP']/<type>) to form:
+         0 -- path relative to rtpath (default)
+         1 -- absolute path on disk
+         2 -- path relative to rtpath/savedpath sub-directory
+         4 -- bit flag to ignore the saved sub-path (add to 0-3)
+
+      Args:
+         i     -- file index into params arrays
+         fname -- file name (may already be absolute), or None for dir only
+         opt   -- path format selector (see above)
+         type  -- saved file type character; defaults to params['ST'][i] or 'P'
+         init  -- if non-zero, force refresh of the runtime path cache
+
+      Returns:
+         Resolved path string.
+      """
       addsp = 1
       rtpath = None
       if init or not self.RTPATH['dsid']: self.cache_rtpath(self.params['DS'], init)
@@ -1135,21 +1371,55 @@ class PgArch(PgOPT, PgCMD, PgSplit):
          if addsp: fname = self.join_paths(rtpath, savedpath)
       return fname
    
-   # get web file path with leading url
-   def get_url_path(self, fname, url = None):
+   def get_url_path(self, fname, url=None):
+      """
+      Build a full URL for *fname* by stripping local path prefixes.
+
+      Removes DSSDATA or DSSWEB path prefixes from *fname*, then prepends
+      *url* (or self.PGLOG['DSSURL'] when *url* is None).
+
+      Args:
+         fname -- file path string (absolute or relative)
+         url   -- base URL override; defaults to self.PGLOG['DSSURL']
+
+      Returns:
+         Full URL string.
+      """
       if re.match(r'^{}'.format(self.PGLOG['DSSDATA']), fname):
          fname = re.sub(r'^{}'.format(self.PGLOG['DSSDATA']), '', fname)   # remove DSSDATA from file name
       elif re.match(r'^{}'.format(self.PGLOG['DSSWEB']), fname):
          fname = re.sub(r'^{}'.format(self.PGLOG['DSSWEB']), '', fname)   # remove DSSWEB from file name
       if not url: url = self.PGLOG['DSSURL']
       return self.join_paths(url, fname)
-   # get get object path
-   def get_object_path(self, fname, dsid, hpath = None):
+   def get_object_path(self, fname, dsid, hpath=None):
+      """
+      Build the object-store path for a file.
+
+      Constructs a path of the form ``web/datasets/<dsid>[/<hpath>]/<fname>``.
+
+      Args:
+         fname -- file name to append
+         dsid  -- dataset ID string
+         hpath -- optional sub-directory under the dataset prefix
+
+      Returns:
+         Object-store path string.
+      """
       opath = "web/datasets/{}/{}".format(dsid, hpath) if hpath else dsid
       return self.join_paths(opath, fname)
    
-   # view file counts for given dsid/gindex
-   def view_filenumber(self, dsid, gindex, cnt = 0):
+   def view_filenumber(self, dsid, gindex, cnt=0):
+      """
+      Display file counts and sizes for a dataset or one or more groups.
+
+      Fetches web/saved file count and size columns from either the dataset or
+      dsgroup table and writes a formatted summary to self.OUTPUT.
+
+      Args:
+         dsid   -- dataset ID string
+         gindex -- single group index (int) when cnt == 0, or list of indices
+         cnt    -- number of group indices in *gindex*; 0 means scalar input
+      """
       if cnt:
          grecs = gindex
       else:
@@ -1177,8 +1447,22 @@ class PgArch(PgOPT, PgCMD, PgSplit):
                msg += " SS-{} SC-{}".format(pgrec['saved_size'], pgrec['savedcnt'])
             if msg: print("{}:{}".format(head, msg))
    
-   # get quasar backup file id numbers for given backup file names
    def get_bid_numbers(self, bfiles):
+      """
+      Convert a list of backup file identifiers to numeric bid values.
+
+      Each element of *bfiles* may be:
+        - None or 0    → 0 (placeholder)
+        - int or digit string → converted directly to int
+        - a PGSIGNS signature → kept as-is
+        - a file name string  → looked up in the bfile table by name
+
+      Args:
+         bfiles -- list of backup file names, IDs, or None values
+
+      Returns:
+         List of integer (or signature) bid values in the same order.
+      """
       bids = []
       if not bfiles: return bids
       dcnd = "dsid = '{}'".format(self.params['DS'])
@@ -1206,8 +1490,14 @@ class PgArch(PgOPT, PgCMD, PgSplit):
                bids.append(0)
       return bids
    
-   # build a backup filelist from given web/saved files
-   def build_backup_filelist(self, ):
+   def build_backup_filelist(self):
+      """
+      Populate params['QF'] with backup file IDs derived from web/saved files.
+
+      For each web file (params['WF']) or saved file (params['SF']), looks up
+      its associated backup ID in the database and builds the QuasarFile
+      parameter list used by restore and retrieve actions.
+      """
       dsid = self.params['DS']
       dscnd = "dsid = '{}'".format(dsid)
       if 'QF' not in self.params:
@@ -1251,8 +1541,19 @@ class PgArch(PgOPT, PgCMD, PgSplit):
             bids.append(bid)
             self.params['QF'].append(pgrec['bfile'])
    
-   # get Quasar backup files for given ids
    def get_quasar_backfiles(self, bids):
+      """
+      Resolve Quasar backup file names for a list of bid values.
+
+      For each bid that is a numeric ID, queries the bfile table; non-numeric
+      entries (file names or signatures) are returned unchanged.
+
+      Args:
+         bids -- list of bid values (int, digit string, or file name)
+
+      Returns:
+         List of backup file name strings in the same order as *bids*.
+      """
       count = len(bids) if bids else 0
       bfiles = ['']*count
       for i in range(count):
@@ -1265,9 +1566,19 @@ class PgArch(PgOPT, PgCMD, PgSplit):
          if pgrec:  bfiles[i] = pgrec['bfile']
       return bfiles
    
-   # get file names for reset group
-   # 
    def get_filenames(self, tname):
+      """
+      Query file names for the origin group (-OG) from the database.
+
+      Temporarily swaps params['GI'] with params['OG'], fetches all file names
+      from *tname* matching the group condition, then restores params['GI'].
+
+      Args:
+         tname -- table name ('wfile' or 'sfile')
+
+      Returns:
+         List of file name strings, or None if no records found.
+      """
       tmpgs = self.params['GI']
       self.params['GI'] = self.params['OG']
       self.pglog("Get file names of {} for reset group ...".format(self.params['DS']), self.PGOPT['wrnlog'])
@@ -1279,8 +1590,22 @@ class PgArch(PgOPT, PgCMD, PgSplit):
       self.params['GI'] = tmpgs
       return (pgrecs[tname] if pgrecs else None)
    
-   # get mss/web file names with relative path
-   def get_relative_names(self, files, gindices, types, saved = 0):
+   def get_relative_names(self, files, gindices, types, saved=0):
+      """
+      Convert a list of absolute file paths to paths relative to their group root.
+
+      Iterates over *files* and replaces each entry with the result of
+      get_saved_path() (when saved=1) or get_web_path() with opt=2.
+
+      Args:
+         files    -- list of file path strings to convert (modified in-place)
+         gindices -- list of group indices parallel to *files*
+         types    -- list of file type characters parallel to *files*
+         saved    -- 1 to use saved-file paths, 0 for web-file paths
+
+      Returns:
+         The modified *files* list.
+      """
       savegi = self.params['GI'] if 'GI' in self.params else None
       count = len(files)
       self.params['GI'] = gindices
@@ -1292,21 +1617,52 @@ class PgArch(PgOPT, PgCMD, PgSplit):
       self.params['GI'] = savegi
       return files
    
-   # reorder filelist
    def reorder_filelist(self, table):
+      """
+      Reorder files in *table* and bump the RDADB version when records change.
+
+      Delegates to reorder_files() using the order string from params['ON'],
+      then calls reset_rdadb_version() if at least one record was updated.
+
+      Args:
+         table -- one of 'wfile', 'sfile', 'bfile', 'hfile'
+      """
       cnt = self.reorder_files(self.params['DS'], self.params['ON'], table)
       if cnt > 0: self.reset_rdadb_version(self.params['DS'])
    
-   # 
-   # get public group type
-   def get_public_gtype(self, types, ptype, ptype2 = None):
+   def get_public_gtype(self, types, ptype, ptype2=None):
+      """
+      Return 'P' only when every entry in *types* matches *ptype* (or *ptype2*).
+
+      Used to verify that all file types in a batch are of the same public
+      category before applying group-level path decisions.
+
+      Args:
+         types  -- list of type character strings to check
+         ptype  -- required type character (e.g. 'D')
+         ptype2 -- optional second accepted type character
+
+      Returns:
+         'P' if all types match, None otherwise.
+      """
       if not types: return None
       for type in types:
          if type != ptype and not (ptype2 and type == ptype2): return None
       return 'P'
    
-   # get the data/doc/sofeware directory for given dataset id
-   def cache_rtpath(self, dsid, force = 0):
+   def cache_rtpath(self, dsid, force=0):
+      """
+      Cache the runtime directory paths for a dataset into self.RTPATH.
+
+      Populates RTPATH keys 'A', 'D', 'N', 'I', 'U', 'O', 'S', 'HD', 'HS',
+      'SP' with absolute paths derived from PGLOG settings (DSDHOME, DSHHOME,
+      DECSHOME) for the given dataset.  Results are reused until *dsid* or
+      *force* changes.
+
+      Args:
+         dsid  -- dataset ID string
+         force -- if non-zero, bypass the cached value and re-compute paths
+      """
       if not force and self.RTPATH['dsid'] and self.RTPATH['dsid'] == dsid: return
       self.RTPATH['dsid'] = dsid
       self.RTPATH['D'] = "{}/{}".format(self.PGLOG['DSDHOME'], dsid)
@@ -1329,8 +1685,18 @@ class PgArch(PgOPT, PgCMD, PgSplit):
       for opt in pgrecs:
          self.params[opt.upper()] = pgrecs[opt]
    
-   # gather subgroups
    def get_subgroups(self, cact):
+      """
+      Expand params['GI'] to include all matching sub-groups.
+
+      For 'GG' actions, recursively collects all child group indices.  For
+      'GS'/'GW' actions, collects sub-groups that actually contain saved or
+      web files (using the appropriate count column).  Updates params['GI']
+      in-place when sub-groups are found.
+
+      Args:
+         cact -- current action key ('GG', 'GS', or 'GW')
+      """
       gindices = []
       dcnd = "dsid = '{}'".format(self.params['DS'])
       gtype = None
@@ -1354,8 +1720,17 @@ class PgArch(PgOPT, PgCMD, PgSplit):
             if subs: gindices.extend(subs)
       if gindices: self.params['GI'] = gindices
    
-   #  clean empty directories for given dataset and groups
    def clean_dataset_directory(self, saved):
+      """
+      Remove empty group directories for saved or web files.
+
+      Iterates over the group indices in params['GI'] and the file types in
+      params['ST'] (saved) or params['WT'] (web), resolves each directory
+      path, and calls clean_empty_directory() to prune it.
+
+      Args:
+         saved -- 1 to clean saved-file directories, 0 for web-file directories
+      """
       cnt = len(self.params['GI']) if 'GI' in self.params else 1
       types = ()
       if saved:
@@ -1374,8 +1749,15 @@ class PgArch(PgOPT, PgCMD, PgSplit):
          for cdir in cdirs:
             self.clean_empty_directory(cdir, self.PGLOG['GPFSHOST'])
    
-   # validate given version indices
-   def validate_versions(self, ):
+   def validate_versions(self):
+      """
+      Validate that every version index in params['VI'] exists in RDADB.
+
+      Sets a validated flag to avoid re-running the check.  When no indices
+      are supplied and the action is 'SV', inserts a placeholder [0] to
+      trigger new-version creation.  Aborts via action_error() if an index is
+      missing from the database or belongs to a different dataset.
+      """
       if self.OPTS['VI'][2]&8 == 8: return   # already validated
       self.OPTS['VI'][2] |= 8   # set validated flag
       vcnt = len(self.params['VI']) if 'VI' in self.params else 0
@@ -1397,8 +1779,18 @@ class PgArch(PgOPT, PgCMD, PgSplit):
          elif pgrec['dsid'] != self.params['DS']:
             self.action_error("Version Control Index {} is for {}".format(val, pgrec['dsid']))
    
-   # validate local files for getting MD5 checksum
    def validate_md5_checksum(self, allcnt):
+      """
+      Prepare the MD5 checksum parameter list for the current file batch.
+
+      If -SC (SetChecksum) and -MC (MD5Checksum) are both provided, removes
+      -SC (checksums already supplied).  Otherwise, initialises params['MC']
+      as an empty list and, when all local files exist, enables automatic
+      checksum computation by setting the SC flag and an auto-flag on MC.
+
+      Args:
+         allcnt -- total number of files being processed
+      """
       if 'SC' in self.params and self.params['MC']:
          del self.params['SC']
       elif 'MC' not in self.params:
@@ -1420,8 +1812,28 @@ class PgArch(PgOPT, PgCMD, PgSplit):
                del self.params['SC']
             if 'MC' in self.params: del self.params['MC']
    
-   # append moving info to bfile.note
    def save_move_info(self, bid, ffile, ftype, fftype, fdsid, tfile, ttype, tftype, tdsid):
+      """
+      Append a move-history entry to a backup file's note field.
+
+      Builds a human-readable note line describing the move (dataset, type,
+      file names) and appends it to bfile.note.  When the file type changes
+      between saved and web, also adjusts bfile.scount/wcount accordingly.
+
+      Args:
+         bid    -- backup file ID
+         ffile  -- source file name
+         ftype  -- source file type character
+         fftype -- source file category ('W' for web, 'S' for saved)
+         fdsid  -- source dataset ID
+         tfile  -- destination file name
+         ttype  -- destination file type character
+         tftype -- destination file category ('W' or 'S')
+         tdsid  -- destination dataset ID
+
+      Returns:
+         Number of database rows updated (0 on failure).
+      """
       bcnd = "bid = {}".format(bid)
       flds = 'note'
       if fftype != tftype: flds += ', scount, wcount'
@@ -1448,16 +1860,33 @@ class PgArch(PgOPT, PgCMD, PgSplit):
          pgrec['wcount'] += 1
       return self.pgupdt('bfile', pgrec, bcnd, self.LGEREX)
    
-   # set dataset location flag
    def set_dataset_locflag(self, dsid, locflag):
+      """
+      Update the dataset location flag when all public web files share it.
+
+      Only writes to the database if the current dataset locflag differs from
+      *locflag* AND no public web files with a different locflag exist.
+
+      Args:
+         dsid    -- dataset ID string
+         locflag -- desired location flag character (e.g. 'G', 'O', 'B')
+      """
       dscnd = "dsid = '{}'".format(dsid)
       if self.pgget('dataset', '', "{} AND locflag = '{}'".format(dscnd, locflag)): return
       cnd = "type = 'D' AND status = 'P' AND locflag <> '{}'".format(locflag)
       if self.pgget_wfile(dsid, '', cnd): return
       self.pgexec("UPDATE dataset SET locflag = '{}' WHERE {}".format(locflag, dscnd))
    
-   # get dataset location flag
    def get_dataset_locflag(self, dsid):
+      """
+      Return the dataset's current location flag from RDADB.
+
+      Args:
+         dsid -- dataset ID string
+
+      Returns:
+         Location flag character string, or 'G' (GLADE) if not found.
+      """
       dscnd = "dsid = '{}'".format(dsid)
       pgrec = self.pgget('dataset', 'locflag', dscnd)
       return pgrec['locflag'] if pgrec else 'G'
