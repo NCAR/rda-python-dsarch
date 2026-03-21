@@ -1164,14 +1164,14 @@ class PgArch(PgOPT, PgCMD, PgSplit):
          if not files[i]: continue   # skip group index found already
          j = -1
          bname = files[i]
-         # search adjecent three pattern first
+         # search adjacent three pattern first
          if re.match(r'^{}'.format(pgrecs['pattern'][k]), bname):
             j = k
          elif k < (pcnt-1) and re.search(pgrecs['pattern'][k+1], bname):
             j = k+1
          elif k > 0 and re.search(pgrecs['pattern'][k-1], bname):
             j = k-1
-         elif offset < 0:   # simple searh
+         elif offset < 0:   # simple search
             j = k+2
             while j < pcnt:   # search up
                if re.search(pgrecs['pattern'][j], bname): break
