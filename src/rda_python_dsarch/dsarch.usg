@@ -401,7 +401,7 @@ VersionIndex<:>InternalVersion<:>ExternalVersion<:>DOINumber<:>VersionStatus<:>B
 
 
 3.2.3 Terminate Version Control
-  -TV or -Terminate, terminates a version control record in GDEXDB for a specified dataset.
+  -TV or -TerminateVersion, terminates a version control record in GDEXDB for a specified dataset.
 
   dsarch [-(DS|Dataset)] dNNNNNN [-](TV|TerminateVersion) [Mode Options]
           -(VI|VersionIndex) VersionIndex
@@ -506,13 +506,13 @@ QSCAT observations.<:>
   -GG or -GetGroup, retrieves group records for a given dataset. Providing
   group indices or names filters the results to matching records only.
 
-  dsarch [-(DS|Dataset] dNNNNNN [-](GG|GetGroup)
+  dsarch [-(DS|Dataset)] dNNNNNN [-](GG|GetGroup)
          [-(FN|FieldNames) FieldNameString]
          [-(ON|OrderNames) OrderNameString]
          [-(GI|GroupIndex) GroupIndices]
          [-(GN|GroupName) GroupNames]
          [-(PI|ParentGroupIndex) ParentGroupIndices]
-         [(-OF|-OutputFile) OutputFileName]
+         [-(OF|OutputFile) OutputFileName]
          [-(DB|Debug) DebugModeInfo]
 
   Mode options that can be specified for this action:
@@ -663,12 +663,12 @@ d260001-G2: DS-552780725 DC-522 WC-522 SS-465789806 SC-51
          [-(LC|Location) StorageLocationFlags]  # CGD data; Glade, Object or Both
          [-(DF|DataFormat) DataFormats]         # BINARY, ASCII, NetCDF and etc.
          [-(AF|ArchiveFormat) FileArchiveFormats]   # tarred, Compressed and etc.
-         [-(DO|DisplayOrder] DisplayOrderIndices]
+         [-(DO|DisplayOrder) DisplayOrderIndices]
          [-(SZ|Size) FileSizes]
          [-(MC|MD5Checksum) MD5ChecksumValues]
          [-(FD|FileDate) DateModified]
          [-(FT|FileTime) TimeModified]
-         [-(DE|Description] SavedFileDescriptions]
+         [-(DE|Description) SavedFileDescriptions]
          [-(LN|LoginName) LoginAccountName]
          [-(QS|QsubOptions)  PBSBatchOptions]
          [-(BP|BatchProcess) [BatchControlInfo]]
@@ -718,7 +718,7 @@ d260001-G2: DS-552780725 DC-522 WC-522 SS-465789806 SC-51
          [-(GN|GroupName) GroupNames]
          [-(TG|TopGroupIndex) TopGroupIndices]
          [-(DE|Description) SavedFileDescriptions]
-         [(-OF|-OutputFile) OutputFileName]
+         [-(OF|OutputFile) OutputFileName]
          [-(DB|Debug) DebugModeInfo]
 
   Mode options that can be specified for this action:
@@ -780,14 +780,14 @@ d260001-G2: DS-552780725 DC-522 WC-522 SS-465789806 SC-51
          [-(FF|FileFlag) FilesOrPaths]        # file type flag, File or Path
          [-(DF|DataFormat) DataFormats]       # BINARY, ASCII, NetCDF and etc.
          [-(AF|ArchiveFormat) FileArchiveFormats]  # tarred, Compressed and etc.
-         [-(DO|DisplayOrder] DisplayOrderIndices]
+         [-(DO|DisplayOrder) DisplayOrderIndices]
          [-(SZ|Size) FileSizes]
          [-(MC|MD5Checksum) MD5ChecksumValues]
          [-(FD|FileDate) DateModified]
          [-(FT|FileTime) TimeModified]
          [-(ML|MetaLink) MetadataLinks]
          [-(TL|ThreddLink) ThreddCatalogLinks]
-         [-(DE|Description] WebFileDescriptions]
+         [-(DE|Description) WebFileDescriptions]
          [-(LN|LoginName) LoginAccountName]
          [-(AL|AsyncLimit) AsyncProcessLimit]
          [-(QS|QsubOptions)  PBSBatchOptions]
@@ -846,7 +846,7 @@ d260001-G2: DS-552780725 DC-522 WC-522 SS-465789806 SC-51
          [-(GN|GroupName) GroupNames]
          [-(TG|TopGroupIndex) TopGroupIndices]
          [-(DE|Description) WebFileDescriptions]
-         [(-OF|-OutputFile) OutputFileName]
+         [-(OF|OutputFile) OutputFileName]
          [-(DB|Debug) DebugModeInfo]
 
   Mode options that can be specified for this action:
@@ -923,13 +923,13 @@ IMMA_2.4_2007.tar<:>37<:>IMMA<:>Z.TAR<:>D<:>656820224<:>
          [-(LC|Location) StorageLocationFlags]  # Glade, Object, Both or Remote
          [-(DF|DataFormat) DataFormats]         # Python, PDF, and etc.
          [-(AF|ArchiveFormat) FileArchiveFormats]  # tarred, Compressed and etc.
-         [-(DO|DisplayOrder] DisplayOrderIndices]
+         [-(DO|DisplayOrder) DisplayOrderIndices]
          [-(SZ|Size) FileSizes]
          [-(MC|MD5Checksum) MD5ChecksumValues]
          [-(ID|InitialDate) HelpFileInitialDate]  # Initial Publish/Release Date
          [-(FD|FileDate) DateModified]
          [-(FT|FileTime) TimeModified]
-         [-(DE|Description] SavedFileDescriptions]
+         [-(DE|Description) SavedFileDescriptions]
          [-(LN|LoginName) LoginAccountName]
          [-(DB|Debug) DebugModeInfo]
 
@@ -971,7 +971,7 @@ IMMA_2.4_2007.tar<:>37<:>IMMA<:>Z.TAR<:>D<:>656820224<:>
          [-(LC|Location) StorageLocationFlags]
          [-(SR|Source) ContributionSource]
          [-(DE|Description) SavedFileDescriptions]
-         [(-OF|-OutputFile) OutputFileName]
+         [-(OF|OutputFile) OutputFileName]
          [-(DB|Debug) DebugModeInfo]
 
   Mode option that can be specified for this action:
@@ -996,7 +996,7 @@ IMMA_2.4_2007.tar<:>37<:>IMMA<:>Z.TAR<:>D<:>656820224<:>
   I      -(ID|InitialDate)     Date initially Published/Released
   J      -(FD|FileDate)        date last modified on
   K      -(FT|FileTime)        time last modified at
-  U      -(WU|WebURL'          a full URL for a remote help file
+  U      -(WU|WebURL)          a full URL for a remote help file
   D      -(DE|Description)     file descriptions
 
   A dataset number is required unless Help file names are provided. If file
@@ -1016,15 +1016,15 @@ IMMA_2.4_2007.tar<:>37<:>IMMA<:>Z.TAR<:>D<:>656820224<:>
          [-(ON|OrderNames) OrderNameString]
          [-(OB|OrderBy) OrderByPattern]
          [-(QT|QuasarFileType) QuasarFileTypes]   # Backup or backup&Drdata
-         [-(BS|BackupStatus) QuasarBackupFileStatus]      # New-record, Tarred, or Achived
+         [-(BS|BackupStatus) QuasarBackupFileStatus]      # New, Tarred, or Archived
          [-(DF|DataFormat) FileContentFormat]
          [-(AF|ArchiveFormat) FileArchiveFormat]
-         [-(DO|DisplayOrder] DisplayOrderIndices]
+         [-(DO|DisplayOrder) DisplayOrderIndices]
          [-(SZ|Size) FileSizes]
          [-(MC|MD5Checksum) MD5ChecksumValues]
          [-(FD|FileDate) DateModified]
          [-(FT|FileTime) TimeModified]
-         [-(DE|Description] SavedFileDescriptions]
+         [-(DE|Description) SavedFileDescriptions]
          [-(LN|LoginName) LoginAccountName]
          [-(QS|QsubOptions)  PBSBatchOptions]
          [-(BP|BatchProcess) [BatchControlInfo]]
@@ -1061,7 +1061,7 @@ IMMA_2.4_2007.tar<:>37<:>IMMA<:>Z.TAR<:>D<:>656820224<:>
          [-(QT|QuasarFileType) QuasarFileTypes]
          [-(FS|FileStatus) QuasarFileStatus]
          [-(DE|Description) QuasarFileDescriptions]
-         [(-OF|-OutputFile) OutputFileName]
+         [-(OF|OutputFile) OutputFileName]
          [-(DB|Debug) DebugModeInfo]
 
   Mode option that can be specified for this action:
@@ -1115,10 +1115,10 @@ IMMA_2.4_2007.tar<:>37<:>IMMA<:>Z.TAR<:>D<:>656820224<:>
          [-(LC|Location) StorageLocationFlags]
          [-(DF|DataFormat) DataFormat]            # BINARY, ASCII, NetCDF and etc.
          [-(AF|ArchiveFormat) FileArchiveFormat]  # tarred, compressed and etc.
-         [-(DO|DisplayOrder] DisplayOrderIndices]
+         [-(DO|DisplayOrder) DisplayOrderIndices]
          [-(SZ|Size) FileSizes]
          [-(MC|MD5Checksum) MD5ChecksumValues]
-         [-(DE|Description] SavedFileDescriptions]
+         [-(DE|Description) SavedFileDescriptions]
          [-(VS|ValidSize) MinSizeForValidFile]
          [-(LN|LoginName) LoginAccountName]
          [-(AL|AsyncLimit) AsyncProcessLimit]
@@ -1200,10 +1200,10 @@ IMMA_2.4_2007.tar<:>37<:>IMMA<:>Z.TAR<:>D<:>656820224<:>
          [-(LC|Location) StorageLocationFlags]
          [-(DF|DataFormat) DataFormat]            # BINARY, ASCII, NetCDF and etc.
          [-(AF|ArchiveFormat) FileArchiveFormat]  # tarred, compressed and etc.
-         [-(DO|DisplayOrder] DisplayOrderIndices]
+         [-(DO|DisplayOrder) DisplayOrderIndices]
          [-(SZ|Size) FileSizes]
          [-(MC|MD5Checksum) MD5ChecksumValues]
-         [-(DE|Description] WebFileDescriptions]
+         [-(DE|Description) WebFileDescriptions]
          [-(VS|ValidSize) MinSizeForValidFile]
          [-(LN|LoginName) LoginAccountName]
          [-(AL|AsyncLimit) AsyncProcessLimit]
@@ -1283,11 +1283,11 @@ IMMA_2.4_2007.tar<:>37<:>IMMA<:>Z.TAR<:>D<:>656820224<:>
          [-(FF|FileFlag) FilesOrPaths]             # file type flag, File or Path
          [-(DF|DataFormat) FileContentFormat]      # PDF, Python and etc.
          [-(AF|ArchiveFormat) FileArchiveFormat]   # tarred, compressed and etc.
-         [-(DO|DisplayOrder] DisplayOrderIndices]
+         [-(DO|DisplayOrder) DisplayOrderIndices]
          [-(SZ|Size) FileSizes]
          [-(LC|Location) StorageLocationFlags]
          [-(MC|MD5Checksum) MD5ChecksumValues]
-         [-(DE|Description] SavedFileDescriptions]
+         [-(DE|Description) SavedFileDescriptions]
          [-(VS|ValidSize) MinSizeForValidFile]
          [-(LN|LoginName) LoginAccountName]
          [-(QS|QsubOptions)  PBSBatchOptions]
@@ -1572,7 +1572,7 @@ IMMA_2.4_2007.tar<:>37<:>IMMA<:>Z.TAR<:>D<:>656820224<:>
   -GH, and -GQ.
 
   dsarch [-(DS|dataset)] dNNNNNN -(GA|GetAll)
-         [-(OF|OutputFile|>) OutputFileName]
+         [-(OF|OutputFile) OutputFileName]
          [-(DB|Debug) DebugModeInfo]
 
   No Mode options apply to this action; all available fields are retrieved
