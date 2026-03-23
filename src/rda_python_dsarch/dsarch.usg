@@ -1,18 +1,18 @@
 
 1 INTRODUCTION
 
-'dsarch' is a comprehensive utility for archiving data onto CISL Geoscience Data
-Exchange (GDEX) Servers and recording detailed information about data files, data
-periods, file counts, and sizes for a given dataset in the Geoscience Data Exchange
-Database (GDEXDB). A Digital Object Identifier (DOI) can be assigned to a dataset
-to place it under DOI/Version control, linking all its web data files to the new
-version. Archived files can be organized into sub-products called groups, which
-can be further divided into subgroups to any number of levels. File information
-stored in GDEXDB can also be retrieved and modified using this utility.
+'dsarch' is the primary tool for archiving geoscience data onto CISL's Geoscience
+Data Exchange (GDEX) Servers. It records metadata about each dataset — file names,
+data periods, file counts, and sizes — in the Geoscience Data Exchange Database
+(GDEXDB). Datasets can be placed under DOI/Version control by assigning a Digital
+Object Identifier (DOI), which links all web data files to a specific version for
+citation and long-term reference. Archived files can be organized into sub-products
+called groups, which nest to any depth. All metadata stored in GDEXDB can be
+retrieved and updated through 'dsarch' as well.
 
-A dataset, if not in GDEXDB yet, can be initiated through Metadata Manager,
-https://dss.ucar.edu/cgi-bin/internal/dssmm. To process data archives, 'dsarch'
-can perform the following major functions:
+Before using 'dsarch', a dataset must first be registered in GDEXDB through
+Metadata Manager (https://dss.ucar.edu/cgi-bin/internal/dssmm). Once registered,
+'dsarch' can perform the following major functions:
   - Set up a dataset and its groups/subgroups in GDEXDB to prepare it for
     data archiving
   - Add, update, and terminate DOI/Version controls for a given dataset
@@ -28,61 +28,57 @@ can perform the following major functions:
     Quasar Server, with an optional disaster recovery copy
   - Restore damaged data files from the Quasar backup server
   - Remove files from GDEX Servers
-  - Auto-restart interrupted 'dsarch' commands recorded in GDEXDB
+  - Automatically resume interrupted 'dsarch' commands using records in GDEXDB
   - Regenerate filelist and main webpages on demand after dataset changes
 
-Two complementary utilities support 'dsarch': 'myconvert' converts and transfers
-SCCS metadata (text-based flat files) into GDEXDB, and 'publish_filelist'
-publishes GDEX Server file lists to the GDEX Web Server user interface. See their
-respective help documentation for details.
+Two utilities complement 'dsarch': 'myconvert' migrates SCCS metadata (text-based
+flat files) into GDEXDB, and 'publish_filelist' publishes GDEX Server file lists
+to the GDEX Web Server user interface. See each utility's help documentation for
+details.
 
-The GDEXDB dataset flag -UD (-UseDSARCH) must be set to at least 'Y' before
-'dsarch' can archive files or insert and modify file information in GDEXDB.
-This flag also controls file list publication: 'P' or 'W' publishes file lists
-for GDEX Server data files, which appear in each dataset's user interface on the
-GDEX Web Server. See the -SD (-SetDataset) action and -UD (-UseDSARCH) option
-descriptions for details.
+The dataset flag -UD (-UseDSARCH) must be set to at least 'Y' before 'dsarch'
+can archive files or write to GDEXDB. This flag also controls file list
+publication: setting it to 'P' or 'W' publishes file lists for GDEX Server data
+files, making them visible in the dataset's user interface on the GDEX Web Server.
+See the -SD (-SetDataset) action and -UD (-UseDSARCH) option descriptions for
+details.
 
-When a file is moved and its name or path changes, the new name becomes the
-primary record in GDEXDB while the original name is retained as a linked alias.
-Both names are treated as the same data file when gathering usage metrics.
-For this reason, 'dsarch' is recommended for moving data files rather than
-using system move commands directly.
+When a file is moved and its name or path changes, 'dsarch' records the new name
+as the primary entry in GDEXDB and retains the original as a linked alias. Both
+names resolve to the same file for usage tracking. Always use 'dsarch' — not
+system move commands — to move data files, so that GDEXDB stays accurate.
 
 Use the companion utility 'dsquasar' to back up archived data files to the
-Globus Quasar Server. 'dsquasar' identifies files not yet backed up, builds
-input file lists (targeting 1-3 GB each), and passes them to 'dsarch' to
-create tar files and upload them to the Quasar server.
+Globus Quasar Server. 'dsquasar' finds files not yet backed up, assembles
+input file lists (targeting 1-3 GB per list), and calls 'dsarch' to package
+and upload them as tar files to the Quasar server.
 
-Validation checks prevent specialists from accidentally running 'dsarch' on
-the wrong dataset. Any input file used for a given dataset must begin with the
-dataset number in the format 'dNNNNNN.*', where '*' matches one or more valid
-filename characters. 'dsarch' also verifies that the specialist is authorized
-for the chosen dataset; execution stops if they are not listed as an owner,
-unless Mode option -MD (-MyDataset) is present, which forces the action to
-proceed regardless.
+'dsarch' includes safeguards to prevent accidental operations on the wrong
+dataset. Input files must be named starting with the dataset number in the
+format 'dNNNNNN.*', where '*' matches one or more valid filename characters.
+'dsarch' also checks that the specialist running it is an authorized owner of
+the dataset; if not, execution stops — unless Mode option -MD (-MyDataset) is
+supplied, which overrides the ownership check.
 
-For archive actions (-AW, -AS, -AH, -AQ) that fail due to storage system
-outages, 'dsarch' will automatically retry the same action once the system
-recovers. This automatic retry is only active when option -BP (-d) is present
-and the actions are submitted as background batch processes, with the relevant
-information recorded in GDEXDB.
+If an archive action (-AW, -AS, -AH, -AQ) fails because of a storage system
+outage, 'dsarch' will automatically retry it once the system recovers. This
+retry behavior is only enabled when option -BP (-d) is used to submit the
+action as a background batch process; the retry state is tracked in GDEXDB.
 
-Once a DOI/Version control is added to a dataset it cannot be removed, but it
-can be terminated when the dataset is no longer active and its data are out of
-date. The file list of a terminated dataset can still be reconstructed on request
-using the retained DOI/Version control information. Data files under DOI/Version
-control cannot be moved or deleted, but new files may be added for operational
-datasets. An archived data file generally cannot be changed unless new data are
-appended to it.
+Once added, a DOI/Version control record cannot be removed, but it can be
+terminated when a dataset is retired and its data are no longer current. Even
+after termination, the file list can be reconstructed from the retained DOI
+records. Files under DOI/Version control are locked — they cannot be moved or
+deleted — though new files may still be added to operational datasets. Archived
+data files are also immutable unless new data are appended to them.
 
-Only Web data files are placed directly under DOI/Version control. Any saved
-data staged on disk for internal use or for convenient NCAR user access remains
-the responsibility of the dataset owner to maintain.
+Only Web data files are placed under DOI/Version control. Saved data staged on
+disk for internal use or NCAR user access is not version-controlled and remains
+the responsibility of the dataset owner.
 
-The following sections first describe general usage of 'dsarch', then provide
-detailed descriptions of Action options, followed by Mode and Info options.
-Examples are interspersed throughout.
+This document first covers general 'dsarch' usage, then describes each Action
+option in detail, followed by Mode and Info options. Examples are provided
+throughout each section.
 
 
 2 GENERAL DSARCH USAGE
@@ -93,21 +89,21 @@ Examples are interspersed throughout.
 
 Brackets [] indicate optional elements. A pipe '|' within parentheses, as in
 (A|B), means either A or B may be used. Options fall into three categories:
-Action, Mode, and Information (Info) options. Action options specify what task
-to execute; Mode options modify action behavior; and Info options pass one or
-more values to 'dsarch'. Options may be given in short or long form (e.g., -DS
-or -Dataset). Some options have alias names for convenience; for example,
--UseRDADB is an alias for -UD (-UseDSARCH). Option names are case-insensitive,
+  Action options  - specify what task to execute
+  Mode options    - modify how an action behaves
+  Info options    - supply values to the action
+Options may be given in short or long form (e.g., -DS or -Dataset). Some
+options have alias names; for example, -UseRDADB is an alias for -UD
+(-UseDSARCH). Option names are case-insensitive,
 but values following Info options are case-sensitive.
 
-Option -DS is an Info option that specifies the dataset number. It is listed
-separately because a dataset number is required by most actions. If given as
-the first argument following 'dsarch', the -DS (-Dataset) option name may be
-omitted.
+Option -DS specifies the dataset number. It is listed separately because most
+actions require it. When -DS is the first argument after 'dsarch', the option
+name itself may be omitted — just supply the dataset number directly.
 
-Specify exactly one Action option per execution. Depending on the chosen Action,
-certain Info options are mandatory, others are optional, and specific Mode options
-may be applied to alter the action's behavior.
+Specify exactly one Action option per 'dsarch' invocation. Each action has its
+own set of required and optional Info options, and may accept specific Mode
+options that adjust its behavior.
 
 All options except -IF (-InputFile) may be given either on the command line or
 in input files. Input file names are specified via -IF and can only be supplied
@@ -117,15 +113,15 @@ command-line options. The -IF option name itself may be omitted when a single
 input file is given on the command line and all action and option information
 is contained within that file.
 
-When retrieving dataset, DOI/Version control, group, or file information from
-GDEXDB, Info options specify query conditions. The special characters '!', '<',
-'>', and '<>' allow more specific filtering. When supplied on the command line,
-these characters must be quoted or escaped to prevent OS interpretation. '!'
-(or \!) denotes exclusion and must appear immediately after the option name.
-'<' and '>' denote less-than and greater-than comparisons on the following
-value. '<>' denotes a range between two values. Combining '!' and '<' as
-"'!' '<' OptionValue" creates a 'greater than or equal to OptionValue'
-condition.
+Info options used with GET actions serve as query filters. Four special
+characters enable more precise filtering — they must be quoted or escaped
+on the command line to prevent shell interpretation:
+  '!'   (or \!) — exclude matches; must appear immediately after the option name
+  '<'           — less-than comparison on the following value
+  '>'           — greater-than comparison on the following value
+  '<>'          — range between two values
+Combining '!' and '<' as "'!' '<' OptionValue" expresses a 'greater than or
+equal to OptionValue' condition.
 
 The description of an individual option is shown when 'dsarch' is run as
 
@@ -142,15 +138,14 @@ is displayed using the UNIX 'more' utility. A printed copy is available at
 
 3 ACTION OPTIONS
 
-Action options specify what task 'dsarch' executes. No values follow Action
-options. Depending on the chosen Action, multiple tasks may be processed in a
-single execution. Some comprehensive actions automatically include simpler
-actions by default; others add further actions when certain Mode options are
-present. Only one Action option may be specified per execution.
+Action options tell 'dsarch' what to do. They take no values. Some actions
+perform a single task; others bundle multiple tasks together and may trigger
+additional steps when certain Mode options are present. Only one Action option
+may be specified per execution.
 
-Some actions write information to GDEXDB; others retrieve it. The -UD
-(-UseDSARCH) flag must be set to 'Y', 'I', 'P', or 'W' for a dataset before
-any write actions can be executed against it.
+Write actions require the -UD (-UseDSARCH) flag to be set to 'Y', 'I', 'P',
+or 'W' for the target dataset before they can modify GDEXDB. Read actions
+have no such requirement.
 
 Actions are grouped into seven categories based on the information they handle:
      Dataset Actions - create, modify and retrieve dataset information in GDEXDB
@@ -169,13 +164,13 @@ Actions are grouped into seven categories based on the information they handle:
 
 3.1 Dataset Actions
 
-  Dataset information can be modified and retrieved via the following actions:
-  Set Dataset Information - modify an existing dataset record in GDEXDB
-  Get Dataset Information - retrieve dataset record information from GDEXDB
+  Use the following actions to read or update a dataset's record in GDEXDB:
+  Set Dataset Information - update properties of an existing dataset record
+  Get Dataset Information - retrieve and display dataset record fields
 
 3.1.1 Set Dataset Information
-  -SD or -SetDataset, modifies the dataset record in GDEXDB for a given
-  dataset number.
+  -SD or -SetDataset, updates properties of an existing dataset record in
+  GDEXDB — such as paths, file count limits, access flags, and data periods.
 
   dsarch [-(DS|Dataset)] dNNNNNN [-](SD|SetDataset) [Mode Options]
          [-(UD|UseDSARCH) UseDSARCHFlag]   # Y, P, W, I, or N
@@ -230,8 +225,8 @@ Actions are grouped into seven categories based on the information they handle:
   dsarch d744004 SD -WN -UD Y -BD 1999-07-01
 
 3.1.2 Get Dataset Information
-  -GD or -GetDataset, retrieves the dataset record from GDEXDB for a given
-  dataset number.
+  -GD or -GetDataset, reads and displays dataset record fields from GDEXDB
+  for the specified dataset.
 
   dsarch [-(DS|Dataset)] dNNNNNN [-](GD|GetDataset) [Mode Options]
          [-(FN|FieldNames) FieldNameString]
@@ -245,8 +240,8 @@ Actions are grouped into seven categories based on the information they handle:
                          and any groups
   -(WN|WithFileNumber) - gathers and displays Saved/Web file counts
 
-  Use -FN (-FieldNames) to specify which dataset fields to retrieve. Defaults
-  to 'SWFULQ'. Use -FN ALL to retrieve all available fields.
+  Use -FN (-FieldNames) to select which dataset fields to include. Defaults
+  to 'SWFULQ'. Use -FN ALL to retrieve every available field.
 
   Valid dataset field names and their corresponding Info options:
 
@@ -301,13 +296,15 @@ GroupIndex<:>BeginDate<:>EndDate<:>BeginTime<:>EndTime<:>
 
 3.2 DOI/Version Actions
 
-  DOI/Version controls are managed via the following actions:
-       Set Version Control - add or modify DOI/Version control information
-       Get Version Control - retrieve DOI/Version control information
- Terminate Version Control - terminate an active DOI/Version control
+  DOI/Version controls establish citable, versioned snapshots of a dataset.
+  Manage them with the following actions:
+       Set Version Control - create or update a DOI/Version control record
+       Get Version Control - retrieve DOI/Version control record details
+ Terminate Version Control - close an active DOI/Version control record
 
 3.2.1 Set Version Control
-  -SV or -SetVersion, adds or modifies DOI/Version control records for a given dataset.
+  -SV or -SetVersion, creates a new or updates an existing DOI/Version control
+  record for the specified dataset.
 
   dsarch [-(DS|Dataset)] dNNNNNN [-](SV|SetVersion) [Mode Options]
          [-(VI|VersionIndex) VersionIndex]
@@ -401,7 +398,8 @@ VersionIndex<:>InternalVersion<:>ExternalVersion<:>DOINumber<:>VersionStatus<:>B
 
 
 3.2.3 Terminate Version Control
-  -TV or -TerminateVersion, terminates a version control record in GDEXDB for a specified dataset.
+  -TV or -TerminateVersion, closes a version control record in GDEXDB for the
+  specified dataset, marking it as history or removing it if still pending.
 
   dsarch [-(DS|Dataset)] dNNNNNN [-](TV|TerminateVersion) [Mode Options]
           -(VI|VersionIndex) VersionIndex
@@ -414,34 +412,32 @@ VersionIndex<:>InternalVersion<:>ExternalVersion<:>DOINumber<:>VersionStatus<:>B
      -(NT|NoTrim) - skips trimming of spaces and comments from input
                     values, speeding up input file processing
 
-  The record to terminate is identified by the version index given via -VI
-  (-VersionIndex) and the dataset number via -DS. This action is blocked if any
-  Web data files are still linked to that version index. To terminate a version
-  that still has Web files, first retrieve the Web file names with -GW (-GetWebFile),
-  then either reset their version index to 0 or a different value, or move them
-  to Saved files; then terminate the version.
+  Provide the version index via -VI and the dataset number via -DS. Termination
+  is blocked if any Web files are still linked to that version. To work around
+  this, first list those files using -GW (-GetWebFile), then either reassign
+  their version index (to 0 or another value) or convert them to Saved files;
+  only then can the version be terminated.
 
   For example, to terminate version index 5 of d999009:
 
   dsarch d999009 TV -VI 5
 
-  Terminating an active record changes its status to 'H' (History) and retains
-  it for future reference. Terminating a Pending record removes it from GDEXDB
-  entirely.
+  Active records are moved to 'H' (History) status and kept for future
+  reference. Pending records are deleted from GDEXDB entirely.
 
 
 3.3 Group Actions
 
-  Groups divide a dataset into sub-products. Group records are managed via
-  the following actions:
-     Set Group Information - create or modify group records in GDEXDB
-     Get Group Information - retrieve existing group records
-  Delete Group Information - delete one or more group records
-  Change Group Information - reassign group indices to new values
+  Groups organize a dataset's files into named sub-products. Use the following
+  actions to manage group records in GDEXDB:
+     Set Group Information - create or update group records
+     Get Group Information - list and filter existing group records
+  Delete Group Information - remove one or more group records
+  Change Group Information - renumber group indices
 
 3.3.1 Set Group Information
-  -SG or -SetGroup, creates or modifies group records in GDEXDB for a given
-  dataset. One or more records may be processed per execution.
+  -SG or -SetGroup, creates new or updates existing group records in GDEXDB
+  for the specified dataset. Multiple records can be processed in one run.
 
   dsarch [-(DS|Dataset)] dNNNNNN [-](SG|SetGroup) [Mode Options]
          [-(GI|GroupIndex) GroupIndices]  # mandatory for new groups
@@ -471,16 +467,15 @@ VersionIndex<:>InternalVersion<:>ExternalVersion<:>DOINumber<:>VersionStatus<:>B
   -(WN|WithFileNumber) - re-evaluates and resets Saved/Web file counts for the
                          affected groups
 
-  If the given group index already exists in GDEXDB, its record is modified;
-  otherwise a new record is created. A unique group index must be provided for
-  new records.
+  If the group index already exists in GDEXDB, the record is updated; otherwise
+  a new group is created. New groups require a unique index.
 
-  Subgroups are created by setting a parent group index via -PI (-ParentIndex).
-  The tree can extend to any depth. By default, three subgroup levels are shown
-  on group list webpages; change this via -GL (-GroupLevel) in -SD (-SetDataset).
+  To create a subgroup, set a parent index via -PI (-ParentIndex). Groups can
+  be nested to any depth. By default, three levels are shown on group list
+  webpages; adjust this with -GL (-GroupLevel) via -SD (-SetDataset).
 
-  Changing a group type from P (public) to I (internal) recursively marks all
-  subgroups and their Saved/Web files as internal.
+  Changing a group's type from P (public) to I (internal) automatically marks
+  all its subgroups and associated Saved/Web files as internal too.
 
   For example, to set multiple group records for d744004 using an input file:
 
@@ -503,8 +498,8 @@ in identifying the satellite data swaths in each composite of 12-hours of
 QSCAT observations.<:>
 
 3.3.2 Get Group Information
-  -GG or -GetGroup, retrieves group records for a given dataset. Providing
-  group indices or names filters the results to matching records only.
+  -GG or -GetGroup, retrieves group records for the specified dataset.
+  Filter results by providing group indices, names, or a parent index.
 
   dsarch [-(DS|Dataset)] dNNNNNN [-](GG|GetGroup)
          [-(FN|FieldNames) FieldNameString]
@@ -559,8 +554,8 @@ d260001-G2: DS-552780725 DC-522 WC-522 SS-465789806 SC-51
 
 
 3.3.3 Delete Group Information
-  -DG or -DeleteGroup, deletes one or more group records from GDEXDB for the
-  given dataset.
+  -DG or -DeleteGroup, removes one or more group records from GDEXDB for the
+  specified dataset.
 
   dsarch [-(DS|Dataset)] dNNNNNN [-](DG|DeleteGroup) [Mode Options]
           -(GI|GroupIndex) GroupIndices
@@ -577,12 +572,12 @@ d260001-G2: DS-552780725 DC-522 WC-522 SS-465789806 SC-51
   -(WN|WithFileNumber) - re-evaluates and resets file counts for the affected
                          groups
 
-  Groups are identified by the indices given via -GI and the dataset number
-  via -DS. This action is blocked if the group contains subgroups or data files.
-  To delete a non-empty group, first retrieve its files via -GS (-GetSavedFile)
-  or -GW (-GetWebFile), then either reassign them to another group via -CG
-  (-ChangeGroup), reset their group index to 0, or delete them with -DL
-  (-Delete); then delete the group.
+  Specify groups by index via -GI and the dataset via -DS. Deletion is blocked
+  if a group still contains subgroups or data files. To delete a non-empty
+  group, first retrieve its files with -GS (-GetSavedFile) or -GW
+  (-GetWebFile), then either move them to another group via -CG (-ChangeGroup),
+  reset their group index to 0, or remove them with -DL (-Delete). Once empty,
+  the group can be deleted.
 
   For example, to delete group indices 2 and 3 of d744004:
 
@@ -590,8 +585,8 @@ d260001-G2: DS-552780725 DC-522 WC-522 SS-465789806 SC-51
 
 
 3.3.4 Change Group Information
-  -CG or -ChangeGroup, reassigns group indices for a given dataset, mapping
-  original values (via -OG) to new values (via -GI).
+  -CG or -ChangeGroup, renumbers group indices for the specified dataset,
+  mapping each original index (via -OG) to a new value (via -GI).
 
   dsarch [-(DS|dataset)] dNNNNNN [-](CG|ChangeGroup) [Mode Options]
           -(OG|OriginGroup) OriginalGroupIndices
@@ -609,9 +604,9 @@ d260001-G2: DS-552780725 DC-522 WC-522 SS-465789806 SC-51
   -(WN|WithFileNumber) - re-evaluates and resets file counts for the affected
                          groups
 
-  Both -OG (-OriginGroup) and -GI (-GroupIndex) must be provided. All Saved
-  and Web file records linked to the original indices are updated accordingly.
-  The original indices must exist in GDEXDB for the given dataset.
+  Both -OG (-OriginGroup) and -GI (-GroupIndex) are required. All Saved and
+  Web file records linked to the original indices are updated to the new
+  values. The original indices must already exist in GDEXDB.
 
   For example, to reassign group indices 1 and 2 to 2 and 3 for d744004:
 
@@ -620,8 +615,9 @@ d260001-G2: DS-552780725 DC-522 WC-522 SS-465789806 SC-51
 
 3.4 File Actions
 
-  This section covers archiving, retrieving, moving, and deleting Saved, Web,
-  Help, and Quasar files, and managing their records in GDEXDB. Available actions:
+  This section covers the full lifecycle of files in GDEXDB: archiving,
+  querying, moving, and deleting Saved, Web, Help, and Quasar files.
+  Available actions:
   Set Saved File Information - create or modify Saved file records in GDEXDB
   Get Saved File Information - retrieve Saved file records from GDEXDB
     Set Web File Information - create or modify Web file records in GDEXDB
@@ -645,9 +641,9 @@ d260001-G2: DS-552780725 DC-522 WC-522 SS-465789806 SC-51
                                       records
 
 3.4.1 Set Saved File Information
-  -SS or -SetSavedFile (Alias: -SetSaved), creates or modifies Saved file
-  records in GDEXDB for a given dataset. One or more records may be processed
-  per execution.
+  -SS or -SetSavedFile (Alias: -SetSaved), creates new or updates existing
+  Saved file records in GDEXDB for the specified dataset. Multiple records
+  can be processed in a single run.
 
   dsarch [-(DS|Dataset)] dNNNNNN [-](SS|SetSavedFile) [Mode Options]
          [-(SF|SavedFile) SavedFileNames]
@@ -702,8 +698,8 @@ d260001-G2: DS-552780725 DC-522 WC-522 SS-465789806 SC-51
 
 
 3.4.2 Get Saved File Information
-  -GS or -GetSavedFile (Alias: -GetSaved), retrieves Saved file records for a
-  given dataset and/or specified file names.
+  -GS or -GetSavedFile (Alias: -GetSaved), retrieves Saved file records from
+  GDEXDB for the specified dataset, optionally filtered by file name.
 
   dsarch [-(DS|Dataset)] dNNNNNN -(GS|GetSavedFile) [Mode Options]
          [-(FN|FieldNames) FieldNameString]
@@ -763,8 +759,9 @@ d260001-G2: DS-552780725 DC-522 WC-522 SS-465789806 SC-51
 
 
 3.4.3 Set Web File Information
-  -SW or -SetWebFile (Alias: -SetWeb), creates or modifies Web file records in
-  GDEXDB for a given dataset. One or more records may be processed per execution.
+  -SW or -SetWebFile (Alias: -SetWeb), creates new or updates existing Web file
+  records in GDEXDB for the specified dataset. Multiple records can be
+  processed in a single run.
 
   dsarch [-(DS|Dataset)] dNNNNNN -(SW|SetWebFile) [Mode Options]
          [-(WF|WebFile) webFileNames]
@@ -830,8 +827,8 @@ d260001-G2: DS-552780725 DC-522 WC-522 SS-465789806 SC-51
 
 
 3.4.4 Get Web File Information
-  -GW or -GetWebFile (Alias: -GetWeb), retrieves Web file records for a given
-  dataset and/or specified file names.
+  -GW or -GetWebFile (Alias: -GetWeb), retrieves Web file records from GDEXDB
+  for the specified dataset, optionally filtered by file name.
 
   dsarch [-(DS|Dataset)] dNNNNNN -(GW|GetWebFile) [Mode Options]
          [-(FN|FieldNames) FieldNameString]
@@ -907,9 +904,9 @@ IMMA_2.4_2006.tar<:>37<:>IMMA<:>Z.TAR<:>D<:>1119821824<:>
 IMMA_2.4_2007.tar<:>37<:>IMMA<:>Z.TAR<:>D<:>656820224<:>
 
 3.4.5 Set Help File Information
-  -SH or -SetHelpFile (Alias: -SetHelp), creates or modifies Help file records
-  (Documents and Software) in GDEXDB for a given dataset. One or more records
-  may be processed per execution.
+  -SH or -SetHelpFile (Alias: -SetHelp), creates new or updates existing Help
+  file records (Documents and Software) in GDEXDB for the specified dataset.
+  Multiple records can be processed in a single run.
 
   dsarch [-(DS|Dataset)] dNNNNNN -(SH|SetHelpFile) [Mode Options]
          [-(HF|HelpFile) HelpFileNames]
@@ -958,7 +955,8 @@ IMMA_2.4_2007.tar<:>37<:>IMMA<:>Z.TAR<:>D<:>656820224<:>
 
 3.4.6 Get Help File Information
   -GH or -GetHelpFile (Alias: -GetHelp), retrieves Help file records (Documents
-  and Software) for a given dataset and/or specified file names.
+  and Software) from GDEXDB for the specified dataset, optionally filtered by
+  file name.
 
   dsarch [-(DS|Dataset)] dNNNNNN -(GH|GetHelpFile) [Mode Options]
          [-(FN|FieldNames) FieldNameString]
@@ -1007,8 +1005,8 @@ IMMA_2.4_2007.tar<:>37<:>IMMA<:>Z.TAR<:>D<:>656820224<:>
   -DE accept the '%' wildcard.
 
 3.4.7 Set Quasar File Information
-  -SQ or -SetQuasarFile (Alias: -SetQuasar), modifies Quasar backup file records
-  in GDEXDB for a given dataset. One or more records may be processed per
+  -SQ or -SetQuasarFile (Alias: -SetQuasar), updates Quasar backup file records
+  in GDEXDB for the specified dataset. Multiple records can be processed per
   execution.
 
   dsarch [-(DS|Dataset)] dNNNNNN [-](SQ|SetQuasarFile) [Mode Options]
@@ -1051,7 +1049,7 @@ IMMA_2.4_2007.tar<:>37<:>IMMA<:>Z.TAR<:>D<:>656820224<:>
 
 3.4.8 Get Quasar File Information
   -GQ or -GetQuasarFile (Alias: -GetQuasar), retrieves Quasar backup file records
-  for a given dataset and/or specified file names.
+  from GDEXDB for the specified dataset, optionally filtered by file name.
 
   dsarch [-(DS|Dataset)] dNNNNNN -(GQ|GetQuasarFile) [Mode Options]
          [-(FN|FieldNames) FieldNameString]
@@ -1097,8 +1095,8 @@ IMMA_2.4_2007.tar<:>37<:>IMMA<:>Z.TAR<:>D<:>656820224<:>
 
 3.4.9 Archive Saved Files
   -AS or -ArchiveSavedFile (Alias: -ArchiveSaved|-ArchSaved|-ArchSavedFile),
-  archives local files as Saved files and records their information in GDEXDB
-  for a given dataset. One or more files may be archived per execution.
+  copies local files to the GDEX Server as Saved files and registers them in
+  GDEXDB. One or more files may be archived per execution.
 
   dsarch [-(DS|dataset)] dNNNNNN -(AS|ArchiveSavedFile) [Mode Options]
          [-(LF|LocalFile) LocalFileNames]  # mandatory unless -LD or -LL present
@@ -1181,9 +1179,9 @@ IMMA_2.4_2007.tar<:>37<:>IMMA<:>Z.TAR<:>D<:>656820224<:>
   Disk only).
 
 3.4.10 Archive Web Files
-  -AW or -ArchiveWebFile (Alias: -ArchiveWeb|-ArchWeb|-ArchWebFile), archives
-  local files as Web files on the GDEX Server and records their information in
-  GDEXDB for a given dataset. One or more files may be archived per execution.
+  -AW or -ArchiveWebFile (Alias: -ArchiveWeb|-ArchWeb|-ArchWebFile), copies
+  local files to the GDEX Server as publicly accessible Web files and registers
+  them in GDEXDB. One or more files may be archived per execution.
 
   dsarch [-(DS|dataset)] dNNNNNN -(AW|ArchiveWebFile) [Mode Options]
          [-(LF|LocalFile) LocalFileNames]  # mandatory unless -LD or -LL present
@@ -1272,8 +1270,8 @@ IMMA_2.4_2007.tar<:>37<:>IMMA<:>Z.TAR<:>D<:>656820224<:>
 
 3.4.11 Archive Help Files
   -AH or -ArchiveHelpFile (Alias: -ArchiveHelp|-ArchHelp|-ArchHelpFile),
-  archives local files as Help files (Documents and Software) and records their
-  information in GDEXDB. One or more files may be archived per execution.
+  copies local files to the GDEX Server as Help files (Documents and Software)
+  and registers them in GDEXDB. One or more files may be archived per execution.
 
   dsarch [-(DS|dataset)] dNNNNNN -(AH|ArchiveHelpFile) [Mode Options]
          -(LF|LocalFile) LocalFileNames
@@ -1332,11 +1330,11 @@ IMMA_2.4_2007.tar<:>37<:>IMMA<:>Z.TAR<:>D<:>656820224<:>
 
 3.4.12 Backup Quasar Files
   -AQ or -ArchiveQuasarFile (Alias: -ArchiveQuasar|-ArchiveBackupFile|-ArchiveBackup),
-  backs up archived Saved and/or Web files to the Globus Quasar Server and records
-  their information in GDEXDB. All provided files are combined into a single tar
-  file for upload. The companion utility 'dsquasar' is normally used to identify
-  newly archived files, build input lists (targeting 1-3 GB each), and invoke
-  'dsarch' to create and upload the tar files. See 'dsquasar' help for details.
+  packages archived Saved and/or Web files into a single tar file and uploads it
+  to the Globus Quasar Server for long-term backup, recording the result in
+  GDEXDB. In practice, the companion utility 'dsquasar' handles identifying
+  files to back up, building optimally sized input lists (1-3 GB each), and
+  calling this action. See 'dsquasar' help for details.
 
   dsarch [-(DS|dataset)] dNNNNNN -(AQ|ArchiveQuasarFile) [Mode Options]
          [-(SF|SavedFile) SavedFileNames]
@@ -1369,9 +1367,9 @@ IMMA_2.4_2007.tar<:>37<:>IMMA<:>Z.TAR<:>D<:>656820224<:>
 
 3.4.13 Restore Quasar Files
   -RQ or -RestoreQuasarFile (Alias: -RestoreQuasar|-RestoreBackupFile|-RestoreBackup),
-  locates the Quasar tar files associated with the specified Saved and/or Web
-  files, retrieves them from the Globus Quasar Server, and restores any that
-  are missing.
+  finds the Quasar tar files that contain the specified Saved and/or Web files,
+  downloads them from the Globus Quasar Server, and restores any files that
+  are missing from the GDEX Server.
 
   dsarch [-(DS|dataset)] dNNNNNN -(RQ|RestoreQuasarFile) [Mode Options]
          [-(QF|QuasarFile) QuasarFileNames]
@@ -1400,12 +1398,11 @@ IMMA_2.4_2007.tar<:>37<:>IMMA<:>Z.TAR<:>D<:>656820224<:>
 
 
 3.4.14 Move Saved/Web/Help/Quasar Files
-  -MV or -MoveFile, moves archived files from one dataset (-OD) to another
-  (-DS), between groups, or to a different name. One or more files may be moved
-  per execution.
+  -MV or -MoveFile, relocates archived files — across datasets, between groups,
+  or to a new name. One or more files may be moved per execution.
 
-  If the file name or path changes, the original name is retained in GDEXDB as
-  a linked alias to the new name.
+  When a file's name or path changes, 'dsarch' keeps the original name in GDEXDB
+  as a linked alias pointing to the new name.
 
   Files can also be converted between types (Web to Saved or Saved to Web)
   using -TS (-ToSaved) or -TW (-ToWeb).
@@ -1501,8 +1498,8 @@ IMMA_2.4_2007.tar<:>37<:>IMMA<:>Z.TAR<:>D<:>656820224<:>
 
 
 3.4.15 Delete Saved/Web/Help/Quasar Files
-  -DL or -Delete (Alias: -RM|-Remove|-DeleteFile|-RemoveFile), deletes files
-  from GDEX Servers and removes their records from GDEXDB.
+  -DL or -Delete (Alias: -RM|-Remove|-DeleteFile|-RemoveFile), permanently
+  removes files from GDEX Servers and deletes their records from GDEXDB.
 
   dsarch [-(DS|Dataset)] dNNNNNN -(DL|Delete) [Mode Options]
          [-(SF|SavedFile) SavedFileNames]
@@ -1559,17 +1556,15 @@ IMMA_2.4_2007.tar<:>37<:>IMMA<:>Z.TAR<:>D<:>656820224<:>
 
 3.5 All Info Actions
 
-  All dataset, group, and file records can be managed together via two
-  comprehensive actions:
-  Get All Information - retrieve all dataset, group, and file records for a
-                        given dataset
-  Set All Information - create or modify all dataset, group, and file records
-                        for a given dataset
+  These two actions work across all record types at once, making it easy to
+  snapshot or bulk-update a dataset:
+  Get All Information - export all dataset, group, and file records to a file
+  Set All Information - import and apply changes to all record types at once
 
 3.5.1 Get All Information
-  -GA or -GetAll, retrieves all dataset, group, and Saved/Web/Help/Quasar file
-  records for a given dataset in a single action. Combines -GD, -GG, -GS, -GW,
-  -GH, and -GQ.
+  -GA or -GetAll, exports all dataset, group, and Saved/Web/Help/Quasar file
+  records for a dataset in one step. Equivalent to running -GD, -GG, -GS, -GW,
+  -GH, and -GQ together.
 
   dsarch [-(DS|dataset)] dNNNNNN -(GA|GetAll)
          [-(OF|OutputFile) OutputFileName]
@@ -1578,17 +1573,17 @@ IMMA_2.4_2007.tar<:>37<:>IMMA<:>Z.TAR<:>D<:>656820224<:>
   No Mode options apply to this action; all available fields are retrieved
   for every record type.
 
-  Output is sectioned under [DATASET], [DSGROUP], [SAVEDFILE], [WEBFILE],
-  [HELPFILE], and [QUASARFILE].
+  Output is organized under [DATASET], [DSGROUP], [SAVEDFILE], [WEBFILE],
+  [HELPFILE], and [QUASARFILE] sections.
 
-  Use -OF (-OutputFile) to save results to a file; without it, results are
-  printed to screen. The output can be edited and fed back via -SA (-SetAll)
-  to apply changes to GDEXDB.
+  Use -OF (-OutputFile) to write results to a file; without it, results print
+  to screen. The output file can be edited and fed back to -SA (-SetAll) to
+  apply changes in bulk.
 
 3.5.2 Set All Information
-  -SA or -SetAll, creates and modifies all dataset, group, and
-  Saved/Web/Help/Quasar file records in GDEXDB for a given dataset in a single
-  action. Combines -SD, -SG, -SS, -SW, -SH, and -SQ.
+  -SA or -SetAll, creates and updates all dataset, group, and
+  Saved/Web/Help/Quasar file records for a dataset in one step. Equivalent to
+  running -SD, -SG, -SS, -SW, -SH, and -SQ together.
 
   dsarch  -(SA|SetAll) [Mode Options]
          [-(LN|LoginName) LoginAccountName]
@@ -1597,36 +1592,37 @@ IMMA_2.4_2007.tar<:>37<:>IMMA<:>Z.TAR<:>D<:>656820224<:>
 
   All Mode options applicable to the individual Set actions may be used with
   -SA. At least one input file is required, since section headers can only be
-  specified in an input file. A convenient starting point is to run -GA
-  (-GetAll), edit the output, and pass it back with -SA.
+  specified in an input file. A typical workflow: run -GA (-GetAll) to export
+  all records, edit the output file as needed, then feed it back with -SA.
 
 
 3.6 Webpage Actions
 
-  Changes to dataset, group, or file records can be reflected on the web pages
-  via the following actions:
-  Regenerate Dataset Webpages - regenerate the main webpage and republish all
-                                file lists for GDEX Server data
-       Increment Cache Number - increment the cache control number to trigger a
-                                refresh of cached file lists
+  After updating GDEXDB records, use these actions to refresh the corresponding
+  web pages:
+  Regenerate Dataset Webpages - rebuild the main webpage and all file lists
+                                for the dataset
+       Increment Cache Number - bump the cache control number to signal that
+                                cached file lists should be reloaded
 
 3.6.1 Regenerate Dataset Webpages
-  -UW or -UpdateWeb, regenerates the main and filelist webpages for a given
-  dataset to reflect current GDEXDB information.
+  -UW or -UpdateWeb, rebuilds the main and filelist webpages for the specified
+  dataset so they reflect the current state of GDEXDB.
 
   dsarch [-(DS|Dataset)] dNNNNNN -(UW|UpdateWeb)
          [-(DB|Debug) DebugModeInfo]
 
-  Provide the dataset number to refresh its main and filelist web pages.
+  Provide the dataset number to regenerate its web pages.
 
-  'dsarch' automatically increments a dataset's cache control number each time
-  it writes changes to GDEXDB, signalling the webpage utility to reload cached
-  information. Changes made via other utilities may not update this number;
-  specialists can increment it manually using -UC (-UpdateCache).
+  'dsarch' automatically bumps a dataset's cache control number whenever it
+  writes to GDEXDB, prompting the webpage utility to reload stale cache.
+  Changes made through other utilities may not trigger this; use -UC
+  (-UpdateCache) to increment the number manually when needed.
 
 3.6.2 Increment Cache Number
   -UC or -UpdateCache (Alias: -UpdateCacheNumber), increments the cache control
-  number by 1 for a given dataset.
+  number by 1 for the specified dataset, signalling that cached web content
+  should be refreshed.
 
   dsarch [-(DS|Dataset)] dNNNNNN -(UC|UpdateCache)
          [-(DB|Debug) DebugModeInfo]
@@ -1634,364 +1630,391 @@ IMMA_2.4_2007.tar<:>37<:>IMMA<:>Z.TAR<:>D<:>656820224<:>
 
 4 MODE OPTIONS
 
-Mode options modify the behavior of Action options. All Mode options are
-optional and do not accept values.
+Mode options adjust how an Action option behaves. They are all optional and
+take no values — simply include the flag to activate the behavior.
 
-  -BG or -BackGround (Alias: -b), runs the action in background, suppressing
-  all screen output and errors.
+  -BG or -BackGround (Alias: -b), runs the action as a background process,
+  suppressing all screen output and error messages.
 
-  -CL or -CleanLocal (Alias: -CleanLocfile|-CleanLocalFile), removes local
-  source files after all are successfully archived by -AS or -AW. Use -DD
-  (-DeleteDir) to also remove any empty local directories left behind.
+  -CL or -CleanLocal (Alias: -CleanLocfile|-CleanLocalFile), deletes local
+  source files once all have been successfully archived by -AS or -AW. Pair
+  with -DD (-DeleteDir) to also clean up any empty local directories.
 
   -DX or -DeleteXML, calls 'dcm' to delete content metadata for the specified
-  Web files. When used with -SW (-SetWebFile), metadata is deleted explicitly;
-  for -DL (-Delete) with -WF, this is the default behavior.
+  Web files. With -SW (-SetWebFile), it explicitly removes metadata; with -DL
+  (-Delete) when Web files are specified, this happens automatically.
 
-  -EM or -EMailNotice, sends an email notice to the executing specialist when
-  an action completes or aborts. Applies to -AS, -AW, -AH, -AQ, -SS, -SW, -SH,
-  -SQ, -RQ, -MV, and -DL. The email includes any errors and a brief summary.
+  -EM or -EMailNotice, sends the executing specialist an email when an action
+  finishes or fails. Applies to -AS, -AW, -AH, -AQ, -SS, -SW, -SH, -SQ, -RQ,
+  -MV, and -DL. The email includes a brief summary and any errors encountered.
   Ignored when -d (-BP) is present.
 
-  When archiving many files individually, consolidate them into a single input
-  file and pass -EM once; only one email is sent.
+  Tip: when archiving many files, consolidate them into a single input file
+  and include -EM once — only one email is sent regardless of file count.
 
-  -FO or -FormatOutput, formats the output of GET actions so that all values
-  in a given field share the same dynamically calculated column width.
+  -FO or -FormatOutput, aligns GET action output into fixed-width columns,
+  making results easier to read at a glance.
 
-  -GF or -GrowingFile, allows -AW (-ArchiveWebFile) to overwrite Web files
-  even under DOI/Version control, where files are normally locked. Use this
-  when a file is actively growing and must be updated in place. When -AW is
-  driven by 'dsupdt', growing files are detected automatically.
+  -GF or -GrowingFile, lifts the DOI/Version control lock on Web files so
+  that -AW (-ArchiveWebFile) can overwrite them. Use this when a file is
+  actively being appended to and must be updated in place. When 'dsupdt'
+  drives -AW, growing files are detected and handled automatically.
 
-  -GX or -GatherXML (Alias: -Grid2XML), calls 'gatherxml' to evaluate content
-  metadata for archived Web files. For -MV (-MoveFile), metadata transfer to
-  the new file name is done automatically via 'rcm' (no -GX needed).
+  -GX or -GatherXML (Alias: -Grid2XML), calls 'gatherxml' to extract and
+  record content metadata for archived Web files. For -MV (-MoveFile), metadata
+  is transferred to the new file name automatically via 'rcm' — -GX is not
+  needed for moves.
 
-  -GZ or -GMTZone (Alias: -GMT|-GreenwichZone|-UTC), uses GMT rather than
-  local time as the reference for archiving action timestamps.
+  -GZ or -GMTZone (Alias: -GMT|-GreenwichZone|-UTC), records archiving
+  timestamps in GMT instead of local time.
 
-  -KM or -KeepMetadata (Alias: -KeepMeta), retains the metadata record when
-  a Web file is moved to a Saved file via -MV (-MoveFile) with -TS (-ToSaved).
+  -KM or -KeepMetadata (Alias: -KeepMeta), preserves the content metadata
+  record when a Web file is converted to a Saved file via -MV with -TS.
 
-  -KP or -KeepPath (Alias: -KeepLocalPath), archives Saved, Web, or Help files
-  using the local source file names and paths unchanged, for -AS, -AW, and -AH.
-  When -KP is set, -SP and -WP are ignored. Also ignored when explicit Saved,
-  Web, or Help file names are provided via -SF, -WF, or -HF.
+  -KP or -KeepPath (Alias: -KeepLocalPath), preserves local file paths as-is
+  on the GDEX Server during -AS, -AW, and -AH. When -KP is active, -SP and -WP
+  are ignored. -KP is also ignored when destination file names are provided
+  explicitly via -SF, -WF, or -HF.
 
-  -MD or -MyDataset, allows a specialist to modify dataset, group, and file
-  records in GDEXDB for any dataset, regardless of ownership.
+  -MD or -MyDataset, bypasses the dataset ownership check, allowing any
+  specialist to modify records in GDEXDB for any dataset.
 
-  -NE or -NoEmail, suppresses the failure email notification.
+  -NE or -NoEmail, suppresses the automatic failure email notification.
 
-  -NT or -NoTrim, skips trimming of leading/trailing spaces and comments from
-  input values, speeding up input file processing.
+  -NT or -NoTrim, skips stripping leading/trailing spaces and inline comments
+  from input values. Use this to speed up processing of large input files.
 
-  -NV or -NewVersion, required when adding a new version control record via
-  -SV (-SetVersion).
+  -NV or -NewVersion, required to create a new DOI/Version control record
+  when using -SV (-SetVersion).
 
-  -OE or -OverrideExist, overwrites an existing file on the GDEX Server if
-  one already exists at the target path.
+  -OE or -OverrideExist, allows an existing file on the GDEX Server to be
+  overwritten at the target path. Without this flag, archiving fails if the
+  destination already exists.
 
-  -PE or -ShowPeriod, includes data period information for the dataset and any
-  specified groups in the output of -GD (-GetDataset).
+  -PE or -ShowPeriod, adds data period information (begin/end dates and times)
+  for the dataset and any specified groups to the output of -GD (-GetDataset).
 
-  -RA or -RetryArchive, deprecated and has no effect.
+  -RA or -RetryArchive, deprecated; has no effect and may be removed in a
+  future version.
 
-  -RD or -RemoveDir (Alias: -RemoveDirectory|-RemoveEmptyDir), removes empty
-  directories after file changes for -DL, -SS, and -SW.
+  -RD or -RemoveDir (Alias: -RemoveDirectory|-RemoveEmptyDir), removes any
+  directories that become empty after file changes from -DL, -SS, or -SW.
 
-  To clean up empty directories without changing files, run -SS or -SW with
-  this option and no file names specified; this removes empty Web or Saved
-  directories for the given dataset and groups.
+  To clean up empty directories without modifying files, run -SS or -SW with
+  -RD and no file names; 'dsarch' will prune empty Web or Saved directories
+  for the specified dataset and groups.
 
-  -RG or -RecursiveGroup (Alias: -RepeatGroup), gathers subgroups and their
-  file records recursively when used with -GG, -GS, or -GW. A group index must
-  be provided via -GI for this option to take effect.
+  -RG or -RecursiveGroup (Alias: -RepeatGroup), descends into subgroups
+  recursively when used with -GG, -GS, or -GW, gathering all nested records.
+  A group index must be provided via -GI for this to take effect.
 
-  -RN or -RelativeName, returns file names as paths relative to the Saved or
-  Web path for the dataset or group, for -GS and -GW.
+  -RN or -RelativeName, returns file names as relative paths (relative to the
+  dataset or group's Saved or Web path) in the output of -GS and -GW.
 
-  -RO or -ResetOrder (Alias: -Reorder), resets display order indices to match
-  the sequence in which files are provided to -SS, -SW, -SH, or -SQ.
-  Explicit order indices can alternatively be supplied via -DO (-DisplayOrder).
+  -RO or -ResetOrder (Alias: -Reorder), sets display order indices to match
+  the order files are listed when passed to -SS, -SW, -SH, or -SQ. To set
+  explicit indices instead, use -DO (-DisplayOrder).
 
-  Use -ON (-OrderNames) to sort files by specific fields across the whole
-  dataset or individual groups.
+  For sorting files by field values across an entire dataset or individual
+  groups, use -ON (-OrderNames).
 
-  -RS or -GXRSOptions, passes the R and S options to 'gatherxml' for faster
-  metadata processing. Used with -GX (-GatherXML).
+  -RS or -GXRSOptions, passes the R and S flags to 'gatherxml' to speed up
+  metadata evaluation. Use alongside -GX (-GatherXML).
 
-  -RT or -ResetTIndex (Alias: -ResetTopGroup), resets the top group index
-  for Saved or Web file records for the dataset and any specified groups.
+  -RT or -ResetTIndex (Alias: -ResetTopGroup), recalculates and resets the
+  top-level group index stored in Saved or Web file records for the dataset
+  and any specified groups.
 
-  -SC or -SetChecksum, computes MD5 checksums for data files on GDEX Servers
-  and saves the values to GDEXDB.
+  -SC or -SetChecksum, calculates MD5 checksums for data files on the GDEX
+  Server and stores them in GDEXDB for integrity verification.
 
-  -TO or -TarOnly, creates the Quasar tar file without uploading it to the
-  Globus Quasar Server. Used with -AQ (-ArchiveQuasarFile).
+  -TO or -TarOnly, builds the Quasar tar file locally without uploading it
+  to the Globus Quasar Server. Useful for testing. Used with -AQ.
 
   -TS or -ToSaved (Alias: -ToSavedFile|-MoveToSaved), used with -MV (-MoveFile)
   to move Web files to Saved files.
 
-  -TT or -TotalSummary, appends a statistical summary to the output of
-  -GS (-GetSavedFile) and -GW (-GetWebFile).
+  -TT or -TotalSummary, appends file count and size totals to the output
+  of -GS (-GetSavedFile) and -GW (-GetWebFile).
 
   -TW or -ToWeb (Alias: -ToWebFile|-MoveToWeb), used with -MV (-MoveFile)
   to move Saved files to Web files.
 
-  -UZ or -UnzipData (Alias: -Unzip|-UncompressData), decompresses online data
-  using 'gunzip', 'uncompress', 'unzip', or 'bunzip' according to the file
-  extension: '.gz', '.Z', '.zip', or '.bz2', respectively.
+  -UZ or -UnzipData (Alias: -Unzip|-UncompressData), decompresses files during
+  archiving. The tool is selected by extension: 'gunzip' for '.gz', 'uncompress'
+  for '.Z', 'unzip' for '.zip', and 'bunzip' for '.bz2'.
 
-  -WC or -WithChecksum, verifies MD5 checksums in addition to file sizes when
-  checking online data files on the GDEX Server.
+  -WC or -WithChecksum, adds MD5 checksum verification on top of size checks
+  when validating data files on the GDEX Server.
 
-  -WM or -WithMetadata, re-gathers Web file content metadata at the dataset
-  or group level when used with -SD (-SetDataset) or -SG (-SetGroup).
+  -WM or -WithMetadata, triggers a fresh 'gatherxml' run at the dataset or
+  group level when used with -SD (-SetDataset) or -SG (-SetGroup).
 
-  -WN or -WithFileNumber, re-evaluates and resets Saved or Web file counts for
-  the dataset and any specified groups. When used with -GD (-GetDataset), file
-  counts are gathered and included in the output.
+  -WN or -WithFileNumber, recomputes and updates Saved/Web file counts for the
+  dataset and any specified groups. With -GD (-GetDataset), the counts are
+  calculated on the fly and included in the output.
 
-  -XC or -CrossCopy, used with -AW or -AS to copy files from existing Glade
-  disk storage to fill missing Object store copies, or vice versa.
+  -XC or -CrossCopy, used with -AW or -AS to fill gaps in storage: copies
+  files from Glade disk to Object Store (or vice versa) wherever copies are
+  missing.
 
-  -XM or -CrossMove, same as -XC but moves rather than copies; original files
-  are removed after the move.
+  -XM or -CrossMove, like -XC but moves instead of copying — the original
+  file is deleted once the destination copy is confirmed.
 
   -ZD or -ZipData (Alias: -Zip|-CompressData), compresses files during -AS or
-  -AW using 'gzip', 'compress', 'zip', or 'bzip' according to the archive format
-  ('GZ', 'Z', 'ZIP', or 'BZ2') given via -AF (-ArchiveFormat). If the files are
-  already compressed in the same format, this option is ignored. If compressed in
-  a different format, they are first decompressed using 'gunzip', 'uncompress',
-  'unzip', or 'bunzip' (selected by extension: '.gz', '.Z', '.zip', or '.bz2')
-  before recompressing.
+  -AW. The compression tool is selected by the format given via -AF: 'gzip' for
+  'GZ', 'compress' for 'Z', 'zip' for 'ZIP', 'bzip' for 'BZ2'. Files already
+  in the target format are skipped. Files compressed in a different format are
+  decompressed first (using the tool matched by extension: '.gz', '.Z', '.zip',
+  or '.bz2') before recompressing.
 
 
 5 INFORMATION OPTIONS
 
-Information (Info) options supply values to 'dsarch'. There are two types:
-  Single-Value Info Options - accept exactly one value
-   Multi-Value Info Options - accept one or more values
+Information (Info) options pass data values into 'dsarch'. They come in two
+forms:
+  Single-Value Info Options - accept exactly one value per invocation
+   Multi-Value Info Options - accept one or more values per invocation
 
 5.1 Single-Value Info Options
 
   A single-value Info option accepts exactly one value. Providing no value or
   more than one causes an error.
 
-  -AL or -AsyncLimit (Alias: -AsynchronousLimit), the maximum number of
-  concurrent background processes for 'cp' and 'gatherxml' calls. Ignored
-  for PBS batch jobs.
+  -AL or -AsyncLimit (Alias: -AsynchronousLimit), caps the number of
+  simultaneous background processes spawned for 'cp' and 'gatherxml' calls.
+  Has no effect when running as a PBS batch job.
 
-  -AO or -ActOption (Alias: -ActionOption), the marker used to designate
-  Action and Mode options in input files. Defaults to '<!>'.
+  -AO or -ActOption (Alias: -ActionOption), the token that marks Action and
+  Mode options in input files. Defaults to '<!>'. Change this if your input
+  data contains the default token.
 
-  -BL or -ButtonLimit, the file count threshold at which download script
-  buttons are shown. Defaults to 2.
+  -BL or -ButtonLimit, the minimum file count at which download script buttons
+  appear on file list web pages. Defaults to 2.
 
-  -DD or -DeleteDir (Alias: -DeleteDirLevel|-DeleteEmptyDir), the number of
-  empty parent directory levels to remove after files are deleted or moved.
-  Works with -DL, -MV, and -CL (for -AS and -AW).
+  -DD or -DeleteDir (Alias: -DeleteDirLevel|-DeleteEmptyDir), how many levels
+  of empty parent directories to prune after files are deleted or moved.
+  Applies to -DL, -MV, and -CL (when used with -AS or -AW).
 
-  -DS or -Dataset, the dataset ID in the format [a-z]NNNNNN, required for
-  most actions.
+  -DS or -Dataset, the target dataset ID (format: [a-z]NNNNNN). Required
+  by almost all actions.
 
-  -DV or -Divider (Alias: -Delimiter|-Separator), the column delimiter for
-  multi-value Info options in input files. Defaults to '<:>'.
+  -DV or -Divider (Alias: -Delimiter|-Separator), the column separator used
+  for multi-value Info options in input files. Defaults to '<:>'.
 
-  -ES or -EqualSign, the delimiter used to assign values to options in input
-  files. Defaults to '<=>'.
+  -ES or -EqualSign, the token used to assign a value to an option in input
+  files (e.g., 'Dataset<=>d123456'). Defaults to '<=>'.
 
-  -FL or -FileLimit (Alias: -FilecountLimit), the maximum number of files
-  shown on a single static file list page. Groups are merged onto one page
-  when their combined count is below this limit; a single group's files are
-  split across sub-pages when its count exceeds it. Defaults to 2000.
+  -FL or -FileLimit (Alias: -FilecountLimit), the file count threshold for
+  static file list pages. Groups whose combined count falls below this limit
+  are shown together on one page; a group whose count exceeds it is split
+  across multiple sub-pages. Defaults to 2000.
 
-  -FN or -FieldNames, a string of single-letter field names specifying which
-  fields to retrieve. Default fields depend on the GET action used; valid names
-  are listed in each action's section.
+  -FN or -FieldNames, a compact string of single-letter codes that selects
+  which fields to include in GET action output. Default codes are listed in
+  each action's section; use ALL to retrieve every available field.
 
-  -LD or -LocalDirectory, a local directory path. All files within it and its
-  sub-directories are collected recursively as local file names.
+  -LD or -LocalDirectory, a local directory to source files from. All files
+  within it and any sub-directories are collected recursively.
 
-  -LL or -LocalFileList, a file containing local file names to process,
-  one per line.
+  -LL or -LocalFileList, a plain-text file listing local file names to
+  process, one name per line.
 
-  -LN or -LoginName, the login name of the executing specialist. Defaults to
-  the current user. Set this when running on behalf of another specialist, or
-  when 'dsarch' is invoked by a daemon or cron job. Use with caution, as it may
-  overwrite records saved by other specialists.
+  -LN or -LoginName, the login name to attribute the action to. Defaults to
+  the current user. Use this when running on behalf of another specialist or
+  from an automated process (daemon or cron job). Use with care — it affects
+  which records are updated under that specialist's name.
 
-  -OF or -OutputFile, the file to write output results to. The format matches
-  the input file format. Without this option, results are printed to screen.
+  -OF or -OutputFile, redirects output to a file instead of the screen.
+  The file format is compatible with 'dsarch' input files.
 
-  -ON or -OrderNames, a string of single-letter field names determining the
-  sort order of GET action results (-GG, -GS, -GW, -GH, -GQ). Uppercase sorts
-  ascending; lowercase sorts descending. When file information is modified via
-  -AS, -AW, -SS, -SW, -DL, or -MV, files in affected groups are also reordered.
+  -ON or -OrderNames, a string of single-letter field codes controlling the
+  sort order of GET action results (-GG, -GS, -GW, -GH, -GQ). Uppercase means
+  ascending; lowercase means descending. When file records are modified via
+  -AS, -AW, -SS, -SW, -DL, or -MV, files in affected groups are reordered too.
 
-  File lists can also be reordered using -SW (-SetWebFile) with -ON:
+  To reorder an existing file list without other changes, use -SW with -ON:
 
   dsarch dNNNNNN -SW -ON OrderNameString [-GI GroupIndices]
 
-  Without group indices, all files across the dataset are reordered.
+  Without group indices, reordering applies to all files in the dataset.
 
-  -PO or -PatternOffset, controls how file names are matched against group
-  patterns to assign group indices. Required when matching files already in
-  GDEXDB. A value >= 0 uses binary search; -1 uses linear search. Defaults to
-  -1 for new files not yet in GDEXDB.
+  -PO or -PatternOffset, controls how 'dsarch' matches file names against
+  group patterns to auto-assign group indices. A value >= 0 uses binary
+  search (faster, for large sorted lists); -1 uses linear search. Required
+  when matching files already registered in GDEXDB; defaults to -1 for new
+  files.
 
-  -QS or -QsubOptions (Alias: -PBSOptions), options for running 'dsarch' as
-  a PBS batch job. Must be quoted on the command line,
+  -QS or -QsubOptions (Alias: -PBSOptions), passes options to qsub when
+  running 'dsarch' as a PBS batch job. Quote the value on the command line,
   e.g., -QS '-l walltime=12:00:00'.
 
-  -UD or -UseDSARCH (Alias: -UseGDEXDB), controls whether 'dsarch' is enabled
-  for a dataset. Set via -SD (-SetDataset). Valid values: 'N' (disabled), 'Y'
-  (enabled for modification), 'I' (internal users only), 'P' (public), or
-  'W' (file list only). Any value other than 'N' must be set before 'dsarch'
-  can modify the dataset.
+  -UD or -UseDSARCH (Alias: -UseGDEXDB), the gating flag that controls
+  'dsarch' access to a dataset. Set via -SD (-SetDataset). Values:
+    'N' - disabled (default; blocks all 'dsarch' writes)
+    'Y' - enabled for modification
+    'I' - enabled for internal users only
+    'P' - enabled and file lists are published publicly
+    'W' - file list publication only
+  Any value except 'N' must be set before 'dsarch' can write to GDEXDB.
 
-  -VS or -ValidSize, the minimum file size in bytes considered valid for
-  archiving. Defaults to 100. Can be overridden on the command line.
+  -VS or -ValidSize, the minimum acceptable file size (in bytes) for
+  archiving. Files smaller than this threshold are rejected. Defaults to 100.
 
-  -WI or -WaitInterval, the polling interval when background processes reach
-  the concurrency limit set by -AL. 'dsarch' waits this long before checking
-  whether a slot has freed up. Units: S (seconds), M (minutes), H (hours),
-  D (days); e.g., '-WI 5M'. A plain number is treated as seconds.
+  -WI or -WaitInterval, how long 'dsarch' waits before rechecking whether a
+  background process slot has freed up (see -AL). Units: S (seconds),
+  M (minutes), H (hours), D (days) — e.g., '-WI 5M'. A bare number is
+  treated as seconds.
 
 
 5.2 Multi-Value Info Options
 
-  A multi-value Info option accepts one or more values. At least one value
-  must be provided.
+  A multi-value Info option accepts a list of one or more values. Supplying
+  zero values causes an error.
 
-  -AF or -ArchiveFormat (Alias: -FF|-FileFormat|-ExternalFormat), the
-  post-processing format applied to a data file. Values: 'BI' (binary blocked),
-  'C1' or 'CH' (ASCII/character blocked), 'TAR' (tarred), 'Z' (compressed),
-  'GZ' (gzipped), 'BZ2' (bzip2-compressed). Values may be combined in order;
-  for example, 'C1.TAR.GZ' means COS ASCII blocked, then tarred, then gzipped.
-  Maximum length is 10 characters.
+  -AF or -ArchiveFormat (Alias: -FF|-FileFormat|-ExternalFormat), describes
+  how a data file has been packaged or compressed. Recognized values:
+    'BI'  - binary (COS) blocked
+    'C1' or 'CH' - ASCII/character blocked
+    'TAR' - tarred
+    'Z'   - compressed
+    'GZ'  - gzipped
+    'BZ2' - bzip2-compressed
+  Combine values in processing order, e.g., 'C1.TAR.GZ' = COS ASCII blocked,
+  then tarred, then gzipped. Maximum total length is 10 characters.
 
-  -BD or -BeginDate, the data start date for a group, the whole dataset, or
-  a version control record.
+  -BD or -BeginDate, the earliest date covered by the data, for a group,
+  the whole dataset, or a version control record.
 
-  -BF or -BackupFlag, controls Quasar auto-backup behavior. Dataset default
-  is N (no auto-backup). Group default is P (inherit from parent; index 0
-  means inherit from the dataset). Other values: B (backup only), D (backup
-  and drdata).
+  -BF or -BackupFlag, controls whether and how a dataset or group is backed
+  up to Quasar. Values:
+    'N' - no auto-backup (dataset default)
+    'P' - inherit the setting from the parent (group default; index 0 inherits
+          from the dataset)
+    'B' - back up files only
+    'D' - back up files and create a disaster recovery copy
 
-  -BP or -BatchProcess (Alias: -d, -DelayedMode), delayed mode execution.
-  The command is not run immediately; instead it is recorded in GDEXDB and
-  executed later by the daemon 'dscheck'. One or more host names may follow
-  -BP to restrict or exclude specific hosts. Examples: '-d PBS' to run
-  on PBS batch hosts. An upper limit on retries (1-99) can also be given,
-  e.g., '-d 5'. Defaults to 2 retries. Archive actions (-AS, -AW, -AH, -AQ)
-  are automatically retried after storage system outages.
+  -BP or -BatchProcess (Alias: -d, -DelayedMode), defers execution: the
+  command is written to GDEXDB and run later by the 'dscheck' daemon. One
+  or more host names may follow -BP to target or exclude specific hosts
+  (e.g., '-d PBS' to use PBS batch hosts). An optional retry limit (1-99)
+  can also be specified, e.g., '-d 5'; defaults to 2. Archive actions
+  (-AS, -AW, -AH, -AQ) retry automatically after storage system outages.
 
-  -BS or -BackupStatus, the Quasar backup file status: A (archived to Quasar),
-  T (tar files created, pending upload), or N (records created, pending tar).
+  -BS or -BackupStatus, the current Quasar backup state for a file:
+    'A' - archived to Quasar (complete)
+    'T' - tar file created, awaiting upload
+    'N' - record created, awaiting tar
 
-  -BT or -BeginTime, the data start time for a group, the whole dataset, or
-  a version control record.
+  -BT or -BeginTime, the time component of the data start, for a group,
+  the whole dataset, or a version control record.
 
   -DA or -AccessFlag (Alias: -DataAccessFlag|-FileListFlag), controls which
-  file list types are shown at the dataset and/or top group level: B (both
-  complete and faceted), C (complete only, default), F (faceted only), or
-  N (none).
+  file list views are displayed at the dataset and/or top group level:
+    'B' - both complete and faceted
+    'C' - complete list only (default)
+    'F' - faceted list only
+    'N' - none (no file list shown)
 
-  -DB or -Debug, enables debug mode. Accepts up to 3 values: Debug Level
-  (required), log file path, and log file name. The level may be a single
-  integer (e.g., 1000) or a range (e.g., 200-1000). Defaults: path
-  '$DECSHOME/dssdb/log', file name 'mydss.dbg'.
+  -DB or -Debug, enables debug logging. Up to 3 values may be given: debug
+  level (required), log file path, and log file name. The level can be a
+  single integer (e.g., 1000) or a range (e.g., 200-1000). Defaults: log
+  path '$DECSHOME/dssdb/log', file name 'mydss.dbg'.
 
   -DE or -Description (Alias: -Desc|-Note|-FileDesc|-FileDescription), a
-  description for data files. Multi-line descriptions are supported in input
-  files (-IF). Descriptions containing spaces must be quoted on the command
-  line. When used with version control actions, this provides the version note.
+  free-text description for a data file or version record. Multi-line values
+  are supported in input files (-IF). Quote values containing spaces on the
+  command line. With version control actions (-SV), this becomes the version
+  note.
 
-  -DF or -DataFormat (Alias: -TF|-ContentFormat|-InternalFormat), the data
-  content format (e.g., NetCDF, IMMA). A default can be set per dataset via
-  -SD and is used when not specified explicitly at archive time.
+  -DF or -DataFormat (Alias: -TF|-ContentFormat|-InternalFormat), the
+  scientific format of the data content (e.g., NetCDF, IMMA, BINARY). A
+  dataset-level default can be set via -SD and is applied automatically when
+  no format is specified at archive time.
 
-  -DN or -DOINumber (Alias: -DOI|-DOIName), the Digital Object Identifier (DOI)
-  for a dataset, used as a persistent public reference.
+  -DN or -DOINumber (Alias: -DOI|-DOIName), the Digital Object Identifier
+  assigned to a dataset version, providing a stable, citable reference.
 
-  -DO or -DisplayOrder, the display order indices for files within a group or
-  across the dataset. Ignored when -RO (-ResetOrder) is present.
+  -DO or -DisplayOrder, explicit display position indices for files within a
+  group or across the dataset. Overridden by -RO (-ResetOrder) when both are
+  present.
 
-  -ED or -EndDate, the data end date for a group, the whole dataset, or a
-  version control record.
+  -ED or -EndDate, the latest date covered by the data, for a group,
+  the whole dataset, or a version control record.
 
-  -ET or -EndTime, the data end time for a group, the whole dataset, or a
-  version control record.
+  -ET or -EndTime, the time component of the data end, for a group,
+  the whole dataset, or a version control record.
 
-  -EV or -ExternalVersion, the public-facing version number for a dataset.
-  Empty by default.
+  -EV or -ExternalVersion, the human-readable version label shown publicly
+  for a dataset (e.g., '2.0'). Empty by default.
 
-  -FD or -FileDate, the date a data file was last modified.
+  -FD or -FileDate, the calendar date a data file was last modified.
 
-  -FF or -FileFlag, indicates whether the entry is a regular file (F) or a
-  directory path (P).
+  -FF or -FileFlag, specifies whether an entry represents a regular file
+  ('F') or a directory path ('P').
 
-  -FS or -FileStatus, the visibility of a file: P (public) or I (internal,
-  visible to specialists only).
+  -FS or -FileStatus, the access level of a file: 'P' (public, visible to
+  all users) or 'I' (internal, visible to specialists only).
 
-  -FT or -FileTime, the time a data file was last modified.
+  -FT or -FileTime, the time of day a data file was last modified.
 
-  -GI or -GroupIndex, the group index for files in a dataset divided into
-  groups. Groups must first be created via -SG (-SetGroup). Valid values are
-  1, 2, 3, ...; 0 means no group (default).
+  -GI or -GroupIndex, assigns files to a specific group within a dataset.
+  Groups must be created first via -SG (-SetGroup). Use 1, 2, 3, ... for
+  specific groups; 0 means no group assignment (default).
 
-  If omitted for -AS or -AW, group indices are determined automatically by
-  matching file names against group patterns saved in GDEXDB.
+  When omitted for -AS or -AW, 'dsarch' attempts to assign groups
+  automatically by matching file names against patterns stored in GDEXDB.
 
-  -GL or -GroupLevel, the number of group/subgroup levels shown in group
-  lists. Defaults to 2. A value of -2 shows one level initially, expandable
-  to two when subgroups exist.
+  -GL or -GroupLevel, the number of group nesting levels displayed on the
+  web interface. Defaults to 2. A value of -2 shows one level initially,
+  expanding to two when subgroups are present.
 
-  -GN or -GroupName (Alias: -GroupID), a short identifier (up to 20 characters)
-  for a group. Set via -SG (-SetGroup). Group names can be used in place of
-  indices to identify groups, and appear on file list webpages.
+  -GN or -GroupName (Alias: -GroupID), a short human-readable identifier for
+  a group (up to 20 characters). Set via -SG (-SetGroup). Names can be used
+  wherever group indices are accepted, and appear on file list webpages.
 
-  -GP or -GroupPattern, wildcard patterns used to automatically assign files
-  to groups during archiving. Saved to GDEXDB per group via -SG (-SetGroup).
+  -GP or -GroupPattern, wildcard patterns that 'dsarch' uses to automatically
+  assign files to the right group during archiving. Stored per group via -SG.
 
-  -GT or -GroupType (Alias: -GroupDataType), P (public) or I (internal).
-  Changing a group from P to I recursively marks all subgroups and their
-  Web files as internal.
+  -GT or -GroupType (Alias: -GroupDataType), the access level for a group:
+  'P' (public) or 'I' (internal). Changing from P to I recursively marks
+  all nested subgroups and their Web files as internal.
 
-  -HF or -HelpFile, the Help file names on the GDEX Server. Local file names
-  from -LF are used by default unless -HF is given explicitly.
+  -HF or -HelpFile, the destination names for Help files on the GDEX Server.
+  Defaults to the local file names from -LF unless overridden explicitly.
 
-  -HT or -HelpFileType (Alias: -HelpType), the Help file type: D (Document)
-  or S (Software). A single value applies to all files.
+  -HT or -HelpFileType (Alias: -HelpType), the category of a Help file:
+  'D' (Document) or 'S' (Software). One value applies to all files in the
+  batch.
 
-  -ID or -InitialDate, the date a Help, Document, or Software file was
-  initially published or released.
+  -ID or -InitialDate, the original publication or release date of a Help,
+  Document, or Software file.
 
-  -IF or -InputFile, one or more input file names supplied on the command line.
-  Each name must begin with the dataset number in the format 'dNNNNNN.*' and
-  match the dataset number given by -DS. This naming convention prevents
-  accidentally targeting the wrong dataset.
+  -IF or -InputFile, one or more input file names provided on the command
+  line. Each file name must start with the dataset number (format 'dNNNNNN.*')
+  and match the -DS value. This naming rule is a safeguard against accidentally
+  running an action on the wrong dataset.
 
-  In an input file, lines beginning with '#' are comments. Option names may be
-  short, long, or aliases. Action and Mode options use the format
-  OptionName<!>. Single-value assignments use OptionName<=>OptionValue, one
-  per line. The Action/Mode marker can be changed via -AO (default '<!>'); the
-  assignment delimiter via -ES (default '<=>').  Multi-value assignments are
-  column-delimited using the separator set by -DV (default '<:>'). A column
-  title line precedes the data rows. Data ends at end of file or when a new
-  column title line or single-value assignment is encountered. If the last
-  column contains multi-line values, append a separator to each row, including
-  the title line.
+  Input file format rules:
+  - Lines beginning with '#' are comments and are ignored.
+  - Option names may be short, long, or alias forms.
+  - Action/Mode options: OptionName<!>  (marker changeable via -AO)
+  - Single-value assignments: OptionName<=>Value, one per line
+    (delimiter changeable via -ES; default '<=>')
+  - Multi-value (tabular) assignments: a title row followed by data rows,
+    with columns separated by '<:>' (changeable via -DV).
+  - Tabular data ends at EOF or when a new title line or single-value
+    assignment is encountered.
+  - If the last column contains multi-line text, append the separator
+    to every row (including the title line).
 
-  -IV or -InternalVersion, an index indicating a minor revision under the
-  same DOI. Defaults to 1 when a new DOI is created.
+  -IV or -InternalVersion, a minor revision counter within the same DOI.
+  Increments when data are updated without changing the DOI itself. Starts
+  at 1 when a new DOI record is created.
 
-  -KV or -KeyValue, specialist-defined key/value pairs for a dataset. Set via
-  -SD (-SetDataset); view via -GD (-GetDataset). Keys up to 40 characters,
-  values up to 128 characters.
+  -KV or -KeyValue, custom key/value metadata pairs for a dataset. Use -SD
+  to set them and -GD to view them. Keys: up to 40 characters; values: up to
+  128 characters.
 
   Set a pair:
 
@@ -2005,112 +2028,127 @@ Information (Info) options supply values to 'dsarch'. There are two types:
 
   dsarch d540000 GD -KV all
 
-  -LC or -Location (Alias: -LocationFlag), the storage location: C (CGD data
-  path), G (Glade Disk), O (Object Store), B (both Glade and Object Store).
-  For Help files, R indicates a remote URL. As the online access location in
-  the dataset record, valid values are G or O.
+  -LC or -Location (Alias: -LocationFlag), where the file resides:
+    'C' - CGD data path
+    'G' - Glade Disk (NCAR HPC filesystem)
+    'O' - Object Store
+    'B' - both Glade and Object Store
+    'R' - remote URL (Help files only)
+  At the dataset level (as the online access location), only 'G' or 'O'
+  are valid.
 
-  -LF or -LocalFile (Alias: -LocFile|-SourceFile), local source file names for
-  archiving via -AS, -AW, or -AH. UNIX wildcards are accepted on the command
-  line. Include absolute or relative paths for files outside the current
-  directory.
+  -LF or -LocalFile (Alias: -LocFile|-SourceFile), the local source files to
+  archive via -AS, -AW, or -AH. UNIX wildcards ('*', '?') are accepted on
+  the command line. Use absolute or relative paths for files outside the
+  current directory.
 
-  -MC or -MD5Checksum, MD5 checksum values for data files on GDEX Servers.
+  -MC or -MD5Checksum, the MD5 checksum of a data file on the GDEX Server,
+  used for integrity verification.
 
-  -ML or -MetaLink (Alias: -MetadataLink), a link to the content metadata page
-  at the dataset, group, or file level. Normally auto-generated by 'gatherxml'
-  when -GX is present. A custom link may be provided and will override the
-  auto-generated value.
+  -ML or -MetaLink (Alias: -MetadataLink), a URL pointing to the content
+  metadata page for a dataset, group, or file. Normally set automatically by
+  'gatherxml' when -GX is used. A custom value may be provided and will
+  take precedence over the auto-generated link.
 
-  -ND or -NoteDocument (Alias: -DocumentNote|-DescDocument), a description of
-  the documentation for a given dataset.
+  -ND or -NoteDocument (Alias: -DocumentNote|-DescDocument), a brief
+  description of the documentation available for a dataset.
 
   -NI or -NoteInternal (Alias: -InternalNote|-DescInternal|-DI), an internal
-  description of a group's or dataset's data.
+  note about a group's or dataset's data, visible to specialists only.
 
   -NS or -NoteSoftware (Alias: -SoftwareNote|-DescSoftware), a description of
-  the software associated with a given dataset.
+  any software tools or scripts associated with a dataset.
 
-  -NW or -NoteWeb (Alias: -WebNote|-DescWeb|-DW), a description of the Web
-  data on the GDEX Server for a given group or the dataset.
+  -NW or -NoteWeb (Alias: -WebNote|-DescWeb|-DW), a public-facing description
+  of the web-accessible data for a group or the dataset as a whole.
 
-  -OB or -OrderBy (Alias: -OrderByPattern), a temporal pattern for sorting
-  file lists by the fields specified in -ON. For example, 'YYYYmon' sorts by
-  4-digit year and 3-letter month name.
+  -OB or -OrderBy (Alias: -OrderByPattern), a date/time pattern that guides
+  temporal sorting when combined with -ON. For example, 'YYYYmon' sorts by
+  4-digit year followed by 3-letter month abbreviation.
 
-  -OD or -OriginDataset, the source dataset number when moving files with
-  -MV (-MoveFile).
+  -OD or -OriginDataset, the dataset the files are being moved from when
+  using -MV (-MoveFile).
 
-  -OG or -OriginGroup, the original group indices used by -CG (-ChangeGroup).
+  -OG or -OriginGroup, the existing group indices to be renumbered by
+  -CG (-ChangeGroup).
 
-  -OT or -OriginType, the original file type when changing types during a
-  move with -MV (-MoveFile).
+  -OT or -OriginType, the source file type when converting between types
+  (e.g., Web to Saved) during a -MV (-MoveFile) operation.
 
-  -PI or -ParentIndex (Alias: -ParentGroupIndex), the parent group index for
-  a subgroup. Nesting can extend to any number of levels.
+  -PI or -ParentIndex (Alias: -ParentGroupIndex), the index of the parent
+  group for a subgroup. Groups can be nested to any depth.
 
-  -QF or -QuasarFile, the Quasar backup file name, required when running
-  -AQ (-ArchiveQuasarFile).
+  -QF or -QuasarFile, the name of the Quasar backup (tar) file, required
+  for -AQ (-ArchiveQuasarFile).
 
-  -QT or -QuasarFileType (Alias: -QuasarType|-BackupType), the Quasar file
-  type: B (backup only) or D (backup and disaster recovery).
+  -QT or -QuasarFileType (Alias: -QuasarType|-BackupType), the backup scope:
+  'B' (backup only) or 'D' (backup plus disaster recovery copy).
 
-  -RF or -OriginFile, the original file names for -MV (-MoveFile) when the
-  source and destination file names differ.
+  -RF or -OriginFile, the source file names for -MV (-MoveFile) when they
+  differ from the destination names given via -SF, -WF, or -HF.
 
-  -SF or -SavedFile, the Saved file names on the GDEX Server. Local file names
-  from -LF are used by default for -AS (-ArchiveSavedFile) unless -SF is
-  given explicitly.
+  -SF or -SavedFile, the destination names for Saved files on the GDEX Server.
+  For -AS (-ArchiveSavedFile), defaults to the local file names from -LF
+  unless specified explicitly.
 
-  -SP or -SavedPath, a Saved file path relative to the Saved data home
-  directory. For -AS, the path stored in GDEXDB for the dataset or group is used
-  by default. For -SG and -SD, the value given here is saved to GDEXDB.
+  -SP or -SavedPath, the directory path for Saved files, relative to the
+  Saved data home directory. For -AS, the dataset or group's stored path is
+  used by default. For -SG and -SD, this value is written to GDEXDB.
 
-  Accurate Saved paths are important for NCAR users browsing data via 'rdals'.
-  Each top-level group should have one directory, with one additional level per
-  subgroup, mirroring the physical directory structure.
+  Keeping Saved paths accurate is important: NCAR users browse data through
+  'rdals' using these paths. Each top-level group should map to one directory,
+  with one subdirectory per subgroup level, mirroring the physical layout.
 
-  -SR or -Source, the contributor or originating source of a Help file.
+  -SR or -Source, the person, team, or organization that contributed or
+  produced a Help file.
 
-  -ST or -SavedFileType (Alias: -SavedType|-SavedArchiveType), the Saved file
-  type: P (Primary), R (Original), W (Work), S (Scratch), or V (Version-
-  controlled). One value applies to all files.
+  -ST or -SavedFileType (Alias: -SavedType|-SavedArchiveType), the role of a
+  Saved file:
+    'P' - Primary (main dataset file)
+    'R' - Original (source/raw copy)
+    'W' - Work (working/intermediate file)
+    'S' - Scratch (temporary file)
+    'V' - Version-controlled (locked under DOI)
+  One value applies to all files in the batch.
 
-  -SZ or -Size, file sizes in bytes. During archiving, sizes are measured
-  automatically from the local files unless provided explicitly.
+  -SZ or -Size, the file size in bytes. Measured automatically from local
+  files during archiving; provide explicitly to override.
 
-  -TG or -TopGroupIndex (Alias: -TopGroup), the top-level group index for
-  Saved or Web files within a group hierarchy.
+  -TG or -TopGroupIndex (Alias: -TopGroup), the index of the outermost
+  (top-level) group that a Saved or Web file belongs to within a group
+  hierarchy.
 
-  -TI or -Title, the title for a dataset or group. Dataset titles are
-  read-only in 'dsarch' and must be changed via the Metadata Editor.
+  -TI or -Title, the display title for a dataset or group. Dataset titles
+  cannot be changed through 'dsarch' — use the Metadata Editor instead.
 
-  -TL or -ThreddLink, a link to the THREDDS Catalog page at the file level.
-  Set to Y when THREDDS Catalog information has been gathered.
+  -TL or -ThreddLink, a URL to the THREDDS Catalog page for a specific file.
+  Set to 'Y' to indicate that THREDDS Catalog information has been gathered.
 
-  -VI or -VersionIndex, the index of a dataset's DOI/Version control record.
+  -VI or -VersionIndex, the numeric identifier of a specific DOI/Version
+  control record for a dataset.
 
-  -VT or -VersionStatus, the status of a version control record: A (Active),
-  P (Pending), or H (History).
+  -VT or -VersionStatus, the lifecycle state of a version control record:
+  'A' (Active), 'P' (Pending — no DOI yet), or 'H' (History — terminated).
 
-  -WF or -WebFile, Web file names on the GDEX Server. Local file names from
-  -LF are used by default for -AW (-ArchiveWebFile) unless -WF is given
-  explicitly.
+  -WF or -WebFile, the destination names for Web files on the GDEX Server.
+  For -AW (-ArchiveWebFile), defaults to the local file names from -LF
+  unless specified explicitly.
 
-  -WH or -WebHome (Alias: -WebDataHome), a non-default Web data home directory.
-  Save it to GDEXDB for a dataset via -SD (-SetDataset).
+  -WH or -WebHome (Alias: -WebDataHome), an alternative Web data home
+  directory for a dataset. Stored in GDEXDB via -SD (-SetDataset).
 
-  -WP or -WebPath, a Web file path relative to the Web data home directory.
-  For -AW, the path stored in GDEXDB for the dataset or group is used by
-  default. For -SG and -SD, the value given here is saved to GDEXDB.
+  -WP or -WebPath, the directory path for Web files, relative to the Web
+  data home directory. For -AW, the dataset or group's stored path is used
+  by default. For -SG and -SD, this value is written to GDEXDB.
 
-  Accurate Web paths are important for NCAR users browsing data via 'rdals'.
-  Each top-level group should have one directory, with one additional level per
-  subgroup, mirroring the physical directory structure.
+  Keeping Web paths accurate is important: NCAR users browse data through
+  'rdals' using these paths. Each top-level group should map to one directory,
+  with one subdirectory per subgroup level, mirroring the physical layout.
 
-  -WT or -WebFileType (Alias: -WebType|-WebArchiveType), the Web file type:
-  D (public data) or N (NCAR internal data). One value applies to all files.
+  -WT or -WebFileType (Alias: -WebType|-WebArchiveType), the accessibility of
+  a Web file: 'D' (public data) or 'N' (NCAR internal data only). One value
+  applies to all files in the batch.
 
-  -WU or -WebURL (Alias: -URL|-WebAddress), the full URL of a remotely hosted
-  Help file (e.g., on GitHub). Used with -SH (-SetHelpFile) to add a Help file
-  record without a local copy on the GDEX Server.
+  -WU or -WebURL (Alias: -URL|-WebAddress), the full URL of a Help file
+  hosted remotely (e.g., on GitHub). Use with -SH (-SetHelpFile) to register
+  the file in GDEXDB without needing a local copy on the GDEX Server.
