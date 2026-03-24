@@ -10,6 +10,16 @@
 #            server; and save information of data files into RDADB
 #    Github: https://github.com/NCAR/rda-python-dsarch.git
 ##################################################################################
+"""
+dsarch.py - Archive utility for GDEX/RDADB dataset file management.
+
+Implements the DsArch class which orchestrates all dsarch actions: archiving
+web, help, saved, and Quasar backup files; retrieving, moving, deleting, and
+reordering files; managing dataset, group, and version metadata in RDADB.
+
+Entry point:
+   dsarch.main()
+"""
 import sys
 import os
 import re
@@ -18,7 +28,29 @@ from .pg_meta import PgMeta
 from .pg_arch import PgArch
 
 class DsArch(PgArch, PgMeta):
+   """
+   Main action class for the dsarch utility.
+
+   Inherits shared state and helpers from PgArch and database interaction
+   methods from PgMeta.  The two primary entry points after construction are:
+
+      read_parameters()  -- parse and validate command-line arguments
+      start_actions()    -- dispatch to the appropriate action method
+
+   Instance attributes set in __init__:
+      ERRCNT   -- cumulative count of recoverable errors in the current action
+      RETSTAT  -- non-zero when an action finishes with partial failure
+      ALLCNT   -- total number of files to process in the current action
+      ADDCNT   -- number of new records added during the current action
+      MODCNT   -- number of existing records modified during the current action
+      OVERRIDE -- non-zero when the -OE (OverrideExist) flag is active
+      TARFILES -- dict mapping tar archive paths to their member-file metadata
+      VINDEX   -- dict mapping version indices to version records
+      CHGGRPS  -- dict of group indices whose file-number counts need updating
+      ERRMSG   -- accumulated error message string for the current action
+   """
    def __init__(self):
+      """Initialize DsArch, resetting action counters and working collections."""
       super().__init__()  # initialize parent class
       self.ERRCNT = self.RETSTAT = self.ALLCNT = self.ADDCNT = self.MODCNT = self.OVERRIDE = 0
       self.TARFILES = {}
@@ -26,8 +58,17 @@ class DsArch(PgArch, PgMeta):
       self.CHGGRPS = {}
       self.ERRMSG = ''
 
-   # function to read paramters
    def read_parameters(self):
+      """
+      Parse and validate command-line arguments for dsarch.
+
+      Calls parsing_input() to populate self.params, then attempts to infer
+      the dataset ID from file arguments when -DS is not explicitly given
+      (supported for -GH, -GW, -GS, -GQ actions).  Auto-collects file names
+      from the origin group when -GI and -OG are both present for -SS/-SW
+      actions.  Finishes with check_enough_options() to abort on missing
+      required options.
+      """
       self.set_help_path(__file__)
       pgname = "dsarch"
       self.parsing_input(pgname)
@@ -53,8 +94,18 @@ class DsArch(PgArch, PgMeta):
             self.params['WF'] = self.get_filenames("wfile")
       self.check_enough_options(self.PGOPT['CACT'], self.PGOPT['ACTS'])
 
-   # start actions of dsarch
    def start_actions(self):
+      """
+      Dispatch to the appropriate action handler based on the parsed action flag.
+
+      Routes the current action (stored in self.PGOPT['ACTS']) to the matching
+      archive, get, set, move, delete, or metadata method.  After the primary
+      action, handles cross-cutting concerns:
+        - Dataset period updates when date/time params are present
+        - File-count resets (-WN), metadata resets (-WM), top-group index
+          resets (-RT) for write-mode actions
+        - Final success/failure logging and optional email notification
+      """
       setds = 0
       dsid = self.params['DS']
       self.OVERRIDE = self.OVRIDE if 'OE' in self.params else 0
@@ -302,8 +353,21 @@ class DsArch(PgArch, PgMeta):
             else:
                self.cmdlog()
 
-   # archive web/object files
    def archive_web_files(self):
+      """
+      Archive local files as web files on GLADE and/or the object store.
+
+      For each local file in params['LF']:
+        - Determines archive format, location flag, and web path
+        - Skips files that are already archived with the same checksum/size
+          (unless -OE override is set)
+        - Copies to GLADE (warch) and/or object store (oarch) as needed
+        - Registers or updates the web file record in RDADB via set_one_webfile()
+        - Optionally triggers metadata XML gathering (-GX) or deletion (-DX)
+
+      Retries the whole batch if transient errors occur, stopping when the
+      error count stabilises.  Sets self.RETSTAT on unresolved failures.
+      """
       tname = 'wfile'
       dftloc = None
       dsid = self.params['DS']
@@ -524,8 +588,15 @@ class DsArch(PgArch, PgMeta):
       if 'EM' in self.params: self.PGLOG['PRGMSG'] = ""
       if dslocflags: self.set_dataset_locflag(dsid, dslocflags.pop())
 
-   # archive help files
    def archive_help_files(self):
+      """
+      Archive local files as dataset help/documentation files on GLADE/object store.
+
+      Mirrors the logic of archive_web_files() for help files, using the help
+      file path (RTPATH['H<type>']) and registering records in the hfile table.
+      Handles both GLADE (warch) and object-store (oarch) destinations based on
+      the file's location flag.  Sets self.RETSTAT on unresolved failures.
+      """
       tname = 'hfile'
       dsid = self.params['DS']
       bucket = self.PGLOG['OBJCTBKT']
@@ -718,8 +789,15 @@ class DsArch(PgArch, PgMeta):
          self.reset_rdadb_version(dsid)
       if 'EM' in self.params: self.PGLOG['PRGMSG'] = ""
 
-   # archive save files
    def archive_saved_files(self):
+      """
+      Archive local files as dataset saved files on GLADE.
+
+      Copies each local file in params['LF'] to its saved-file path, validates
+      type constraints, handles version control checks, and registers or updates
+      the saved file record in RDADB via set_one_savedfile().  Retries on
+      transient copy failures.  Sets self.RETSTAT on unresolved failures.
+      """
       tname = 'sfile'
       dftloc = 'G'
       dsid = self.params['DS']
@@ -881,8 +959,13 @@ class DsArch(PgArch, PgMeta):
          self.reset_rdadb_version(dsid)
       if 'EM' in self.params: self.PGLOG['PRGMSG'] = ""
 
-   # cross copy web files between glade and object store
    def crosscopy_web_files(self, aname):
+      """
+      Cross-copy (or cross-move) web files between GLADE and the object store.
+
+      Args:
+         aname -- 'Copy' to copy files, 'Move' to move (deletes the source)
+      """
       tname = 'wfile'
       dsid = self.params['DS']
       s = 's' if self.ALLCNT > 1 else ''
@@ -1029,8 +1112,13 @@ class DsArch(PgArch, PgMeta):
          self.reset_rdadb_version(dsid)
       if 'EM' in self.params: self.PGLOG['PRGMSG'] = ""
 
-   # cross copy help files between glade and object store
    def crosscopy_help_files(self, aname):
+      """
+      Cross-copy (or cross-move) help files between GLADE and the object store.
+
+      Args:
+         aname -- 'Copy' to copy files, 'Move' to move (deletes the source)
+      """
       tname = 'hfile'
       dsid = self.params['DS']
       dcnd = "dsid = '{}'".format(dsid)
@@ -1175,8 +1263,17 @@ class DsArch(PgArch, PgMeta):
          self.reset_rdadb_version(dsid)
       if 'EM' in self.params: self.PGLOG['PRGMSG'] = ""
 
-   # get backup file names in RDADB and on Quaser server for given dataset id
    def get_backup_filenames(self, bfile, dsid):
+      """
+      Retrieve backup file names from RDADB and verify their existence on Quasar.
+
+      Args:
+         bfile -- backup file name or pattern to search for
+         dsid  -- dataset ID string
+
+      Returns:
+         List of matching backup file name strings.
+      """
       ms = re.match(r'^/{}/(.+)$'.format(dsid), bfile)
       if ms:
          qfile = bfile
@@ -1185,8 +1282,15 @@ class DsArch(PgArch, PgMeta):
          qfile = "/{}/{}".format(dsid, bfile)
       return (bfile, qfile)
 
-   # archive a backup file for given wfiles/sfiles
    def archive_backup_file(self):
+      """
+      Archive web or saved files as a Quasar backup tar file.
+
+      Bundles the specified web files (params['WF']) or saved files
+      (params['SF']) into a tar archive and transfers it to Quasar storage.
+      Registers the backup record in the bfile RDADB table.
+      Sets self.RETSTAT on failure.
+      """
       tname = 'bfile'
       endpoint = self.PGLOG['BACKUPEP']
       drpoint = self.PGLOG['DRDATAEP']
@@ -1292,8 +1396,19 @@ class DsArch(PgArch, PgMeta):
       self.reset_rdadb_version(dsid)
       self.record_delete_directory(None, (self.params['DD'] if 'DD' in self.params else 0))
 
-   # tarring saved files to Quasar backup file
    def tar_backup_savedfiles(self, tarfile, tinfo, ccnt, chkstat):
+      """
+      Append saved files to a Quasar backup tar archive.
+
+      Args:
+         tarfile -- path to the tar archive file being built
+         tinfo   -- dict with tar file metadata (size, checksum, member list)
+         ccnt    -- current member file count in the archive
+         chkstat -- dscheck status record for progress tracking
+
+      Returns:
+         Updated member count after adding files.
+      """
       scnt = len(self.params['SF'])
       dsid = self.params['DS']
       fcnd = "dsid = '{}' and sfile = ".format(dsid)
@@ -1379,8 +1494,19 @@ class DsArch(PgArch, PgMeta):
       tinfo['sids'] = sids
       return scnt
 
-   # tarring web files to Quasar backup file
    def tar_backup_webfiles(self, tarfile, tinfo, ccnt, chkstat):
+      """
+      Append web files to a Quasar backup tar archive.
+
+      Args:
+         tarfile -- path to the tar archive file being built
+         tinfo   -- dict with tar file metadata (size, checksum, member list)
+         ccnt    -- current member file count in the archive
+         chkstat -- dscheck status record for progress tracking
+
+      Returns:
+         Updated member count after adding files.
+      """
       wcnt = len(self.params['WF'])
       dsid = self.params['DS']
       fcnd = "wfile = "
@@ -1460,8 +1586,14 @@ class DsArch(PgArch, PgMeta):
       tinfo['wids'] = wids
       return wcnt
 
-   # retrieve backup tar files from Quasar servers
    def retrieve_backup_files(self):
+      """
+      Download Quasar backup tar files to a local staging directory.
+
+      Fetches each backup file listed in params['QF'] from the Quasar endpoint
+      and saves it locally for subsequent restore operations.
+      Sets self.RETSTAT on transfer failures.
+      """
       tname = 'bfile'
       endpoint = self.PGLOG['BACKUPEP']
       dsid = self.params['DS']
@@ -1515,8 +1647,14 @@ class DsArch(PgArch, PgMeta):
       self.pglog("{} of Quasar Backup file{} downloaded for {}".format(dcnt, self.ALLCNT, s, dsid), self.LOGWRN)
       if 'EM' in self.params: self.PGLOG['PRGMSG'] = ""
 
-   # untar backup file to retrieve web files
    def restore_backup_webfiles(self):
+      """
+      Extract web files from a retrieved Quasar backup tar archive.
+
+      Untars each backup archive and copies the extracted web files to their
+      original GLADE/object-store locations, then updates RDADB records.
+      Sets self.RETSTAT on failure.
+      """
       tname = 'wfile'
       dsid = self.params['DS']
       bucket = self.PGLOG['OBJCTBKT']    # default object store bucket
@@ -1585,8 +1723,18 @@ class DsArch(PgArch, PgMeta):
          self.pglog("{} of {} Object file{} restored for {}".format(ocnt, self.ALLCNT, s, dsid), self.PGOPT['emllog'])
       if 'EM' in self.params: self.PGLOG['PRGMSG'] = ""
 
-   # untar backup tarfile to get a single member file
    def get_backup_member_file(self, pgrec, tarfile, tardir):
+      """
+      Extract a single member file from a backup tar archive.
+
+      Args:
+         pgrec   -- RDADB record dict for the file to extract
+         tarfile -- path to the local tar archive
+         tardir  -- directory to extract the member file into
+
+      Returns:
+         Path to the extracted file, or None on failure.
+      """
       mfile = wfile = pgrec['wfile']
       note = pgrec['note']
       while not re.search(r'{}<:>'.format(mfile), note):
@@ -1603,8 +1751,14 @@ class DsArch(PgArch, PgMeta):
          ainfo = self.check_local_file(nfile, 0, self.PGOPT['extlog']|self.PFSIZE)
       return ainfo
 
-   # untar backup file to retrieve saved files
    def restore_backup_savedfiles(self):
+      """
+      Extract saved files from a retrieved Quasar backup tar archive.
+
+      Untars each backup archive and copies the extracted saved files back to
+      their original GLADE locations, then updates RDADB records.
+      Sets self.RETSTAT on failure.
+      """
       tname = 'sfile'
       dsid = self.params['DS']
       dcnd = "dsid = '{}'".format(dsid)
@@ -1673,8 +1827,14 @@ class DsArch(PgArch, PgMeta):
          self.set_dscheck_dcount(self.ALLCNT, chksize, self.PGOPT['extlog'])
       if 'EM' in self.params: self.PGLOG['PRGMSG'] = ""
 
-   # cross copy quasar backup files between Globus endpoints gdex-quasar and gdex-quasar-drdata
    def crosscopy_backup_files(self):
+      """
+      Cross-copy Quasar backup files between Globus endpoints.
+
+      Transfers backup files between gdex-quasar and gdex-quasar-drdata
+      endpoints using Globus transfer, updating RDADB records on completion.
+      Sets self.RETSTAT on transfer failures.
+      """
       tname = 'bfile'
       qtype = 'D'
       dsid = self.params['DS']
@@ -1793,8 +1953,18 @@ class DsArch(PgArch, PgMeta):
          self.reset_rdadb_version(dsid)
       if 'EM' in self.params: self.PGLOG['PRGMSG'] = ""
 
-   # validate a webfile archive, fatal is error
    def validate_gladearch(self, file, ofile, i):
+      """
+      Verify that a GLADE archive file exists and matches the expected file info.
+
+      Logs a fatal error when validation fails, setting the file entry at
+      index *i* to None so it is skipped in subsequent processing.
+
+      Args:
+         file  -- original local file name (for error messages)
+         ofile -- expected absolute GLADE archive path to check
+         i     -- file index (used to null out params entries on failure)
+      """
       info = self.check_local_file(file, 6, self.PGOPT['errlog']|self.PFSIZE)
       if not info:
          self.pglog("Error archiving {} to {}".format(ofile, file), self.LGEREX)
@@ -1803,24 +1973,48 @@ class DsArch(PgArch, PgMeta):
       else:
          self.set_local_mode(file, 1, self.PGLOG['FILEMODE'], info['mode'], info['logname'], self.PGOPT['errlog'])
 
-   # validate an object store file archive, fatal is error
    def validate_objectarch(self, file, ofile, bucket, i):
+      """
+      Verify that an object-store file exists and matches the expected file info.
+
+      Args:
+         file   -- original local file name (for error messages)
+         ofile  -- object-store key path to check
+         bucket -- object-store bucket name
+         i      -- file index (used to null out params entries on failure)
+      """
       info = self.check_object_file(file, bucket, 0, self.PGOPT['errlog'])
       if not info:
          self.pglog("Error archiving {} to {}-{}".format(ofile, bucket, file), self.LGEREX)
       elif self.OPTS['SZ'][2]&2 and self.params['SZ'] and info['data_size'] != self.params['SZ'][i]:
          self.pglog("Wrong Sizes: ({}-{}){}/({}){}".format(bucket, file, info['data_size'], ofile, self.params['SZ'][i]), self.LGEREX)
 
-   # validate an object store file archive, fatal is error
    def validate_backarch(self, file, ofile, endpoint, i):
+      """
+      Verify that a Quasar backup file exists at the given endpoint.
+
+      Args:
+         file     -- original local file name (for error messages)
+         ofile    -- backup file path on the Quasar endpoint
+         endpoint -- Globus endpoint identifier string
+         i        -- file index (used to null out params entries on failure)
+      """
       info = self.check_backup_file(file, endpoint, 0, self.PGOPT['errlog'])
       if not info:
          self.pglog("Error archiving {} to {}-{}".format(ofile, endpoint, file), self.LGEREX)
       elif self.OPTS['SZ'][2]&2 and self.params['SZ'] and info['data_size'] != self.params['SZ'][i]:
          self.pglog("Wrong Sizes: ({}-{}){}/({}){}".format(endpoint, file, info['data_size'], ofile, self.params['SZ'][i]), self.LGEREX)
 
-   # get dataset info
    def get_dataset_info(self):
+      """
+      Retrieve and display dataset metadata from RDADB.
+
+      Fetches the dataset record (and optionally period info) for the dataset
+      specified in params['DS'] and writes formatted output to self.OUTPUT.
+
+      Returns:
+         The dataset record dict, or None if not found.
+      """
       tname = 'dataset'
       dsid = self.params['DS']
       dcnd = "dsid = '{}'".format(dsid)
@@ -1841,8 +2035,13 @@ class DsArch(PgArch, PgMeta):
       if 'WN' in self.params: self.view_filenumber(dsid, 0)
       return 1   # get one dataset record
 
-   # get dataset period information
    def get_period_info(self):
+      """
+      Retrieve and display dataset time-period records from RDADB.
+
+      Queries the dsperiod table for the current dataset and writes formatted
+      period information to self.OUTPUT.
+      """
       tname = "dsperiod"
       dsid = self.params['DS']
       hash = self.TBLHASH[tname]
@@ -1857,8 +2056,17 @@ class DsArch(PgArch, PgMeta):
          s = 's' if cnt  > 1 else ''
          self.pglog("{} period record{} retrieved for {}".format(cnt, s, dsid), self.LOGWRN)
 
-   # add a new or modify an existing datatset record into RDADB
-   def set_dataset_info(self, include = None):
+   def set_dataset_info(self, include=None):
+      """
+      Insert or update the dataset record in RDADB.
+
+      Reads dataset fields from params, builds an update/insert record, and
+      calls the appropriate database function.  When *include* is 'P', only
+      period-related fields are updated.
+
+      Args:
+         include -- field subset selector string, or None for all fields
+      """
       tname = 'dataset'
       dsid = self.params['DS']
       dcnd = "dsid = '{}'".format(dsid)
@@ -1895,8 +2103,13 @@ class DsArch(PgArch, PgMeta):
          if pcnt + mcnt:
             self.reset_rdadb_version(dsid)
 
-   # add new or modify existing period record into RDADB
    def set_period_info(self, dcnd):
+      """
+      Insert or update dataset time-period records in RDADB via the sdp command.
+
+      Args:
+         dcnd -- SQL condition string identifying the dataset (e.g. "dsid='d123456'")
+      """
       tname = 'dsperiod'
       dsid = self.params['DS']
       dcnd = "dsid = '{}'".format(dsid)
@@ -1934,8 +2147,14 @@ class DsArch(PgArch, PgMeta):
       if pcnt > 0: self.pglog("{} of {} period{} modified for {}!".format(pcnt, allcnt, s, dsid), self.LOGWRN)
       return pcnt
 
-   # delete group information for given dataset and index list
    def delete_group_info(self):
+      """
+      Delete group records from RDADB for the current dataset.
+
+      Verifies that no dependent file records (web, saved, help) remain before
+      deleting each group index in params['GI'].  Logs an error and skips any
+      group that still has associated files.
+      """
       tname = 'dsgroup'
       dsid = self.params['DS']
       dcnd = "dsid = '{}'".format(dsid)
@@ -1961,8 +2180,13 @@ class DsArch(PgArch, PgMeta):
       self.pglog("{} of {} group{} deleted from {}".format(delcnt, self.ALLCNT, s, dsid), self.LOGWRN)
       if delcnt > 0: self.reset_rdadb_version(dsid)
 
-   # get group information
    def get_group_info(self):
+      """
+      Retrieve and display dataset group records from RDADB.
+
+      Fetches dsgroup rows for the current dataset (filtered by any -GI/-GN
+      params) and writes formatted output to self.OUTPUT.
+      """
       tname = "dsgroup"
       dsid = self.params['DS']
       dcnd = "dsid = '{}'".format(dsid)
@@ -2000,8 +2224,14 @@ class DsArch(PgArch, PgMeta):
       else:
          self.pglog("No group found for " + condition, self.LOGWRN)
 
-   # add or modify group information
    def set_group_info(self):
+      """
+      Insert or update group records in RDADB for the current dataset.
+
+      Iterates over params['GI'], building insert/update records from params
+      and calling the appropriate database function for each group index.
+      Resets the RDADB version after changes.
+      """
       if self.ALLCNT == 0 or self.params['GI'][0] == 0: return  # skip group index 0
       tname = 'dsgroup'
       dsid = self.params['DS']
@@ -2053,8 +2283,17 @@ class DsArch(PgArch, PgMeta):
       self.pglog("{}/{} of {} group{} added/modified for {}!".format(addcnt, modcnt, self.ALLCNT, s, dsid), self.LOGWRN)
       if (addcnt + modcnt + tcnt) > 0: self.reset_rdadb_version(dsid)
 
-   # set subgroups and files to Internal for given group index
    def set_for_internal_group(self, gindex):
+      """
+      Mark a group and all its descendant files as Internal ('I').
+
+      Recursively updates dsgroup records and the status column of all
+      associated web/saved files to 'I', adjusting on-disk file permissions
+      via change_wfile_mode() where needed.
+
+      Args:
+         gindex -- group index to make internal
+      """
       tname = 'dsgroup'
       dsid = self.params['DS']
       dcnd = "dsid = '{}'".format(dsid)
@@ -2085,8 +2324,13 @@ class DsArch(PgArch, PgMeta):
          for i in range(cnt):
             self.set_for_internal_group(pgrecs['gindex'][i])
 
-   # get WEB file information
    def get_webfile_info(self):
+      """
+      Retrieve and display web file records from RDADB.
+
+      Queries the wfile table for the current dataset (applying any filter
+      params) and writes formatted output to self.OUTPUT.
+      """
       tname = "wfile"
       dsid = self.params['DS']
       hash = self.TBLHASH[tname]
@@ -2137,8 +2381,13 @@ class DsArch(PgArch, PgMeta):
       else:
          self.pglog("No Web file found for " + condition, self.LOGWRN)
 
-   # get Help file information
    def get_helpfile_info(self):
+      """
+      Retrieve and display help file records from RDADB.
+
+      Queries the hfile table for the current dataset (applying any filter
+      params) and writes formatted output to self.OUTPUT.
+      """
       tjoin = tname = "hfile"
       dsid = self.params['DS']
       hash = self.TBLHASH[tname]
@@ -2172,8 +2421,13 @@ class DsArch(PgArch, PgMeta):
       else:
          self.pglog("No Help file found for " + condition, self.LOGWRN)
 
-   # get Saved file information
    def get_savedfile_info(self):
+      """
+      Retrieve and display saved file records from RDADB.
+
+      Queries the sfile table for the current dataset (applying any filter
+      params) and writes formatted output to self.OUTPUT.
+      """
       tjoin = tname = "sfile"
       dojoin = 0
       dsid = self.params['DS']
@@ -2221,8 +2475,13 @@ class DsArch(PgArch, PgMeta):
       else:
          self.pglog("No Saved file found for " + condition, self.LOGWRN)
 
-   # get Quasar Backup file information
    def get_backfile_info(self):
+      """
+      Retrieve and display Quasar backup file records from RDADB.
+
+      Queries the bfile table for the current dataset and writes formatted
+      output to self.OUTPUT.
+      """
       tname = "bfile"
       dsid = self.params['DS']
       hash = self.TBLHASH[tname]
@@ -2256,8 +2515,17 @@ class DsArch(PgArch, PgMeta):
       else:
          self.pglog("No Quasar Backup file found for " + condition, self.LOGWRN)
 
-   # add or modify WEB file information
-   def set_webfile_info(self, include = None):
+   def set_webfile_info(self, include=None):
+      """
+      Insert or update web file records in RDADB for the current dataset.
+
+      Iterates over params['WF'], calling set_one_webfile() for each entry.
+      Handles display-order management, metadata link updates, and optional
+      metadata XML gathering.  Resets the RDADB version after changes.
+
+      Args:
+         include -- optional field subset selector string passed to get_condition()
+      """
       bidx = 0
       dftloc = None
       tname = 'wfile'
@@ -2352,8 +2620,23 @@ class DsArch(PgArch, PgMeta):
          self.reset_rdadb_version(dsid)
       if 'EM' in self.params: self.PGLOG['PRGMSG'] = ''
 
-   # add or modify one Web file record
-   def set_one_webfile(self, i, pgrec, file, flds, type, info = None, ndsid = None, sact = 0):
+   def set_one_webfile(self, i, pgrec, file, flds, type, info=None, ndsid=None, sact=0):
+      """
+      Insert or update a single web file record in RDADB.
+
+      Args:
+         i     -- file index into params arrays
+         pgrec -- existing wfile record dict, or None for a new record
+         file  -- web file path (relative to dataset root)
+         flds  -- list of field names to set (from get_field_keys)
+         type  -- web file type character
+         info  -- file metadata dict (size, date, checksum) from check_local_file
+         ndsid -- target dataset ID when moving between datasets; None = current
+         sact  -- non-zero when called from set_webfile_info (suppress some side-effects)
+
+      Returns:
+         The wid (web file ID) of the inserted/updated record, or None on failure.
+      """
       tname = 'wfile'
       gindex = (self.params['GI'][i] if 'GI' in self.params and self.OPTS['GI'][2]&2 == 0 else (pgrec['gindex'] if pgrec else 0))
       dsid = ndsid if ndsid else self.params['DS']
@@ -2438,8 +2721,19 @@ class DsArch(PgArch, PgMeta):
             self.save_filenumber(None, sact, 1, fcnt)
       return wid
 
-   # check 
-   def check_file_flag(self, file, info, record, pgrec = None):
+   def check_file_flag(self, file, info, record, pgrec=None):
+      """
+      Determine and set the file flag ('F' for full, 'P' for partial) in a record.
+
+      Compares the expected file size from *info* (or the archived file) against
+      a minimum-size threshold and updates record['fileflag'] accordingly.
+
+      Args:
+         file   -- file name string (for logging)
+         info   -- file metadata dict with at least a 'data_size' key
+         record -- mutable record dict to update with the derived fileflag
+         pgrec  -- existing database record dict for comparison, or None
+      """
       if not info: return self.SUCCESS
       fflag = 'F' if info['isfile'] else 'P'
       if 'fileflag' in record:
@@ -2449,8 +2743,13 @@ class DsArch(PgArch, PgMeta):
          record['fileflag'] = fflag
       return self.SUCCESS
 
-   # add or modify Help file information
    def set_helpfile_info(self):
+      """
+      Insert or update help file records in RDADB for the current dataset.
+
+      Iterates over params['HF'], calling set_one_helpfile() for each entry.
+      Handles display-order management and resets the RDADB version after changes.
+      """
       bidx = 0
       tname = 'hfile'
       dsid = self.params['DS']
@@ -2503,8 +2802,22 @@ class DsArch(PgArch, PgMeta):
       if (self.ADDCNT + self.MODCNT + reorder) > 0: self.reset_rdadb_version(dsid)
       if 'EM' in self.params: self.PGLOG['PRGMSG'] = ''
 
-   # add or modify one help file record
-   def set_one_helpfile(self, i, pgrec, file, flds, type, info = None, ndsid = None):
+   def set_one_helpfile(self, i, pgrec, file, flds, type, info=None, ndsid=None):
+      """
+      Insert or update a single help file record in RDADB.
+
+      Args:
+         i     -- file index into params arrays
+         pgrec -- existing hfile record dict, or None for a new record
+         file  -- help file path (relative to dataset help root)
+         flds  -- list of field names to set
+         type  -- help file type character
+         info  -- file metadata dict (size, date, checksum), or None
+         ndsid -- target dataset ID when moving between datasets; None = current
+
+      Returns:
+         The hid (help file ID) of the inserted/updated record, or None on failure.
+      """
       tname = 'hfile'
       dsid = ndsid if ndsid else self.params['DS']
       hid = pgrec['hid'] if pgrec else 0
@@ -2575,8 +2888,13 @@ class DsArch(PgArch, PgMeta):
                fcnt = 1
       return hid
 
-   # add or modify save file information
    def set_savedfile_info(self):
+      """
+      Insert or update saved file records in RDADB for the current dataset.
+
+      Iterates over params['SF'], calling set_one_savedfile() for each entry.
+      Handles display-order management and resets the RDADB version after changes.
+      """
       bidx = 0
       dftloc = None
       tname = 'sfile'
@@ -2659,8 +2977,23 @@ class DsArch(PgArch, PgMeta):
          self.reset_rdadb_version(dsid)
       if 'EM' in self.params: self.PGLOG['PRGMSG'] = ''
 
-   # add or modify one saved file record
-   def set_one_savedfile(self, i, pgrec, file, flds, type, info = None, ndsid = None, sact = 0):
+   def set_one_savedfile(self, i, pgrec, file, flds, type, info=None, ndsid=None, sact=0):
+      """
+      Insert or update a single saved file record in RDADB.
+
+      Args:
+         i     -- file index into params arrays
+         pgrec -- existing sfile record dict, or None for a new record
+         file  -- saved file path (relative to dataset saved root)
+         flds  -- list of field names to set
+         type  -- saved file type character
+         info  -- file metadata dict (size, date, checksum), or None
+         ndsid -- target dataset ID when moving between datasets; None = current
+         sact  -- non-zero when called from set_savedfile_info (suppress side-effects)
+
+      Returns:
+         The sid (saved file ID) of the inserted/updated record, or None on failure.
+      """
       tname = 'sfile'
       gindex = (self.params['GI'][i] if 'GI' in self.params and self.OPTS['GI'][2]&2 == 0 else (pgrec['gindex'] if pgrec else 0))
       dsid = ndsid if ndsid else self.params['DS']
@@ -2745,8 +3078,13 @@ class DsArch(PgArch, PgMeta):
             self.save_filenumber(None, sact, 1, fcnt)
       return sid
 
-   # add or modify Quasar backup file information
    def set_backfile_info(self):
+      """
+      Insert or update Quasar backup file records in RDADB for the current dataset.
+
+      Iterates over params['QF'], calling set_one_backfile() for each entry
+      and resetting the RDADB version after changes.
+      """
       bidx = zipped = 0
       tname = 'bfile'
       dsid = self.params['DS']
@@ -2799,8 +3137,22 @@ class DsArch(PgArch, PgMeta):
          self.reset_rdadb_version(dsid)
       if 'EM' in self.params: self.PGLOG['PRGMSG'] = ''
 
-   # add or modify one Quasar backup file record
-   def set_one_backfile(self, i, pgrec, file, flds, type, ndsid = None, record = None):
+   def set_one_backfile(self, i, pgrec, file, flds, type, ndsid=None, record=None):
+      """
+      Insert or update a single Quasar backup file record in RDADB.
+
+      Args:
+         i      -- file index into params arrays
+         pgrec  -- existing bfile record dict, or None for a new record
+         file   -- backup file name
+         flds   -- list of field names to set
+         type   -- backup file type character
+         ndsid  -- target dataset ID when moving between datasets; None = current
+         record -- pre-built record dict to use instead of building from params
+
+      Returns:
+         The bid (backup file ID) of the inserted/updated record, or None on failure.
+      """
       tname = 'bfile'
       dsid = ndsid if ndsid else self.params['DS']
       bid = pgrec['bid'] if pgrec else 0
@@ -2837,8 +3189,15 @@ class DsArch(PgArch, PgMeta):
                self.ADDCNT += 1
       return bid
 
-   # moving WEB files tochange file paths/names, and/or from one dataset to another
    def move_web_files(self):
+      """
+      Rename or relocate web files on disk and update their RDADB records.
+
+      Handles renaming within the same dataset, cross-dataset moves, and
+      type changes (e.g. D→N).  Supports -TS (to-saved) conversions and
+      updates backup file notes via save_move_info().
+      Sets self.RETSTAT on unresolved failures.
+      """
       tname = 'wfile'
       dsid = self.params['DS']
       dcnd = "dsid = '{}'".format(dsid)
@@ -2981,8 +3340,13 @@ class DsArch(PgArch, PgMeta):
             self.reset_rdadb_version(self.params['OD'])
       if 'EM' in self.params: self.PGLOG['PRGMSG'] = ''
 
-   # moving Help files to change file paths/names, and/or from one dataset to another
    def move_help_files(self):
+      """
+      Rename or relocate help files on disk and update their RDADB records.
+
+      Handles renaming within the same dataset and cross-dataset moves, along
+      with any type changes.  Sets self.RETSTAT on unresolved failures.
+      """
       tname = 'hfile'
       dsid = self.params['DS']
       dcnd = "dsid = '{}'".format(dsid)
@@ -3086,8 +3450,15 @@ class DsArch(PgArch, PgMeta):
             self.reset_rdadb_version(self.params['OD'])
       if 'EM' in self.params: self.PGLOG['PRGMSG'] = ''
 
-   # moving Saved files to Web files, both on glade and object store
    def saved_to_web_files(self):
+      """
+      Convert saved files to web files (-TS action).
+
+      Copies each saved file to its web file destination (GLADE and/or object
+      store), creates a new wfile RDADB record, and removes the old sfile
+      record.  Preserves backup links by updating bfile.note via save_move_info().
+      Sets self.RETSTAT on unresolved failures.
+      """
       tname = 'wfile'
       dsid = self.params['DS']
       dcnd = "dsid = '{}'".format(dsid)
@@ -3248,8 +3619,14 @@ class DsArch(PgArch, PgMeta):
       if 'EM' in self.params: self.PGLOG['PRGMSG'] = ""
       if dslocflags: self.set_dataset_locflag(dsid, dslocflags.pop())
 
-   # delete Web files from a given dataset
    def delete_web_files(self):
+      """
+      Delete web files from GLADE/object store and remove their RDADB records.
+
+      Iterates over params['WF'], removes each file from disk and/or the
+      object store, then deletes the wfile RDADB row.  Optionally triggers
+      metadata XML deletion (-DX).  Sets self.RETSTAT on failures.
+      """
       tname = 'wfile'
       dsid = self.params['DS']
       bucket = self.PGLOG['OBJCTBKT']
@@ -3350,8 +3727,14 @@ class DsArch(PgArch, PgMeta):
          self.reset_rdadb_version(dsid)
       if 'EM' in self.params: self.PGLOG['PRGMSG'] = ""
 
-   # delete Help files from a given dataset
    def delete_help_files(self):
+      """
+      Delete help files from GLADE/object store and remove their RDADB records.
+
+      Iterates over params['HF'], removes each file from disk and/or the
+      object store, then deletes the hfile RDADB row.
+      Sets self.RETSTAT on failures.
+      """
       tname = 'hfile'
       dsid = self.params['DS']
       bucket = self.PGLOG['OBJCTBKT']
@@ -3433,8 +3816,13 @@ class DsArch(PgArch, PgMeta):
       if (dcnt + reorder) > 0: self.reset_rdadb_version(dsid)
       if 'EM' in self.params: self.PGLOG['PRGMSG'] = ""
 
-   # moving Saved files to change file paths/names, and/or from one dataset to another
    def move_saved_files(self):
+      """
+      Rename or relocate saved files on disk and update their RDADB records.
+
+      Handles renaming within the same dataset and cross-dataset moves, along
+      with any type changes.  Sets self.RETSTAT on unresolved failures.
+      """
       tname = 'sfile'
       dsid = self.params['DS']
       dcnd = "dsid = '{}'".format(dsid)
@@ -3543,8 +3931,14 @@ class DsArch(PgArch, PgMeta):
             self.reset_rdadb_version(self.params['OD'])
       if 'EM' in self.params: self.PGLOG['PRGMSG'] = ""  
 
-   # moving Quasar backup files from one dataset to another
    def move_backup_files(self):
+      """
+      Move Quasar backup files to a different dataset and update RDADB records.
+
+      Transfers ownership of bfile records to the target dataset (-OD) and
+      updates the backup archive note via save_move_info().
+      Sets self.RETSTAT on failures.
+      """
       s = 's' if self.ALLCNT > 1 else ''
       tname = 'bfile'
       dsid = self.params['DS']
@@ -3640,8 +4034,15 @@ class DsArch(PgArch, PgMeta):
             self.reset_rdadb_version(self.params['OD'])
       if 'EM' in self.params: self.PGLOG['PRGMSG'] = ""  
 
-   # moving Web files to Saved files, for files both on glade and object store
    def web_to_saved_files(self):
+      """
+      Convert web files to saved files (-TW action).
+
+      Copies each web file to its saved-file destination on GLADE, creates a
+      new sfile RDADB record, and removes the old wfile record.  Optionally
+      also deletes the file from the object store.  Preserves backup links.
+      Sets self.RETSTAT on unresolved failures.
+      """
       s = 's' if self.ALLCNT > 1 else ''
       tname = 'sfile'
       dsid = self.params['DS']
@@ -3792,8 +4193,20 @@ class DsArch(PgArch, PgMeta):
             self.reset_rdadb_version(self.params['OD'])
       if 'EM' in self.params: self.PGLOG['PRGMSG'] = ""  
 
-   # get date/time/size info from given file record
    def get_file_origin_info(self, fname, pgrec):
+      """
+      Extract file metadata (date, time, size) from an existing RDADB record.
+
+      Used to populate the *info* dict expected by set_one_webfile() and
+      similar methods when the local file is no longer present.
+
+      Args:
+         fname -- file name string (for logging)
+         pgrec -- existing database record dict containing date/time/size fields
+
+      Returns:
+         Dict with 'date_modified', 'time_modified', 'data_size' keys, or None.
+      """
       info = {'isfile': (0 if 'fileflag' in pgrec and pgrec['fileflag'] == 'P' else 1), 'data_size': pgrec['data_size']}
       info['fname'] = op.basename(fname)
       info['date_modified'] = pgrec['date_modified']
@@ -3802,8 +4215,13 @@ class DsArch(PgArch, PgMeta):
       info['time_created'] = pgrec['time_created']
       return info
 
-   # delete saved files from a given dataset
    def delete_saved_files(self):
+      """
+      Delete saved files from GLADE and remove their RDADB records.
+
+      Iterates over params['SF'], removes each file from disk, then deletes
+      the sfile RDADB row.  Sets self.RETSTAT on failures.
+      """
       tname = 'sfile'
       dsid = self.params['DS']
       dcnd = "dsid = '{}'".format(dsid)
@@ -3875,8 +4293,13 @@ class DsArch(PgArch, PgMeta):
          self.reset_rdadb_version(dsid)
       if 'EM' in self.params: self.PGLOG['PRGMSG'] = ""
 
-   # delete Quasar backup files from a given dataset
    def delete_backup_files(self):
+      """
+      Delete Quasar backup files from Quasar storage and remove RDADB records.
+
+      Iterates over params['QF'], requests deletion from the Quasar endpoint,
+      then removes the bfile RDADB row.  Sets self.RETSTAT on failures.
+      """
       tname = 'bfile'
       dsid = self.params['DS']
       dcnd = "dsid = '{}'".format(dsid)
@@ -3938,8 +4361,14 @@ class DsArch(PgArch, PgMeta):
          self.reset_rdadb_version(dsid)
       if 'EM' in self.params: self.PGLOG['PRGMSG'] = ""
 
-   # change existing group indices to new indices.  
    def change_group_index(self):
+      """
+      Reassign files from one group index to another in RDADB.
+
+      Maps each source group index (params['OG']) to the corresponding
+      destination index (params['GI']), updates the gindex column of
+      matching wfile/sfile records, and resets file counts for affected groups.
+      """
       tname = 'dsgroup'
       dsid = self.params['DS']
       dcnd = "dsid = '{}'".format(dsid)
@@ -4006,8 +4435,15 @@ class DsArch(PgArch, PgMeta):
             self.pglog("{}/{} associated Saved/Web file record{} modified for new top group".format(tscnt, twcnt, s), self.LOGWRN)
          self.reset_rdadb_version(dsid)
 
-   # view specialist defiend key/value pairs for given dsid
-   def view_keyvalues(self, dsid, kvalues, getkeys = 0):
+   def view_keyvalues(self, dsid, kvalues, getkeys=0):
+      """
+      Display specialist-defined key/value metadata pairs for a dataset.
+
+      Args:
+         dsid     -- dataset ID string
+         kvalues  -- list of key=value strings or key names to display
+         getkeys  -- if non-zero, only list available key names (no values)
+      """
       cond = "dsid = '{}' ".format(dsid)
       count = 0
       cnt = len(kvalues) if kvalues else 0
@@ -4037,8 +4473,14 @@ class DsArch(PgArch, PgMeta):
             self.OUTPUT.write("{}=>{}{}\n".format(values['okey'][i], values['value'][i], self.params['DV']))
       return count
 
-   # set specialist defiend key/value pairs for given dsid
    def set_keyvalues(self, dsid, kvalues):
+      """
+      Insert or update specialist-defined key/value metadata pairs for a dataset.
+
+      Args:
+         dsid    -- dataset ID string
+         kvalues -- list of 'key=value' strings to store in RDADB
+      """
       cnt = len(kvalues) if kvalues else 0
       if cnt == 0: return 0
       s = 's' if cnt > 1 else ''
@@ -4067,8 +4509,16 @@ class DsArch(PgArch, PgMeta):
       self.pglog("{}/{}/{} of {} key/value pairs added/modified/deleted for {}!".format(acnt, mcnt, dcnt, cnt, dsid), self.LOGWRN)
       return (acnt + mcnt + dcnt)
 
-   # record moved web file info
    def set_web_move(self, pgrec):
+      """
+      Record a web-file move event in the dataset metadata.
+
+      Appends move information to the relevant metadata record so the
+      history of file relocations is preserved in RDADB.
+
+      Args:
+         pgrec -- existing wfile record dict for the file being moved
+      """
       date = self.curdate()
       cond = "wid = {} and date = '{}'".format(pgrec['wid'], date)
       if not self.pgget("wmove", "", cond, self.LGWNEX):
@@ -4076,8 +4526,21 @@ class DsArch(PgArch, PgMeta):
                    'wfile': pgrec['wfile'], 'wid': pgrec['wid'], 'date': date}
          self.pgadd("wmove", record, self.LGWNEX)
 
-   # reset file counts for saved groups
    def reset_group_filenumber(self, dsid, act):
+      """
+      Recompute and update file-count columns for all dataset groups.
+
+      Recalculates webcnt/savedcnt and related size columns from current
+      file records and writes the corrected values back to the dsgroup and
+      dataset tables.
+
+      Args:
+         dsid -- dataset ID string
+         act  -- action bitmask controlling which file types to recount
+
+      Returns:
+         Number of records updated.
+      """
       ucnt = 0
       gindices = sorted(self.CHGGRPS)
       if gindices and gindices[0] != 0:
@@ -4087,8 +4550,20 @@ class DsArch(PgArch, PgMeta):
          ucnt += self.reset_filenumber(dsid, 0, act)
       return ucnt
 
-   # reset top group indices for given groups
    def reset_top_group_index(self, dsid, act):
+      """
+      Recalculate and update the top-level group index (tindex) for all files.
+
+      Traverses the group hierarchy to find the top-most ancestor for each
+      file and writes the corrected tindex value to wfile/sfile records.
+
+      Args:
+         dsid -- dataset ID string
+         act  -- action bitmask controlling which file tables to update
+
+      Returns:
+         Number of file records updated.
+      """
       tcnt = 0
       cgidxs = {}
       if 'GI' in self.params:
@@ -4100,8 +4575,19 @@ class DsArch(PgArch, PgMeta):
          tcnt += self.reset_top_gindex(dsid, 0, act)
       return tcnt
 
-   # set the re-archived file counts for groups
    def set_rearchive_filenumber(self, dsid, bidx, total, act):
+      """
+      Record progress of a re-archive operation in the dscheck tracking table.
+
+      Stores how many files have been processed so far (*bidx* out of *total*)
+      so that interrupted re-archive jobs can resume from the right offset.
+
+      Args:
+         dsid  -- dataset ID string
+         bidx  -- index of the last successfully processed file
+         total -- total file count for this archive operation
+         act   -- action type bitmask
+      """
       if 'GI' in self.params:
          lmt = bidx + 20
          if lmt > total: lmt = total
@@ -4110,8 +4596,17 @@ class DsArch(PgArch, PgMeta):
       self.reset_group_filenumber(dsid, act)
       self.CHGGRPS = {}
    
-   # reset group metadata via scm
    def reset_group_metadata(self, dsid, act):
+      """
+      Regenerate dataset/group metadata (e.g. summary XML) via the scm tool.
+
+      Triggers metadata recomputation for all groups affected by recent file
+      changes, using the act bitmask to determine which metadata types to update.
+
+      Args:
+         dsid -- dataset ID string
+         act  -- action bitmask (e.g. 4 for web files, 8 for saved files)
+      """
       dcnd = "dsid = '{}'".format(dsid)
       gindices = sorted(self.CHGGRPS)
       if gindices:
@@ -4130,12 +4625,28 @@ class DsArch(PgArch, PgMeta):
             if act == 1 or act&4 and re.search(r'(Y|B|W)', pgrec['meta_link']):
                self.pgsystem("{} -d {} -rw all".format(self.PGOPT['scm'], dsid, self.LOGWRN, 1029))
    
-   # get web file name for given local file name
    def get_archive_filename(self, lfile):
+      """
+      Derive the archive (web/saved) file name from a local file path.
+
+      Strips any leading directory components and compression extensions so
+      that only the base file name suitable for storage is returned.
+
+      Args:
+         lfile -- local file path string
+
+      Returns:
+         Archive file name string (basename, possibly without compression suffix).
+      """
       return lfile if 'KP' in self.params else op.basename(lfile)
    
-   # clean up local files and directories after action
    def clean_local_files(self):
+      """
+      Delete local staging files and empty directories after a successful action.
+
+      Removes all files listed in params['LF'] from the local filesystem and
+      optionally prunes empty parent directories when -RD is set.
+      """
       cnt = 0
       if 'DD' in self.params: self.record_delete_directory(None, self.params['DD'])
       for lfile in self.params['LF']:
@@ -4145,8 +4656,19 @@ class DsArch(PgArch, PgMeta):
          self.pglog("cnt local files cleaned", self.PGOPT['emerol'])
       if 'DD' in self.params: self.clean_delete_directory(self.PGOPT['wrnlog'])
    
-   # transfer cached self.ERRMSG between globally and locally 
    def reset_errmsg(self, errcnt):
+      """
+      Flush the accumulated error message buffer and update ERRCNT.
+
+      When *errcnt* >= 0, appends self.ERRMSG to the log and clears it.
+      When *errcnt* == -1, logs any remaining message without updating the count.
+
+      Args:
+         errcnt -- current error count to accumulate into self.ERRCNT, or -1 to flush only
+
+      Returns:
+         Updated cumulative error count (self.ERRCNT).
+      """
       ret = 0
       if errcnt < 0:   # cache self.ERRMSG globally
          self.PGLOG['ERRCNT'] += self.ERRCNT
@@ -4162,8 +4684,17 @@ class DsArch(PgArch, PgMeta):
          self.PGLOG['ERRMSG'] = ''
       return ret
 
-   # copy a file to a alternate destination
    def copy_alter_local(self, wfile, ahome):
+      """
+      Copy a web file to an alternate GLADE location.
+
+      Used to mirror files to a secondary directory (e.g. CGD or alternate
+      web home) when the dataset is configured to maintain duplicates.
+
+      Args:
+         wfile -- relative web file path
+         ahome -- alternate root directory to copy into
+      """
       afile = wfile
       bproc = self.PGSIG['BPROC']
       afile = re.sub(self.PGLOG['DSDHOME'], ahome, afile)
@@ -4171,8 +4702,17 @@ class DsArch(PgArch, PgMeta):
       self.local_copy_local(afile, wfile, self.PGOPT['emerol']|self.OVERRIDE)
       if bproc != self.PGSIG['BPROC']: self.PGSIG['BPROC'] = bproc
    
-   # delete a file at alternate location
    def delete_alter_local(self, wfile, ahome):
+      """
+      Delete a web file from an alternate GLADE location.
+
+      Removes the mirrored copy created by copy_alter_local() when a file
+      is deleted or moved out of the alternate web home.
+
+      Args:
+         wfile -- relative web file path
+         ahome -- alternate root directory where the copy resides
+      """
       afile = wfile
       bproc = self.PGSIG['BPROC']
       afile = re.sub(self.PGLOG['DSDHOME'], ahome, afile)
@@ -4180,8 +4720,13 @@ class DsArch(PgArch, PgMeta):
       if op.exists(afile): self.delete_local_file(afile, self.PGOPT['emerol'])
       if bproc != self.PGSIG['BPROC']: self.PGSIG['BPROC'] = bproc
    
-   # get version information
    def get_version_info(self):
+      """
+      Retrieve and display version control records from RDADB.
+
+      Queries the dsvrsn table for the current dataset and writes formatted
+      version information to self.OUTPUT.
+      """
       tname = "dsvrsn"
       dsid = self.params['DS']
       hash = self.TBLHASH[tname]
@@ -4203,8 +4748,20 @@ class DsArch(PgArch, PgMeta):
       else:
          self.pglog("No version control information retrieved", self.PGOPT['wrnlog'])
 
-   # get a DOI number for given dsid
    def get_new_version(self, nrec, doi):
+      """
+      Fetch or generate a DOI number for a new version record.
+
+      If *doi* is not yet assigned, queries the DOI service and stores the
+      result in *nrec*.
+
+      Args:
+         nrec -- mutable new version record dict to update with the DOI
+         doi  -- existing DOI string, or None to request a new one
+
+      Returns:
+         DOI string (may be the same as *doi* if already set).
+      """
       nrec['doi'] = doi
       if not ('start_date' in nrec and nrec['start_date']): nrec['start_date'] = self.curdate()
       if not ('start_time' in nrec and nrec['start_time']): nrec['start_time'] = self.curtime()
@@ -4213,8 +4770,18 @@ class DsArch(PgArch, PgMeta):
       nrec['iversion'] = 1
       return nrec
 
-   # replace old version record with a new one
    def transfer_version_info(self, nrec, orec, doi):
+      """
+      Replace the file associations of an old version with those of a new version.
+
+      Migrates all wfile/sfile records linked to *orec* over to *nrec*,
+      updates status flags on the old version, and assigns the DOI.
+
+      Args:
+         nrec -- new version record dict (destination)
+         orec -- old version record dict (source)
+         doi  -- DOI string to assign to the new version
+      """
       dsid = self.params['DS']
       vinfo = "Version Control {}".format(orec['vindex'])
       if not ('start_date' in nrec and nrec['start_date']): nrec['start_date'] = self.curdate()
@@ -4237,8 +4804,15 @@ class DsArch(PgArch, PgMeta):
       self.pglog("{} {}: Set status to 'H'".format(dsid, vinfo), self.PGOPT['wrnlog'])
       return nrec
 
-   # add or modify version control information
    def set_version_info(self):
+      """
+      Insert or update version control records in RDADB.
+
+      Handles both new version creation (-NV) and modification of existing
+      version records.  When creating a new version from an existing one,
+      calls transfer_version_info() to migrate file associations.
+      Resets the RDADB version counter after changes.
+      """
       tname = "dsvrsn"
       dsid = self.params['DS']
       dcnd = "dsid = '{}'".format(dsid)
@@ -4329,8 +4903,13 @@ class DsArch(PgArch, PgMeta):
                   self.pglog("{}: Relinked {} Saved file record{}".format(vinfo, fcnt, s), self.PGOPT['wrnlog'])
       self.pglog("{}/{} of {} added/modified in RDADB!".format(addcnt, modcnt, msg), self.PGOPT['wrnlog'])
    
-   # terminate version control information for given version indices
    def terminate_version_info(self):
+      """
+      Mark version control records as terminated (-TV action).
+
+      Sets the status of each version index in params['VI'] to 'A' (archived)
+      and records a termination date, then resets the RDADB version counter.
+      """
       msg = "{} Version Control".format(self.ALLCNT)
       if self.ALLCNT > 1: msg += "s"
       self.pglog("Terminate {} ...".format(msg), self.WARNLG)
@@ -4372,8 +4951,12 @@ class DsArch(PgArch, PgMeta):
       self.pglog("{}/{} of {} terminated for DOI/Version Control".format(doicnt, modcnt, msg), self.PGOPT['wrnlog'])
       if delcnt: self.pglog("{}/{} of {} deleted".format(delcnt, modcnt, msg), self.PGOPT['wrnlog'])
 
-# main function to excecute this script
 def main():
+   """Entry point for the dsarch command-line utility.
+
+   Instantiates DsArch, parses arguments via read_parameters(), executes the
+   requested action via start_actions(), and exits cleanly.
+   """
    object = DsArch()
    object.read_parameters()
    object.start_actions()
