@@ -133,11 +133,10 @@ The description of an individual option is shown when 'dsarch' is run as
 
 The description is shown for the option placed either before or after -(h|help).
 If no option is given, or 'dsarch' is run without arguments, the full document
-is displayed using the UNIX 'more' utility. A printed copy is available at
-~gdexdata/dssdb/prog_usage/dsarch.usg.
+is displayed using the UNIX 'more' utility.
 
-#The online HTML version of this document is available at
-#http://dss.ucar.edu/internal/docs/dsarch/
+#The online version of this document is available at
+#https://gdex-docs-dsarch.readthedocs.io/en/latest/index.html
 
 
 3 ACTION OPTIONS
@@ -394,7 +393,7 @@ GroupIndex<:>BeginDate<:>EndDate<:>BeginTime<:>EndTime<:>
 
   dsarch d132000 GV -FN ALL -OF d132000.vrsn
 
-<<Content of output file d132000.vrn>>
+<<Content of output file d132000.vrsn>>
 Dataset<=>d132000
 VersionIndex<:>InternalVersion<:>ExternalVersion<:>DOINumber<:>VersionStatus<:>BeginDate<:>BeginTime<:>EndDate<:>EndTime<:>Description<:>
 9<:>1<:><:>10.5065/D6SQ8XDW<:>A<:>2013-03-04<:>14:38:44<:><:><:><:>
@@ -658,7 +657,7 @@ d260001-G2: DS-552780725 DC-522 WC-522 SS-465789806 SC-51
          [-(TG|TopGroupIndex) TopGroupIndices]
          [-(PO|PatternOffset) PatternStringOffset]
          [-(ST|SavedFileType) SavedFileTypes]   # Primary, VersionControl, Work, oRiginal
-         [-(FS|FileStatus) SavedFileStatus]     # Public or Interal file
+         [-(FS|FileStatus) SavedFileStatus]     # Public or Internal file
          [-(FF|FileFlag) FilesOrPaths]          # file type flag, File or Path
          [-(LC|Location) StorageLocationFlags]  # CGD data; Glade, Object or Both
          [-(DF|DataFormat) DataFormats]         # BINARY, ASCII, NetCDF and etc.
@@ -776,7 +775,7 @@ d260001-G2: DS-552780725 DC-522 WC-522 SS-465789806 SC-51
          [-(PO|PatternOffset) PatternStringOffset]
          [-(WT|WebFileType) WebFileTypes]     # Web Data or NCAR Data
          [-(LC|Location) StorageLocationFlags]
-         [-(FS|FileStatus) WebFileStatus]     # Public or interal file
+         [-(FS|FileStatus) WebFileStatus]     # Public or Internal file
          [-(FF|FileFlag) FilesOrPaths]        # file type flag, File or Path
          [-(DF|DataFormat) DataFormats]       # BINARY, ASCII, NetCDF and etc.
          [-(AF|ArchiveFormat) FileArchiveFormats]  # tarred, Compressed and etc.
@@ -918,7 +917,7 @@ IMMA_2.4_2007.tar<:>37<:>IMMA<:>Z.TAR<:>D<:>656820224<:>
          [-(ON|OrderNames) OrderNameString]
          [-(OB|OrderBy) OrderByPattern]
          [-(HT|HelpFileType) HelpFileTypes]     # Document or Software
-         [-(FS|FileStatus) HelpFileStatus]      # Public or Interal file
+         [-(FS|FileStatus) HelpFileStatus]      # Public or Internal file
          [-(FF|FileFlag) FilesOrPaths]          # file type flag, File or Path
          [-(LC|Location) StorageLocationFlags]  # Glade, Object, Both or Remote
          [-(DF|DataFormat) DataFormats]         # Python, PDF, and etc.
@@ -1535,7 +1534,7 @@ IMMA_2.4_2007.tar<:>37<:>IMMA<:>Z.TAR<:>D<:>656820224<:>
 
   dsarch [-(DS|Dataset)] dNNNNNN -(DL|Delete) [Mode Options]
          [-(QF|QuasarFile) QuasarFileNames]
-          -(HT|HelpFileType) HelpFileTypes
+          -(QT|QuasarFileType) QuasarFileTypes
          [-(DD|DeleteDir) DeleteDirLevel]
          [-(LN|LoginName) LoginAccountName]
          [-(DB|Debug) DebugModeInfo]
