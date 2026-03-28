@@ -72,8 +72,8 @@ disk for internal use or NCAR user access is not version-controlled and remains
 the responsibility of the dataset owner.
 
 This document first covers general 'dsarch' usage, then describes each Action
-option in detail, followed by Mode and Info options. Examples are provided
-throughout each section.
+option in detail, followed by Mode and Information (Info for short) options.
+Examples are provided throughout each section.
 
 
 2 GENERAL DSARCH USAGE
@@ -84,9 +84,10 @@ throughout each section.
 
 Brackets [] indicate optional elements. A pipe '|' within parentheses, as in
 (A|B), means either A or B may be used. Options fall into three categories:
-  Action options  - specify what task to execute
-  Mode options    - modify how an action behaves
-  Info options    - supply values to the action
+  Action options - specify what task to execute
+  Mode options   - modify how an action behaves
+  Info options   - supply values to the action
+
 Options may be given in short or long form (e.g., -DS or -Dataset). Some
 options have alias names; for example, -UseRDADB is an alias for -UD
 (-UseDSARCH). Option names are case-insensitive,
@@ -111,10 +112,11 @@ is contained within that file.
 Info options used with GET actions serve as query filters. Four special
 characters enable more precise filtering — they must be quoted or escaped
 on the command line to prevent shell interpretation:
-  '!'   (or \!) — exclude matches; must appear immediately after the option name
-  '<'           — less-than comparison on the following value
-  '>'           — greater-than comparison on the following value
-  '<>'          — range between two values
+   '!' - exclude matches; must appear immediately after the option name
+   '<' - less-than comparison on the following value
+   '>' - greater-than comparison on the following value
+  '<>' - range between two values
+
 Combining '!' and '<' as "'!' '<' OptionValue" expresses a 'greater than or
 equal to OptionValue' condition.
 
@@ -1759,14 +1761,14 @@ take no values — simply include the flag to activate the behavior.
   -AW. The compression tool is selected by the format given via -AF: 'gzip' for
   'GZ', 'compress' for 'Z', 'zip' for 'ZIP', 'bzip' for 'BZ2'. Files already
   in the target format are skipped. Files compressed in a different format are
-  decompressed first (using the tool matched by extension: '.gz', '.Z', '.zip',
-  or '.bz2') before recompressing.
+  uncompressed first (using the tool matched by extension: '.gz', '.Z', '.zip',
+  or '.bz2') before compressed again.
 
 
 5 INFORMATION OPTIONS
 
-Information (Info) options pass data values into 'dsarch'. They come in two
-forms:
+Information (Info for short) options pass data values into 'dsarch'.
+They come in two forms:
   Single-Value Info Options - accept exactly one value per invocation
    Multi-Value Info Options - accept one or more values per invocation
 
