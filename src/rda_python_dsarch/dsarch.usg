@@ -1582,9 +1582,9 @@ IMMA_2.4_2007.tar<:>37<:>IMMA<:>Z.TAR<:>D<:>656820224<:>
   Saved/Web/Help/Quasar file records for a dataset in one step. Equivalent to
   running -SD, -SG, -SS, -SW, -SH, and -SQ together.
 
-  dsarch  -(SA|SetAll) [Mode Options]
-         [-(LN|LoginName) LoginAccountName]
+  dsarch [-(DS|Dataset)] dNNNNNN -(SA|SetAll) [Mode Options]
           -(IF|InputFile) Input Files
+         [-(LN|LoginName) LoginAccountName]
          [-(DB|Debug) DebugModeInfo]
 
   All Mode options applicable to the individual Set actions may be used with
@@ -1830,7 +1830,8 @@ They come in two forms:
   ascending; lowercase means descending. When file records are modified via
   -AS, -AW, -SS, -SW, -DL, or -MV, files in affected groups are reordered too.
 
-  To reorder an existing file list without other changes, use -SW with -ON:
+  For example, to reorder an existing file list without other changes,
+  use -SW with -ON:
 
   dsarch dNNNNNN -SW -ON OrderNameString [-GI GroupIndices]
 
@@ -1853,6 +1854,7 @@ They come in two forms:
     'I' - enabled for internal users only
     'P' - enabled and file lists are published publicly
     'W' - file list publication only
+
   Any value except 'N' must be set before 'dsarch' can write to GDEXDB.
 
   -VS or -ValidSize, the minimum acceptable file size (in bytes) for
@@ -1877,8 +1879,9 @@ They come in two forms:
     'Z'   - compressed
     'GZ'  - gzipped
     'BZ2' - bzip2-compressed
+
   Combine values in processing order, e.g., 'C1.TAR.GZ' = COS ASCII blocked,
-  then tarred, then gzipped. Maximum total length is 10 characters.
+  then tarred, then gzipped. Maximum total length is 20 characters.
 
   -BD or -BeginDate, the earliest date covered by the data, for a group,
   the whole dataset, or a version control record.
@@ -1896,7 +1899,7 @@ They come in two forms:
   or more host names may follow -BP to target or exclude specific hosts
   (e.g., '-d PBS' to use PBS batch hosts). An optional retry limit (1-99)
   can also be specified, e.g., '-d 5'; defaults to 2. Archive actions
-  (-AS, -AW, -AH, -AQ) retry automatically after storage system outages.
+  (-AS, -AW, -AH, -AQ) retry automatically after storage system outage.
 
   -BS or -BackupStatus, the current Quasar backup state for a file:
     'A' - archived to Quasar (complete)
@@ -1950,7 +1953,7 @@ They come in two forms:
   -FF or -FileFlag, specifies whether an entry represents a regular file
   ('F') or a directory path ('P').
 
-  -FS or -FileStatus, the access level of a file: 'P' (public, visible to
+  -FS or -FileStatus, the access level of a file, 'P' (public, visible to
   all users) or 'I' (internal, visible to specialists only).
 
   -FT or -FileTime, the time of day a data file was last modified.
@@ -1973,14 +1976,14 @@ They come in two forms:
   -GP or -GroupPattern, wildcard patterns that 'dsarch' uses to automatically
   assign files to the right group during archiving. Stored per group via -SG.
 
-  -GT or -GroupType (Alias: -GroupDataType), the access level for a group:
+  -GT or -GroupType (Alias: -GroupDataType), the access level for a group,
   'P' (public) or 'I' (internal). Changing from P to I recursively marks
   all nested subgroups and their Web files as internal.
 
   -HF or -HelpFile, the destination names for Help files on the GDEX Server.
   Defaults to the local file names from -LF unless overridden explicitly.
 
-  -HT or -HelpFileType (Alias: -HelpType), the category of a Help file:
+  -HT or -HelpFileType (Alias: -HelpType), the category of a Help file,
   'D' (Document) or 'S' (Software). One value applies to all files in the
   batch.
 
@@ -2014,15 +2017,12 @@ They come in two forms:
   128 characters.
 
   Set a pair:
-
   dsarch d540000 SD -KV 'test=>test it'
 
   View a specific key:
-
   dsarch d540000 GD -KV test
 
   View all pairs:
-
   dsarch d540000 GD -KV all
 
   -LC or -Location (Alias: -LocationFlag), where the file resides:
@@ -2031,6 +2031,7 @@ They come in two forms:
     'O' - Object Store
     'B' - both Glade and Object Store
     'R' - remote URL (Help files only)
+
   At the dataset level (as the online access location), only 'G' or 'O'
   are valid.
 
@@ -2106,6 +2107,7 @@ They come in two forms:
     'W' - Work (working/intermediate file)
     'S' - Scratch (temporary file)
     'V' - Version-controlled (locked under DOI)
+
   One value applies to all files in the batch.
 
   -SZ or -Size, the file size in bytes. Measured automatically from local
@@ -2143,7 +2145,7 @@ They come in two forms:
   with one subdirectory per subgroup level, mirroring the physical layout.
 
   -WT or -WebFileType (Alias: -WebType|-WebArchiveType), the accessibility of
-  a Web file: 'D' (public data) or 'N' (NCAR internal data only). One value
+  a Web file, 'D' (public data) or 'N' (NCAR internal data only). One value
   applies to all files in the batch.
 
   -WU or -WebURL (Alias: -URL|-WebAddress), the full URL of a Help file
