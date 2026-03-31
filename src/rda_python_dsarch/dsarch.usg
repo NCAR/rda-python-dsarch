@@ -113,9 +113,10 @@ Info options used with GET actions serve as query filters. Four special
 characters enable more precise filtering — they must be quoted or escaped
 on the command line to prevent shell interpretation:
    '!' - exclude matches; must appear immediately after the option name
+         (may need escaping as '\!' in some shells due to history expansion)
    '<' - less-than comparison on the following value
    '>' - greater-than comparison on the following value
-  '<>' - range between two values
+   '<>' - range between two values
 
 Combining '!' and '<' as "'!' '<' OptionValue" expresses a 'greater than or
 equal to OptionValue' condition.
