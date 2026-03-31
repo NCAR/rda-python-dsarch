@@ -1761,8 +1761,8 @@ take no values — simply include the flag to activate the behavior.
   -AW. The compression tool is selected by the format given via -AF: 'gzip' for
   'GZ', 'compress' for 'Z', 'zip' for 'ZIP', 'bzip' for 'BZ2'. Files already
   in the target format are skipped. Files compressed in a different format are
-  uncompressed first (using the tool matched by extension: '.gz', '.Z', '.zip',
-  or '.bz2') before compressed again.
+  decompressed first (using the tool matched by extension: '.gz', '.Z', '.zip',
+  or '.bz2') before being recompressed into the target format.
 
 
 5 INFORMATION OPTIONS
