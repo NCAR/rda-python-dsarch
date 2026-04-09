@@ -128,8 +128,8 @@ The description of an individual option is shown when 'dsarch' is run as
 The description is shown for the option placed either before or after -(h|help).
 If no option is given, or 'dsarch' is run without arguments, the full document
 is displayed using the UNIX 'more' utility. A hard copy of this document
-can be printed from the saved file, dsarch.usg, under python package
-rda_python_dsarch.
+can be printed from the saved file, dsarch.usg, in the rda_python_dsarch
+Python package.
 
 #The online version of this document is available at
 #https://gdex-docs-dsarch.readthedocs.io
