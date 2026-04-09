@@ -1,0 +1,16 @@
+# this workflow trigger conversion of dsarch.usg into section*.rst in repository NCAR/gdex-docs-dsarch
+on:
+  pull_request:
+    paths:
+      - 'src/rda_python_dsarch/dsarch.usg'
+
+jobs:
+  trigger_conversion:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Repository Dispatch
+        uses: peter-evans/repository-dispatch@v3
+        with:
+          token: ${{ secrets.DSARCH_USG }}
+          repository: NCAR/gdex-docs-dsarch
+          event-type: trigger-conversion
