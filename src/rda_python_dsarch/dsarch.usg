@@ -2,17 +2,17 @@
 1 INTRODUCTION
 
 'dsarch' is the primary tool for archiving geoscience data onto CISL's Geoscience
-Data Exchange (GDEX) Servers. It records metadata about each dataset — file names,
+Data Exchange (GDEX) Servers. It records metadata for each dataset — file names,
 data periods, file counts, and sizes — in the Geoscience Data Exchange Database
-(GDEXDB). Datasets can be placed under DOI/Version control by assigning a Digital
-Object Identifier (DOI), which links all web data files to a specific version for
-citation and long-term reference. Archived files can be organized into sub-products
-called groups, which nest to any depth. All metadata stored in GDEXDB can be
-retrieved and updated through 'dsarch' as well.
+(GDEXDB). A dataset can be placed under DOI/Version control by assigning a
+Digital Object Identifier (DOI), linking all web data files to a specific
+version for citation and long-term reference. Files can be organized into nested
+sub-products called groups. All metadata stored in GDEXDB can also be retrieved
+and updated through 'dsarch'.
 
-Before using 'dsarch', a dataset must first be registered in GDEXDB through
-Metadata Manager (https://gdex.ucar.edu/metaman/). Once registered,
-'dsarch' can perform the following major functions:
+Before using 'dsarch', register the dataset in GDEXDB through Metadata Manager
+(https://gdex.ucar.edu/metaman/). Once registered, 'dsarch' can perform the
+following major functions:
   - Set up a dataset and its groups/subgroups in GDEXDB to prepare it for
     data archiving
   - Add, update, and terminate DOI/Version controls for a given dataset
@@ -51,14 +51,14 @@ and upload them as tar files to the Quasar server.
 'dsarch' includes safeguards to prevent accidental operations on the wrong
 dataset. Input files must be named starting with the dataset number in the
 format 'dNNNNNN.*', where '*' matches one or more valid filename characters.
-'dsarch' also checks that the specialist running it is an authorized owner of
+'dsarch' also verifies that the specialist running it is an authorized owner of
 the dataset; if not, execution stops — unless Mode option -MD (-MyDataset) is
 supplied, which overrides the ownership check.
 
-If an archive action (-AW, -AS, -AH, -AQ) fails because of a storage system
-outage, 'dsarch' will automatically retry it once the system recovers. This
-retry behavior is only enabled when option -BP (-d) is used to submit the
-action as a background batch process; the retry state is tracked in GDEXDB.
+If an archive action (-AW, -AS, -AH, -AQ) fails due to a storage system outage,
+'dsarch' automatically retries it once the system recovers. Retry behavior is
+enabled only when option -BP (-d) is used to submit the action as a background
+batch process; the retry state is tracked in GDEXDB.
 
 Once added, a DOI/Version control record cannot be removed, but it can be
 terminated when a dataset is retired and its data are no longer current. Even
@@ -84,7 +84,7 @@ Examples are provided throughout each section.
 
 Brackets [] indicate optional elements. A pipe '|' within parentheses, as in
 (A|B), means either A or B may be used. Options fall into three categories:
-  Action options - specify what task to execute
+  Action options - specify the task to execute
   Mode options   - modify how an action behaves
   Info options   - supply values to the action
 
@@ -127,10 +127,12 @@ The description of an individual option is shown when 'dsarch' is run as
 
 The description is shown for the option placed either before or after -(h|help).
 If no option is given, or 'dsarch' is run without arguments, the full document
-is displayed using the UNIX 'more' utility.
+is displayed using the UNIX 'more' utility. A hard copy of this document
+can be printed from the saved file, dsarch.usg, in the rda_python_dsarch
+Python package.
 
 #The online version of this document is available at
-#https://gdex-docs-dsarch.readthedocs.io/en/latest/index.html
+#https://gdex-docs-dsarch.readthedocs.io
 
 
 3 ACTION OPTIONS
@@ -196,7 +198,7 @@ Actions are grouped into seven categories based on the information they handle:
          [-(ED|EndDate) EndOnDates]
          [-(ET|EndTime) EndOnTimes]
 
-  Mode options that can be specified for this action:
+  Available mode options:
         -(MD|MyDataset) - allows any specialist to set GDEXDB information,
                           regardless of dataset ownership
            -(NT|NoTrim) - skips trimming of spaces and comments from input
@@ -208,7 +210,7 @@ Actions are grouped into seven categories based on the information they handle:
 
   Dataset numbers are normally created via the Metadata Manager (MM). Action
   -SD modifies the dataset record and any associated group data periods.
-  Data periods for groups can be modified by 'dsarch', but must be created
+  Data periods for groups can be modified in 'dsarch', but must be created
   or removed through MM.
 
   The web file access location flag is set via -LC (-Location). The default
@@ -231,7 +233,7 @@ Actions are grouped into seven categories based on the information they handle:
          [-(OF|OutputFile) OutputFileName]
          [-(DB|Debug) DebugModeInfo]
 
-  Mode options that can be specified for this action:
+  Available mode options:
     -(FO|FormatOutput) - formats each column to a uniform fixed width
       -(PE|ShowPeriod) - includes associated period information for the dataset
                          and any groups
@@ -315,7 +317,7 @@ GroupIndex<:>BeginDate<:>EndDate<:>BeginTime<:>EndTime<:>
          [-(ET|EndTime) VersionEndTime]
          [-(DE|Description) VersionNote]
 
-  Mode options that can be specified for this action:
+  Available mode options:
    -(MD|MyDataset) - allows any specialist to set GDEXDB information,
                      regardless of dataset ownership
       -(NT|NoTrim) - skips trimming of spaces and comments from input
@@ -323,7 +325,7 @@ GroupIndex<:>BeginDate<:>EndDate<:>BeginTime<:>EndTime<:>
   -(NV|NewVersion) - adds a new version control record to GDEXDB
 
   If a version index is provided and already exists in GDEXDB, the record is
-  modified. A new record is created when no index is given (or it is 0) and Mode
+  updated. A new record is created when no index is given (or it is 0) and Mode
   option -NV (-NewVersion) is present.
 
   A newly created record with no DOI number is in Pending status and can only
@@ -334,8 +336,8 @@ GroupIndex<:>BeginDate<:>EndDate<:>BeginTime<:>EndTime<:>
 
   dsarch d999009 SV -NV -DN DOINumber
 
-  If the data of d999009 are substantially updated to a new version, run the
-  same command with a new DOI number. The previous active record is automatically
+  If d999009's data are substantially updated to a new version, run the same
+  command with a new DOI number. The previous active record is automatically
   moved to History status and its DOI is superseded. Only one active version
   control record may exist per dataset.
 
@@ -348,8 +350,8 @@ GroupIndex<:>BeginDate<:>EndDate<:>BeginTime<:>EndTime<:>
   automatically set to 'V' for Version-controlled). Optionally create a new
   internal version at this point, then archive the replacement Web files.
 
-  Note: Various GDEX use cases are outlined above. Review them so that DOIs in
-  the GDEX are handled consistently.
+  Note: Review the use cases above to ensure DOIs in GDEX are handled
+  consistently.
 
 3.2.2 Get Version Control
   -GV or -GetVersion, retrieves DOI/Version control records from GDEXDB for a
@@ -361,7 +363,7 @@ GroupIndex<:>BeginDate<:>EndDate<:>BeginTime<:>EndTime<:>
          [-(OF|OutputFile) OutputFileName]
          [-(DB|Debug) DebugModeInfo]
 
-  Mode option that can be specified for this action:
+  Available mode option:
     -(FO|FormatOutput) - formats each column to a uniform fixed width
 
   Use -FN (-FieldNames) to specify which version control fields to retrieve.
@@ -403,17 +405,17 @@ VersionIndex<:>InternalVersion<:>ExternalVersion<:>DOINumber<:>VersionStatus<:>B
          [-(LN|LoginName) LoginAccountName]
          [-(DB|Debug) DebugModeInfo]
 
-  Mode options that can be specified for this action:
+  Available mode options:
   -(MD|MyDataset) - allows any specialist to set GDEXDB information,
                     regardless of dataset ownership
      -(NT|NoTrim) - skips trimming of spaces and comments from input
                     values, speeding up input file processing
 
   Provide the version index via -VI and the dataset number via -DS. Termination
-  is blocked if any Web files are still linked to that version. To work around
-  this, first list those files using -GW (-GetWebFile), then either reassign
-  their version index (to 0 or another value) or convert them to Saved files;
-  only then can the version be terminated.
+  is blocked if any Web files are still linked to that version. To resolve this,
+  first list those files using -GW (-GetWebFile), then either reassign their
+  version index (to 0 or another value) or convert them to Saved files; only
+  then can the version be terminated.
 
   For example, to terminate version index 5 of d999009:
 
@@ -453,7 +455,7 @@ VersionIndex<:>InternalVersion<:>ExternalVersion<:>DOINumber<:>VersionStatus<:>B
          [-(LN|LoginName) LoginAccountName]
          [-(DB|Debug) DebugModeInfo]
 
-  Mode options that can be specified for this action:
+  Available mode options:
        -(MD|MyDataset) - allows any specialist to set GDEXDB information,
                          regardless of dataset ownership
           -(NT|NoTrim) - skips trimming of spaces and comments from input
@@ -507,7 +509,7 @@ QSCAT observations.<:>
          [-(OF|OutputFile) OutputFileName]
          [-(DB|Debug) DebugModeInfo]
 
-  Mode options that can be specified for this action:
+  Available mode options:
     -(FO|FormatOutput) - formats each column to a uniform fixed width
   -(RG|RecursiveGroup) - gathers subgroups recursively for a given group index
   -(WN|WithFileNumber) - gathers and displays file counts for groups
@@ -559,7 +561,7 @@ d260001-G2: DS-552780725 DC-522 WC-522 SS-465789806 SC-51
          [-(LN|LoginName) LoginAccountName]
          [-(DB|Debug) DebugModeInfo]
 
-  Mode options that can be specified for this action:
+  Available mode options:
        -(MD|MyDataset) - allows any specialist to set GDEXDB information,
                          regardless of dataset ownership
           -(NT|NoTrim) - skips trimming of spaces and comments from input
@@ -591,7 +593,7 @@ d260001-G2: DS-552780725 DC-522 WC-522 SS-465789806 SC-51
          [-(LN|LoginName) LoginAccountName]
          [-(DB|Debug) DebugModeInfo]
 
-  Mode options that can be specified for this action:
+  Available mode options:
        -(MD|MyDataset) - allows any specialist to set GDEXDB information,
                          regardless of dataset ownership
           -(NT|NoTrim) - skips trimming of spaces and comments from input
@@ -667,7 +669,7 @@ d260001-G2: DS-552780725 DC-522 WC-522 SS-465789806 SC-51
          [-(BP|BatchProcess) [BatchControlInfo]]
          [-(DB|Debug) DebugModeInfo]
 
-  Mode options that can be specified for this action:
+  Available mode options:
    -(BG|BackGround) - runs in background; suppresses screen output and errors
   -(EM|EMailNotice) - sends an email summary (including any errors) when the
                       action completes or aborts
@@ -714,7 +716,7 @@ d260001-G2: DS-552780725 DC-522 WC-522 SS-465789806 SC-51
          [-(OF|OutputFile) OutputFileName]
          [-(DB|Debug) DebugModeInfo]
 
-  Mode options that can be specified for this action:
+  Available mode options:
    -(FO|FormatOutput) - formats each column to a uniform fixed width
  -(RG|RecursiveGroup) - gathers files in subgroups recursively for a given
                         group index
@@ -788,7 +790,7 @@ d260001-G2: DS-552780725 DC-522 WC-522 SS-465789806 SC-51
          [-(BP|BatchProcess) [BatchControlInfo]]
          [-(DB|Debug) DebugModeInfo]
 
-  Mode options that can be specified for this action:
+  Available mode options:
    -(BG|BackGround) - runs in background; suppresses screen output and errors
     -(DX|DeleteXML) - calls 'dcm' to delete content metadata for the specified
                       Web files
@@ -843,7 +845,7 @@ d260001-G2: DS-552780725 DC-522 WC-522 SS-465789806 SC-51
          [-(OF|OutputFile) OutputFileName]
          [-(DB|Debug) DebugModeInfo]
 
-  Mode options that can be specified for this action:
+  Available mode options:
    -(FO|FormatOutput) - formats each column to a uniform fixed width
  -(RG|RecursiveGroup) - gathers files in subgroups recursively for a given
                         group index
@@ -927,7 +929,7 @@ IMMA_2.4_2007.tar<:>37<:>IMMA<:>Z.TAR<:>D<:>656820224<:>
          [-(LN|LoginName) LoginAccountName]
          [-(DB|Debug) DebugModeInfo]
 
-  Mode options that can be specified for this action:
+  Available mode options:
    -(BG|BackGround) - runs in background; suppresses screen output and errors
   -(EM|EMailNotice) - sends an email summary (including any errors) when the
                       action completes or aborts
@@ -947,7 +949,8 @@ IMMA_2.4_2007.tar<:>37<:>IMMA<:>Z.TAR<:>D<:>656820224<:>
   shared value, such as -AF, -DF, and -HT (-HelpFileType).
 
   For remotely hosted Help files (e.g., on GitHub), provide the full URL via
-  -WU (-WebURL) to add a record without a local copy on the GDEX Server.
+  -WU (-WebURL) to register the file in GDEXDB without a local copy on the
+  GDEX Server.
 
 
 3.4.6 Get Help File Information
@@ -969,7 +972,7 @@ IMMA_2.4_2007.tar<:>37<:>IMMA<:>Z.TAR<:>D<:>656820224<:>
          [-(OF|OutputFile) OutputFileName]
          [-(DB|Debug) DebugModeInfo]
 
-  Mode option that can be specified for this action:
+  Available mode option:
    -(FO|FormatOutput) - formats each column to a uniform fixed width
 
   Use -FN (-FieldNames) to specify which Help file fields to retrieve. Defaults
@@ -1025,7 +1028,7 @@ IMMA_2.4_2007.tar<:>37<:>IMMA<:>Z.TAR<:>D<:>656820224<:>
          [-(BP|BatchProcess) [BatchControlInfo]]
          [-(DB|Debug) DebugModeInfo]
 
-  Mode options that can be specified for this action:
+  Available mode options:
    -(BG|BackGround) - runs in background; suppresses screen output and errors
     -(MD|MyDataset) - allows any specialist to set GDEXDB information,
                       regardless of dataset ownership
@@ -1059,7 +1062,7 @@ IMMA_2.4_2007.tar<:>37<:>IMMA<:>Z.TAR<:>D<:>656820224<:>
          [-(OF|OutputFile) OutputFileName]
          [-(DB|Debug) DebugModeInfo]
 
-  Mode option that can be specified for this action:
+  Available mode option:
    -(FO|FormatOutput) - formats each column to a uniform fixed width
 
   Use -FN (-FieldNames) to specify which Quasar file fields to retrieve. Defaults
@@ -1122,7 +1125,7 @@ IMMA_2.4_2007.tar<:>37<:>IMMA<:>Z.TAR<:>D<:>656820224<:>
          [-(DD|DeleteDir) DeleteLocalDirLevel]
          [-(DB|Debug) DebugModeInfo]
 
-  Mode options that can be specified for this action:
+  Available mode options:
     -(BG|BackGround) - runs in background; suppresses screen output and errors
     -(CL|CleanLocal) - removes local files after all are successfully archived
    -(EM|EMailNotice) - sends an email summary (including any errors) when the
@@ -1207,7 +1210,7 @@ IMMA_2.4_2007.tar<:>37<:>IMMA<:>Z.TAR<:>D<:>656820224<:>
          [-(DD|DeleteDir) DeleteLocalDirLevel]
          [-(DB|Debug) DebugModeInfo]
 
-  Mode options that can be specified for this action:
+  Available mode options:
     -(BG|BackGround) - runs in background; suppresses screen output and errors
     -(CL|CleanLocal) - removes local files after all are successfully archived
    -(EM|EMailNotice) - sends an email summary (including any errors) when the
@@ -1290,7 +1293,7 @@ IMMA_2.4_2007.tar<:>37<:>IMMA<:>Z.TAR<:>D<:>656820224<:>
          [-(DD|DeleteDir) DeleteLocalDirLevel]
          [-(DB|Debug) DebugModeInfo]
 
-  Mode options that can be specified for this action:
+  Available mode options:
     -(BG|BackGround) - runs in background; suppresses screen output and errors
     -(CL|CleanLocal) - removes local files after all are successfully archived
    -(EM|EMailNotice) - sends an email summary (including any errors) when the
@@ -1343,7 +1346,7 @@ IMMA_2.4_2007.tar<:>37<:>IMMA<:>Z.TAR<:>D<:>656820224<:>
          [-(BP|BatchProcess) [BatchControlInfo]]
          [-(DB|Debug) DebugModeInfo]
 
-  Mode options that can be specified for this action:
+  Available mode options:
     -(BG|BackGround) - runs in background; suppresses screen output and errors
    -(EM|EMailNotice) - sends an email summary (including any errors) when the
                        action completes or aborts
@@ -1364,9 +1367,9 @@ IMMA_2.4_2007.tar<:>37<:>IMMA<:>Z.TAR<:>D<:>656820224<:>
 
 3.4.13 Restore Quasar Files
   -RQ or -RestoreQuasarFile (Alias: -RestoreQuasar|-RestoreBackupFile|-RestoreBackup),
-  finds the Quasar tar files that contain the specified Saved and/or Web files,
-  downloads them from the Globus Quasar Server, and restores any files that
-  are missing from the GDEX Server.
+  finds the Quasar tar files containing the specified Saved and/or Web files,
+  downloads them from the Globus Quasar Server, and restores any files missing
+  from the GDEX Server.
 
   dsarch [-(DS|dataset)] dNNNNNN -(RQ|RestoreQuasarFile) [Mode Options]
          [-(QF|QuasarFile) QuasarFileNames]
@@ -1379,7 +1382,7 @@ IMMA_2.4_2007.tar<:>37<:>IMMA<:>Z.TAR<:>D<:>656820224<:>
          [-(BP|BatchProcess) [BatchControlInfo]]
          [-(DB|Debug) DebugModeInfo]
 
-  Mode options that can be specified for this action:
+  Available mode options:
     -(BG|BackGround) - runs in background; suppresses screen output and errors
    -(EM|EMailNotice) - sends an email summary (including any errors) when the
                        action completes or aborts
@@ -1398,8 +1401,8 @@ IMMA_2.4_2007.tar<:>37<:>IMMA<:>Z.TAR<:>D<:>656820224<:>
   -MV or -MoveFile, relocates archived files — across datasets, between groups,
   or to a new name. One or more files may be moved per execution.
 
-  When a file's name or path changes, 'dsarch' keeps the original name in GDEXDB
-  as a linked alias pointing to the new name.
+  When a file's name or path changes, 'dsarch' retains the original name in
+  GDEXDB as a linked alias pointing to the new name.
 
   Files can also be converted between types (Web to Saved or Saved to Web)
   using -TS (-ToSaved) or -TW (-ToWeb).
@@ -1471,7 +1474,7 @@ IMMA_2.4_2007.tar<:>37<:>IMMA<:>Z.TAR<:>D<:>656820224<:>
          [-(LN|LoginName) LoginAccountName]
          [-(DB|Debug) DebugModeInfo]
 
-  Mode options that can be specified for this action:
+  Available mode options:
       -(MD|MyDataset) - allows any specialist to set GDEXDB information,
                         regardless of dataset ownership
          -(NT|NoTrim) - skips trimming of spaces and comments from input
@@ -1534,7 +1537,7 @@ IMMA_2.4_2007.tar<:>37<:>IMMA<:>Z.TAR<:>D<:>656820224<:>
          [-(LN|LoginName) LoginAccountName]
          [-(DB|Debug) DebugModeInfo]
 
-  Mode options that can be specified for this action:
+  Available mode options:
      -(DX|DeleteXML) - calls 'dcm' to delete content metadata for the Web files
                        being deleted
    -(EM|EMailNotice) - sends an email summary (including any errors) when the
@@ -1604,7 +1607,7 @@ IMMA_2.4_2007.tar<:>37<:>IMMA<:>Z.TAR<:>D<:>656820224<:>
 
 3.6.1 Regenerate Dataset Webpages
   -UW or -UpdateWeb, rebuilds the main and filelist webpages for the specified
-  dataset so they reflect the current state of GDEXDB.
+  dataset to reflect the current state of GDEXDB.
 
   dsarch [-(DS|Dataset)] dNNNNNN -(UW|UpdateWeb)
          [-(DB|Debug) DebugModeInfo]
@@ -1953,7 +1956,7 @@ They come in two forms:
   -FF or -FileFlag, specifies whether an entry represents a regular file
   ('F') or a directory path ('P').
 
-  -FS or -FileStatus, the access level of a file, 'P' (public, visible to
+  -FS or -FileStatus, the access level of a file: 'P' (public, visible to
   all users) or 'I' (internal, visible to specialists only).
 
   -FT or -FileTime, the time of day a data file was last modified.
@@ -1976,14 +1979,14 @@ They come in two forms:
   -GP or -GroupPattern, wildcard patterns that 'dsarch' uses to automatically
   assign files to the right group during archiving. Stored per group via -SG.
 
-  -GT or -GroupType (Alias: -GroupDataType), the access level for a group,
+  -GT or -GroupType (Alias: -GroupDataType), the access level for a group:
   'P' (public) or 'I' (internal). Changing from P to I recursively marks
   all nested subgroups and their Web files as internal.
 
   -HF or -HelpFile, the destination names for Help files on the GDEX Server.
   Defaults to the local file names from -LF unless overridden explicitly.
 
-  -HT or -HelpFileType (Alias: -HelpType), the category of a Help file,
+  -HT or -HelpFileType (Alias: -HelpType), the category of a Help file:
   'D' (Document) or 'S' (Software). One value applies to all files in the
   batch.
 
@@ -2094,7 +2097,7 @@ They come in two forms:
   used by default. For -SG and -SD, this value is written to GDEXDB.
 
   Keeping Saved paths accurate is important: NCAR users browse data through
-  'rdals' using these paths. Each top-level group should map to one directory,
+  'gdexls' using these paths. Each top-level group should map to one directory,
   with one subdirectory per subgroup level, mirroring the physical layout.
 
   -SR or -Source, the person, team, or organization that contributed or
@@ -2141,13 +2144,13 @@ They come in two forms:
   by default. For -SG and -SD, this value is written to GDEXDB.
 
   Keeping Web paths accurate is important: NCAR users browse data through
-  'rdals' using these paths. Each top-level group should map to one directory,
+  'gdexls' using these paths. Each top-level group should map to one directory,
   with one subdirectory per subgroup level, mirroring the physical layout.
 
   -WT or -WebFileType (Alias: -WebType|-WebArchiveType), the accessibility of
-  a Web file, 'D' (public data) or 'N' (NCAR internal data only). One value
+  a Web file: 'D' (public data) or 'N' (NCAR internal data only). One value
   applies to all files in the batch.
 
   -WU or -WebURL (Alias: -URL|-WebAddress), the full URL of a Help file
   hosted remotely (e.g., on GitHub). Use with -SH (-SetHelpFile) to register
-  the file in GDEXDB without needing a local copy on the GDEX Server.
+  the file in GDEXDB without a local copy on the GDEX Server.
