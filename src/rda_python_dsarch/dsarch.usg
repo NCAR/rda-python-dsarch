@@ -4,11 +4,11 @@
 'dsarch' is the primary tool for archiving geoscience data onto CISL's Geoscience
 Data Exchange (GDEX) Servers. It records metadata for each dataset — file names,
 data periods, file counts, and sizes — in the Geoscience Data Exchange Database
-(GDEXDB). Assign a Digital Object Identifier (DOI) to place a dataset under
-DOI/Version control, linking all web data files to a specific version for citation
-and long-term reference. Files can be organized into nested sub-products called
-groups. All metadata stored in GDEXDB can also be retrieved and updated through
-'dsarch'.
+(GDEXDB). A dataset can be placed under DOI/Version control by assigning a
+Digital Object Identifier (DOI), linking all web data files to a specific
+version for citation and long-term reference. Files can be organized into nested
+sub-products called groups. All metadata stored in GDEXDB can also be retrieved
+and updated through 'dsarch'.
 
 Before using 'dsarch', register the dataset in GDEXDB through Metadata Manager
 (https://gdex.ucar.edu/metaman/). Once registered, 'dsarch' can perform the
