@@ -18,7 +18,7 @@ following major functions:
   - Add, update, and terminate DOI/Version controls for a given dataset
   - Archive data files by copying them from the working area to GDEX Servers
   - Call 'gatherxml' to evaluate file content metadata for archived files
-  - Cross-archive data files by duplicating them between Object Stores and GDEX
+  - Cross-archive data files by duplicating them between bOreas and GDEX
     Data Disk Servers
   - Save file information for archived data into GDEXDB
   - Retrieve dataset, group, and file information stored in GDEXDB
@@ -173,7 +173,7 @@ Actions are grouped into seven categories based on the information they handle:
 
   dsarch [-(DS|Dataset)] dNNNNNN [-](SD|SetDataset) [Mode Options]
          [-(UD|UseDSARCH) UseDSARCHFlag]   # Y, P, W, I, or N
-         [-(LC|Location) AccessLocationFlag]   # C - CGD, G - Glade, O - Object Store
+         [-(LC|Location) AccessLocationFlag]   # C - CGD, G - Glade, O - bOreas
          [-(BF|BackupFlag) QuasarBackupFlag]   # B - Backup, D - Backup & Drdata
          [-(DA|AccessFlag) DataAccessFlags]    # B - Both, C - Complete, F - Faceted, or N - No
          [-(DF|DataFormat) DataFormat]         # BINARY, ASCII, NetCDF and etc.
@@ -215,7 +215,7 @@ Actions are grouped into seven categories based on the information they handle:
 
   The web file access location flag is set via -LC (-Location). The default
   is 'G' (Glade Disk) when any web data files exist. The default becomes 'O'
-  if all web files reside on Object Store, or 'C' if all are at the CGD data
+  if all web files reside on bOreas, or 'C' if all are at the CGD data
   path.
 
   For example, to set the UseDSARCH flag, reset file counts and data size, and
@@ -1326,7 +1326,7 @@ IMMA_2.4_2007.tar<:>37<:>IMMA<:>Z.TAR<:>D<:>656820224<:>
   and -HT (-HelpFileType).
 
   The storage location is set via -LC (-Location). Defaults to 'B' (both Web
-  Disk and Object Store).
+  Disk and bOreas).
 
 3.4.12 Backup Quasar Files
   -AQ or -ArchiveQuasarFile (Alias: -ArchiveQuasar|-ArchiveBackupFile|-ArchiveBackup),
@@ -1755,7 +1755,7 @@ take no values — simply include the flag to activate the behavior.
   calculated on the fly and included in the output.
 
   -XC or -CrossCopy, used with -AW or -AS to fill gaps in storage: copies
-  files from Glade disk to Object Store (or vice versa) wherever copies are
+  files from Glade disk to bOreas (or vice versa) wherever copies are
   missing.
 
   -XM or -CrossMove, like -XC but moves instead of copying — the original
@@ -2031,8 +2031,8 @@ They come in two forms:
   -LC or -Location (Alias: -LocationFlag), where the file resides:
     'C' - CGD data path
     'G' - Glade Disk (NCAR HPC filesystem)
-    'O' - Object Store
-    'B' - both Glade and Object Store
+    'O' - bOreas
+    'B' - both Glade and bOreas
     'R' - remote URL (Help files only)
 
   At the dataset level (as the online access location), only 'G' or 'O'
