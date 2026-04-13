@@ -2030,7 +2030,7 @@ They come in two forms:
 
   -LC or -Location (Alias: -LocationFlag), where the file resides:
     'C' - CGD data path
-    'G' - Glade Disk (NCAR HPC filesystem)
+    'G' - Glade Disk (NCAR HPC file system)
     'O' - bOreas
     'B' - both Glade and bOreas
     'R' - remote URL (Help files only)
