@@ -3,9 +3,8 @@
 #
 on:
   pull_request:
-    branches: [ "main" ]
-#    paths:
-#      - 'src/rda_python_dsarch/dsarch.usg'
+    paths:
+      - 'src/rda_python_dsarch/dsarch.usg'
 
 jobs:
   trigger_conversion:
