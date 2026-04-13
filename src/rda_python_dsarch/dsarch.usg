@@ -208,10 +208,10 @@ Actions are grouped into seven categories based on the information they handle:
      -(WM|WithMetadata) - re-gathers Web file content metadata at dataset level
    -(WN|WithFileNumber) - re-evaluates and resets file counts
 
-  Dataset numbers are normally created via the Metadata Manager (MM). Action
+  Dataset numbers are normally created via the Metadata Manager. Action
   -SD modifies the dataset record and any associated group data periods.
   Data periods for groups can be modified in 'dsarch', but must be created
-  or removed through MM.
+  or removed through Metadata Manager.
 
   The web file access location flag is set via -LC (-Location). The default
   is 'G' (Glade Disk) when any web data files exist. The default becomes 'O'
