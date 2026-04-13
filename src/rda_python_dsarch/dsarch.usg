@@ -2030,7 +2030,7 @@ They come in two forms:
 
   -LC or -Location (Alias: -LocationFlag), where the file resides:
     'C' - CGD data path
-    'G' - Glade Disk (NCAR HPC filesystem)
+    'G' - Glade Disk (NCAR HPC file system)
     'O' - bOreas
     'B' - both Glade and bOreas
     'R' - remote URL (Help files only)
@@ -2129,7 +2129,7 @@ They come in two forms:
   -VI or -VersionIndex, the numeric identifier of a specific DOI/Version
   control record for a dataset.
 
-  -VT or -VersionStatus, the lifecycle state of a version control record:
+  -VT or -VersionStatus, the life cycle state of a version control record:
   'A' (Active), 'P' (Pending — no DOI yet), or 'H' (History — terminated).
 
   -WF or -WebFile, the destination names for Web files on the GDEX Server.
