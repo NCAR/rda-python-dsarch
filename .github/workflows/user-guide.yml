@@ -1,4 +1,5 @@
-# this workflow trigger conversion of dsarch.usg into section*.rst in repository NCAR/gdex-docs-dsarch
+# this workflow trigger conversion of dsarch.usg, if it is changed, into section*.rst in repository
+# NCAR/gdex-docs-dsarch
 on:
   pull_request:
     branches: [ "main" ]
