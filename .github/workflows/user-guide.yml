@@ -1,8 +1,9 @@
 # this workflow trigger conversion of dsarch.usg into section*.rst in repository NCAR/gdex-docs-dsarch
 on:
   pull_request:
-    paths:
-      - 'src/rda_python_dsarch/dsarch.usg'
+    branches: [ "main" ]
+#    paths:
+#      - 'src/rda_python_dsarch/dsarch.usg'
 
 jobs:
   trigger_conversion:
