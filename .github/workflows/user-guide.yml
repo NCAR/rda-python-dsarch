@@ -14,5 +14,5 @@ jobs:
           token: ${{ secrets.DSARCH_USG }}
           repository: NCAR/gdex-docs-dsarch
           event-type: trigger-conversion
-          client-payload: '{"branch": ${{ github.event.pull_request.head.ref }}}'
+          client-payload: '{"branch":"${{ github.event.pull_request.head.ref }}"}'
           
