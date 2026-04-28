@@ -2,16 +2,15 @@
 # NCAR/gdex-docs-dsarch
 on:
   pull_request:
-    branches: [ "main" ]
-#    paths:
-#      - 'src/rda_python_dsarch/dsarch.usg'
+    paths:
+      - 'src/rda_python_dsarch/dsarch.usg'
 
 jobs:
   trigger_conversion:
     runs-on: ubuntu-latest
     steps:
       - name: Repository Dispatch
-        uses: peter-evans/repository-dispatch@v3
+        uses: peter-evans/repository-dispatch@v4
         with:
           token: ${{ secrets.DSARCH_USG }}
           repository: NCAR/gdex-docs-dsarch
