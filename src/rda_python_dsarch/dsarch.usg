@@ -2062,7 +2062,7 @@ They come in two forms:
   -DB or -Debug, enables debug logging. Up to 3 values may be
   given: debug level (required), log file path, and log file name.
   The level can be a single integer (e.g., 1000) or a range
-  (e.g., 200-1000). Defaults: log path '$DECSHOME/dssdb/log', file
+  (e.g., 200-1000). Defaults: log path '$DSSHOME/dssdb/log', file
   name 'mydss.dbg'.
 
   -DE or -Description (Alias: -Desc|-Note|-FileDesc|-FileDescription),
