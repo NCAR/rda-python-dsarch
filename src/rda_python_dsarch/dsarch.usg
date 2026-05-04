@@ -2010,7 +2010,7 @@ They come in two forms:
   A multi-value Info option accepts a list of one or more values.
   Supplying zero values causes an error.
 
-  -AF or -ArchiveFormat (Alias: -FF|-FileFormat|-ExternalFormat),
+  -AF or -ArchiveFormat (Alias: -FF|-FileFormat),
   describes how a data file has been packaged or compressed.
   Recognized values:
     'BI'  - binary (COS) blocked
@@ -2071,7 +2071,7 @@ They come in two forms:
   containing spaces on the command line. With version control
   actions (-SV), this becomes the version note.
 
-  -DF or -DataFormat (Alias: -TF|-ContentFormat|-InternalFormat),
+  -DF or -DataFormat (Alias: -TF|-ContentFormat),
   the scientific format of the data content (e.g., NetCDF, IMMA,
   BINARY). A dataset-level default can be set via -SD and is applied
   automatically when no format is specified at archive time.
