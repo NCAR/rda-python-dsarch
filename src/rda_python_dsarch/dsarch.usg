@@ -866,6 +866,8 @@ d260001-G2: DS-552780725 DC-522 WC-522 SS-465789806 SC-51
                       processing, used with -GX (-GatherXML)
   -(SC|SetChecksum) - computes MD5 checksums for files on the GDEX
                       Server and saves them to GDEXDB
+ -(WS|WithFileSize) - gathers file size information for Web files on the GDEX
+                      Server and saves them to GDEXDB
 
   Web file names must be provided via -WF (-WebFile) unless -ON
   (-OrderNames) is used to reorder files. The number of values supplied
@@ -1877,6 +1879,10 @@ behavior.
   counts for the dataset and any specified groups. With -GD
   (-GetDataset), the counts are calculated on the fly and included
   in the output.
+
+  -WS or -WithFileSize, rechecks Web file sizes and timestamps for
+  provided web files with -WF (-WebFile), and updates them into GDEXDB
+  This Mode option works with action -SW (SetWebFile) only.
 
   -XC or -CrossCopy, used with -AW or -AS to fill gaps in storage:
   copies files from Glade disk to bOreas (or vice versa) wherever

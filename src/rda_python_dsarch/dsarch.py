@@ -2645,7 +2645,7 @@ class DsArch(PgArch, PgMeta):
       if 'RO' in self.params and 'DO' in self.params:
          self.params['DO'][i] = self.get_next_disp_order(dsid, gindex)
       record = self.build_record(flds, pgrec, tname, i)
-      if pgrec and (pgrec['status'] == 'D' or self.PGOPT['ACTS']&self.OPTS['AW'][0]):
+      if pgrec and (pgrec['status'] == 'D' or 'WS' in self.params or self.PGOPT['ACTS']&self.OPTS['AW'][0]):
          record['uid'] = self.PGOPT['UID']
          if not (info and info['date_modified']):
             info = self.check_local_file(self.get_web_path(i, file, 1, type),
