@@ -126,6 +126,7 @@ class PgArch(PgOPT, PgCMD, PgSplit):
          'WC' : [0, 'WithChecksum',  0],
          'WM' : [0, 'WithMetadata',  3],
          'WN' : [0, 'WithFileNumber',3],
+         'WS' : [0, 'WithFileSize',  3],
          'XC' : [0, 'CrossCopy',     1],
          'XM' : [0, 'CrossMove',     1],
          'ZD' : [0, 'ZipData',       3],
