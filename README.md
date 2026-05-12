@@ -51,3 +51,14 @@ pywrapper-install --link dsarch --simple
 
 This creates `bin/dsarch -> bin/setuid_dsarch` and the program runs as the
 current user with no privilege change.
+
+### Setup guide
+
+After `pip install`, run `dsarch-setup` at any time to display the setup guide:
+
+```bash
+dsarch-setup
+```
+
+The guide is also shown automatically if `setuid_dsarch` is invoked directly
+before the setuid wrapper has been configured.
