@@ -20,6 +20,7 @@ classifiers = [
 dependencies = [
   "rda_python_common",
   "rda_python_setuid",
+  "rda_python_miscs",
 ]
 
 [tool.pytest.ini_options]
