@@ -33,3 +33,4 @@ pythonpath = [
 
 [project.scripts]
 "setuid_dsarch" = "rda_python_dsarch.dsarch:main"
+"dsarch-setup" = "rda_python_dsarch.dsarch_setup:main"

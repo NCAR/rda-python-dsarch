@@ -4957,6 +4957,10 @@ def main():
    Instantiates DsArch, parses arguments via read_parameters(), executes the
    requested action via start_actions(), and exits cleanly.
    """
+   import sys
+   if os.path.basename(sys.argv[0]) == 'setuid_dsarch':
+      from rda_python_dsarch.dsarch_setup import main as setup_main
+      setup_main()
    object = DsArch()
    object.read_parameters()
    object.start_actions()
