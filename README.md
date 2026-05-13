@@ -33,10 +33,10 @@ Run these steps once per environment after `pip install`:
 
 ```bash
 # Compile the pywrapper C binary (once per environment):
-pywrapper-install --user gdexdata
+pywrapper-install -u gdexdata
 
 # Wire up dsarch as a setuid entry:
-pywrapper-install --link dsarch --user gdexdata
+pywrapper-install -l dsarch -u gdexdata
 ```
 
 `pywrapper-install` with no arguments displays the full user guide.
@@ -46,7 +46,7 @@ pywrapper-install --link dsarch --user gdexdata
 Users who do not need the setuid mechanism can create a direct symlink instead:
 
 ```bash
-pywrapper-install --link dsarch --simple
+pywrapper-install -l dsarch -s
 ```
 
 This creates `bin/dsarch -> bin/setuid_dsarch` and the program runs as the
