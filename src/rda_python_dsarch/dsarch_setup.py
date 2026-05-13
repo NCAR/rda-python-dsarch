@@ -45,15 +45,15 @@ SETUP_GUIDE = """
  ------------------------------------------------------
 
    # Compile the pywrapper C binary (once per environment):
-   pywrapper-install --user gdexdata
+   pywrapper-install -u gdexdata
 
    # Wire up dsarch as a setuid entry:
-   pywrapper-install --link dsarch --user gdexdata
+   pywrapper-install -l dsarch -u gdexdata
 
  Simple Install (no sudo required, runs as current user)
  -------------------------------------------------------
 
-   pywrapper-install --link dsarch --simple
+   pywrapper-install -l dsarch -s
 
    This creates bin/dsarch -> bin/setuid_dsarch.
    The program runs as the current user with no privilege change.
