@@ -4,6 +4,40 @@ Python project to archive and maintain datasets for the [NSF NCAR Geoscience Dat
 
 The user guide for this utility tool can be viewed at: [User guide](https://gdex-docs-dsarch.readthedocs.io).
 
+## Code overview
+
+The package is built around three Python modules in `src/rda_python_dsarch/`:
+
+- **`dsarch.py`** — Command-line entry point.  Defines `DsArch`, the action
+  class that inherits from `PgArch` and `PgMeta`.  Its two driver methods
+  `read_parameters()` and `start_actions()` parse the CLI and dispatch to
+  the matching handler (archive, get, set, move, delete, restore) for web,
+  saved, help, and Quasar-backup files, plus dataset, group, and version
+  metadata.  After the primary action, it also performs cross-cutting
+  follow-up: dataset period updates, file-count resets (`-WN`/`-WM`/`-RT`),
+  final logging, and optional email notification.
+
+- **`pg_arch.py`** — Shared state and helpers.  Defines the `PgArch` mixin
+  (extends `PgOPT`, `PgCMD`, `PgSplit` from `rda_python_common`).  Holds the
+  master `OPTS` table that maps short action codes (e.g. `AW`, `GD`, `SG`,
+  `RQ`) to their bit flags, names, and write-mode levels; the runtime path
+  cache (`RTPATH`, `webpaths`, `savedpaths`); and group-type/display-order
+  caches.  Provides the utility methods used across all actions: SQL
+  condition building, path resolution, file-name validation, and dataset/
+  group metadata caching.
+
+- **`pg_meta.py`** — File-count bookkeeping and metadata-XML queueing.
+  Defines the `PgMeta` mixin (extends `PgCMD`, `PgSplit`).  Tracks pending
+  changes to per-dataset/per-group file counts in `GCOUNTS` (a 13-slot
+  array covering MSS, web-D/N, and saved buckets) and flushes them to RDADB
+  in batch.  Maintains `META`, a queue of metadata operations dispatched
+  to the external tools `gatherxml`, `dcm`, `rcm`, `scm`, and `sml`.  Also
+  provides `switch_logfile()` for redirecting per-action log/error output.
+
+The inheritance chain is `DsArch -> PgArch -> PgMeta -> PgCMD/PgSplit`, so
+`DsArch` instances expose every option, path, count, and database helper
+through a single object.
+
 ## Setuid Setup
 
 `dsarch` is executed as the common user `gdexdata` via the `rda_python_setuid`
@@ -62,3 +96,15 @@ dsarch-setup
 
 The guide is also shown automatically if `setuid_dsarch` is invoked directly
 before the setuid wrapper has been configured.
+
+## Documentation sync
+
+The user guide rendered at
+[gdex-docs-dsarch.readthedocs.io](https://gdex-docs-dsarch.readthedocs.io) is
+generated from `src/rda_python_dsarch/dsarch.usg` in this repository.  When a
+pull request that modifies `dsarch.usg` is merged here, an automated workflow
+converts the updated `dsarch.usg` into the RST-format source files in the
+[gdex-docs-dsarch](https://github.com/NCAR/gdex-docs-dsarch) repository and
+opens a pull request there with the regenerated docs, ready for review and
+merge.  No manual RST editing is required — keep all user-facing content in
+`dsarch.usg` and let the sync produce the docs.
