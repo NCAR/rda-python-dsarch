@@ -38,6 +38,32 @@ The inheritance chain is `DsArch -> PgArch -> PgMeta -> PgCMD/PgSplit`, so
 `DsArch` instances expose every option, path, count, and database helper
 through a single object.
 
+## Installing rda-python-common
+
+For local development, clone this repo alongside your project and install it
+in editable mode so that changes are picked up without re-installing:
+
+```bash
+git clone https://github.com/NCAR/rda-python-common.git
+cd rda-python-common
+pip install -e .
+```
+
+For a regular (non-editable) install from a checkout:
+
+```bash
+pip install /path/to/rda-python-common
+```
+
+For a production install on a system that uses the published distribution:
+
+```bash
+pip install rda_python_common
+```
+
+The package brings in its own transitive dependencies (`psycopg2-binary`,
+`rda-python-globus`, `unidecode`, `hvac`).
+
 ## Setuid Setup
 
 `dsarch` is executed as the common user `gdexdata` via the `rda_python_setuid`
