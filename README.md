@@ -38,32 +38,61 @@ The inheritance chain is `DsArch -> PgArch -> PgMeta -> PgCMD/PgSplit`, so
 `DsArch` instances expose every option, path, count, and database helper
 through a single object.
 
-## Setuid Setup
+## Environment setup
 
-`dsarch` is executed as the common user `gdexdata` via the `rda_python_setuid`
-setuid mechanism.  `rda_python_setuid` is declared as a dependency and is
-installed automatically with this package.
+Create a Python environment first; package installs in the next section run
+inside whichever environment you activate here.
 
-### Environment setup
-
-#### Option A — Python venv (DECS machines)
+### Option A — Python venv (DECS machines)
 
 ```bash
 python3 -m venv $ENVHOME          # e.g. /glade/u/home/gdexdata/gdexmsenv
 source $ENVHOME/bin/activate
-pip install rda_python_dsarch
 ```
 
-#### Option B — Conda (DAV/Casper)
+### Option B — Conda (DAV/Casper)
 
 ```bash
+conda create -n pg-gdex python=3.12
 conda activate pg-gdex            # e.g. /glade/work/gdexdata/conda-envs/pg-gdex
+```
+
+## Installing rda-python-dsarch
+
+Pick whichever install mode fits your workflow.  All three pull in the
+transitive dependencies (`rda_python_common`, `rda_python_setuid`,
+`rda_python_miscs`) automatically.
+
+For local development, clone this repo alongside your project and install it
+in editable mode so that changes are picked up without re-installing:
+
+```bash
+git clone https://github.com/NCAR/rda-python-dsarch.git
+cd rda-python-dsarch
+pip install -e .
+```
+
+For a regular (non-editable) install from a checkout:
+
+```bash
+pip install /path/to/rda-python-dsarch
+```
+
+For a production install on a system that uses the published distribution:
+
+```bash
 pip install rda_python_dsarch
 ```
+
+## Setuid Setup
+
+`dsarch` is executed as the common user `gdexdata` via the `rda_python_setuid`
+setuid mechanism, which is pulled in automatically as a dependency.  After
+`pip install` above, choose one of the wiring options below.
 
 ### Full setuid install (requires sudo access to gdexdata)
 
-Run these steps once per environment after `pip install`:
+Run these steps once per environment:
 
 ```bash
 # Compile the pywrapper C binary (once per environment):
@@ -107,32 +136,6 @@ dsarch-setup
 
 The guide is also shown automatically if `setuid_dsarch` is invoked directly
 before the setuid wrapper has been configured.
-
-## Installing rda-python-dsarch
-
-For local development, clone this repo alongside your project and install it
-in editable mode so that changes are picked up without re-installing:
-
-```bash
-git clone https://github.com/NCAR/rda-python-dsarch.git
-cd rda-python-dsarch
-pip install -e .
-```
-
-For a regular (non-editable) install from a checkout:
-
-```bash
-pip install /path/to/rda-python-dsarch
-```
-
-For a production install on a system that uses the published distribution:
-
-```bash
-pip install rda_python_dsarch
-```
-
-The package brings in its own transitive dependencies (`rda_python_common`,
-`rda_python_setuid`, `rda_python_miscs`).
 
 ## Documentation sync
 
