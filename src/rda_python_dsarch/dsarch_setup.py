@@ -45,18 +45,28 @@ SETUP_GUIDE = """
  ------------------------------------------------------
 
    # Compile the pywrapper C binary (once per environment):
-   pywrapper-install -c|--compile -u|--user gdexdata
+   pywrapper-install -c|--compile -n|--username gdexdata
 
-   # Wire up dsarch as a setuid entry:
-   pywrapper-install -l|--link dsarch -u|--user gdexdata
+   # Wire up dsarch as a setuid entry (or use 'all' to link every setuid_* at once):
+   pywrapper-install -l|--link dsarch
+   pywrapper-install -l|--link all
 
  Simple Install (no sudo required, runs as current user)
  -------------------------------------------------------
 
    pywrapper-install -l|--link dsarch -s|--simple
+   pywrapper-install -l|--link all -s|--simple
 
    This creates bin/dsarch -> bin/setuid_dsarch.
    The program runs as the current user with no privilege change.
+
+ Update Existing Installation (no sudo required)
+ -----------------------------------------------
+
+   pywrapper-install -u|--update
+
+   Recompiles pywrapper and reinstalls all pgstart_* setuid binaries
+   using the existing pgstart_* binaries already in bin/.
 
 """
 

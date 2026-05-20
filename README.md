@@ -67,10 +67,11 @@ Run these steps once per environment after `pip install`:
 
 ```bash
 # Compile the pywrapper C binary (once per environment):
-pywrapper-install -c|--compile -u|--user gdexdata
+pywrapper-install -c|--compile -n|--username gdexdata
 
-# Wire up dsarch as a setuid entry:
-pywrapper-install -l|--link dsarch -u|--user gdexdata
+# Wire up dsarch as a setuid entry (or use 'all' to link every setuid_* at once):
+pywrapper-install -l|--link dsarch
+pywrapper-install -l|--link all
 ```
 
 `pywrapper-install` with no arguments displays the full user guide.
@@ -81,10 +82,20 @@ Users who do not need the setuid mechanism can create a direct symlink instead:
 
 ```bash
 pywrapper-install -l|--link dsarch -s|--simple
+pywrapper-install -l|--link all -s|--simple   # or link every setuid_* at once
 ```
 
 This creates `bin/dsarch -> bin/setuid_dsarch` and the program runs as the
 current user with no privilege change.
+
+### Update an existing installation (no sudo required)
+
+When the package is upgraded and a new `pywrapper.c` is bundled, recompile and
+reinstall all setuid binaries using the existing `pgstart_*` binaries:
+
+```bash
+pywrapper-install -u|--update
+```
 
 ### Setup guide
 
