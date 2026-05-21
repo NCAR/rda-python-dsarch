@@ -137,14 +137,8 @@ pywrapper-install -u|--update
 
 ### Setup guide
 
-After `pip install`, run `dsarch-setup` at any time to display the setup guide:
-
-```bash
-dsarch-setup
-```
-
-The guide is also shown automatically if `setuid_dsarch` is invoked directly
-before the setuid wrapper has been configured.
+The shared setuid setup guide is shown automatically if `setuid_dsarch` is
+invoked directly before the setuid wrapper has been configured.
 
 ## Documentation sync
 
