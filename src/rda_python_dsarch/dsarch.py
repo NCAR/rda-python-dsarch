@@ -3204,7 +3204,6 @@ class DsArch(PgArch, PgMeta):
       tmpds = tmpgs = None
       bidx = chksize = 0
       bucket = self.PGLOG['OBJCTBKT']
-      rcnt = len(self.PGLOG['WEBHOSTS'])
       s = 's' if self.ALLCNT > 1 else ''
       if 'OD' not in self.params:
          self.params['OD'] = dsid
@@ -3353,7 +3352,6 @@ class DsArch(PgArch, PgMeta):
       tmpds = None
       bidx = chksize = 0
       bucket = self.PGLOG['OBJCTBKT']
-      rcnt = len(self.PGLOG['WEBHOSTS'])
       s = 's' if self.ALLCNT > 1 else ''
       if 'OD' not in self.params:
          self.params['OD'] = dsid
@@ -3632,7 +3630,6 @@ class DsArch(PgArch, PgMeta):
       bucket = self.PGLOG['OBJCTBKT']
       s = 's' if self.ALLCNT > 1 else ''
       bidx = chksize = 0
-      rcnt = len(self.PGLOG['WEBHOSTS'])
       self.pglog("Delete {} Web file{} from {} ...".format(self.ALLCNT, s, dsid), self.WARNLG)
       reorder = metatotal = metacnt = dcnt = mcnt = ocnt = wcnt = 0
       self.cache_group_info(self.ALLCNT, 0)
@@ -3741,7 +3738,6 @@ class DsArch(PgArch, PgMeta):
       dcnd = "dsid = '{}'".format(dsid)
       s = 's' if self.ALLCNT > 1 else ''
       bidx = chksize = 0
-      rcnt = len(self.PGLOG['WEBHOSTS'])
       self.pglog("Delete {} Help file{} from {} ...".format(self.ALLCNT, s, dsid), self.WARNLG)
       reorder = dcnt = hcnt = ocnt = mcnt = 0
       self.cache_group_info(self.ALLCNT, 0)
@@ -3787,9 +3783,7 @@ class DsArch(PgArch, PgMeta):
             if pgrec['url']:
                fcnt = 1
             else:
-               fcnt = 0
-               for j in range(rcnt):
-                  fcnt += self.delete_local_file(afile, self.PGOPT['emerol'])
+               fcnt = self.delete_local_file(afile, self.PGOPT['emerol'])
             if fcnt:
                hcnt += 1
                hflag = 0
