@@ -53,13 +53,13 @@ source $ENVHOME/bin/activate
 ### Option B — Conda (DAV/Casper)
 
 ```bash
-conda create -n pg-gdex python=3.12
-conda activate pg-gdex            # e.g. /glade/work/gdexdata/conda-envs/pg-gdex
+conda create --prefix $ENVHOME python=3.12   # e.g. /glade/work/gdexdata/conda-envs/pg-gdex
+conda activate $ENVHOME
 ```
 
 ## Installing rda-python-dsarch
 
-Pick whichever install mode fits your workflow.  All three pull in the
+Pick whichever install mode fits your workflow.  All four pull in the
 transitive dependencies (`rda_python_common`, `rda_python_setuid`,
 `rda_python_miscs`) automatically.
 
