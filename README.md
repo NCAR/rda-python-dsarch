@@ -95,21 +95,28 @@ pip install rda_python_dsarch
 
 ## Setuid Setup
 
-`dsarch` is executed as the common user `gdexdata` via the `rda_python_setuid`
-setuid mechanism, which is pulled in automatically as a dependency.  After
-`pip install` above, choose one of the wiring options below.
+`dsarch` is executed as the common user `PGLOG['COMMONUSER']` (default
+`gdexdata`) via the `rda_python_setuid` setuid mechanism, which is pulled
+in automatically as a dependency.  After `pip install` above, choose one
+of the wiring options below.
 
-### Full setuid install (requires sudo access to gdexdata)
+### Full setuid install (requires sudo access to COMMONUSER)
 
 Run these steps once per environment:
 
 ```bash
-# Compile the pywrapper C binary (once per environment):
+# 1. Compile the pywrapper C binary (once per environment):
 pywrapper-install -c|--compile -n|--username gdexdata
 
-# Wire up dsarch as a setuid entry (or use 'all' to link every setuid_* at once):
+# 2. Wire up dsarch as a setuid entry (or use 'all' to link every setuid_* at once):
 pywrapper-install -l|--link dsarch
 pywrapper-install -l|--link all
+
+# 3. Optionally, install a pgstart_<loginname> binary so <loginname> (any
+#    user in the same group as PGLOG['COMMONUSER']) can run commands as
+#    themselves.  Run either by PGLOG['ADMINUSER'] (default zji, if it has
+#    'sudo -u <loginname>'), or by <loginname> directly:
+pywrapper-install -p|--pgstart -n|--username <loginname>
 ```
 
 `pywrapper-install` with no arguments displays the full user guide.
