@@ -38,39 +38,85 @@ The inheritance chain is `DsArch -> PgArch -> PgMeta -> PgCMD/PgSplit`, so
 `DsArch` instances expose every option, path, count, and database helper
 through a single object.
 
-## Setuid Setup
+## Environment setup
 
-`dsarch` is executed as the common user `gdexdata` via the `rda_python_setuid`
-setuid mechanism.  `rda_python_setuid` is declared as a dependency and is
-installed automatically with this package.
+Create a Python environment first; package installs in the next section run
+inside whichever environment you activate here.
 
-### Environment setup
-
-#### Option A — Python venv (DECS machines)
+### Option A — Python venv (DECS machines)
 
 ```bash
 python3 -m venv $ENVHOME          # e.g. /glade/u/home/gdexdata/gdexmsenv
 source $ENVHOME/bin/activate
+```
+
+### Option B — Conda (DAV/Casper)
+
+```bash
+conda create --prefix $ENVHOME python=3.12   # e.g. /glade/work/gdexdata/conda-envs/pg-gdex
+conda activate $ENVHOME
+```
+
+## Installing rda-python-dsarch
+
+Pick whichever install mode fits your workflow.  All four pull in the
+transitive dependencies (`rda_python_common`, `rda_python_setuid`,
+`rda_python_miscs`) automatically.
+
+For local development, clone this repo alongside your project and install it
+in editable mode so that changes are picked up without re-installing:
+
+```bash
+git clone https://github.com/NCAR/rda-python-dsarch.git
+cd rda-python-dsarch
+pip install -e .
+```
+
+To test a specific branch (e.g. an in-progress feature or fix branch), pass
+`-b/--branch` to `git clone`:
+
+```bash
+git clone -b <branch-name> https://github.com/NCAR/rda-python-dsarch.git
+cd rda-python-dsarch
+pip install -e .
+```
+
+For a regular (non-editable) install from a checkout:
+
+```bash
+pip install /path/to/rda-python-dsarch
+```
+
+For a production install on a system that uses the published distribution:
+
+```bash
 pip install rda_python_dsarch
 ```
 
-#### Option B — Conda (DAV/Casper)
+## Setuid Setup
+
+`dsarch` is executed as the common user `PGLOG['COMMONUSER']` (default
+`gdexdata`) via the `rda_python_setuid` setuid mechanism, which is pulled
+in automatically as a dependency.  After `pip install` above, choose one
+of the wiring options below.
+
+### Full setuid install (requires sudo access to COMMONUSER)
+
+Run these steps once per environment:
 
 ```bash
-conda activate pg-gdex            # e.g. /glade/work/gdexdata/conda-envs/pg-gdex
-pip install rda_python_dsarch
-```
+# 1. Compile the pywrapper C binary (once per environment):
+pywrapper-install -c|--compile -n|--username gdexdata
 
-### Full setuid install (requires sudo access to gdexdata)
+# 2. Wire up dsarch as a setuid entry (or use 'all' to link every setuid_* at once):
+pywrapper-install -l|--link dsarch
+pywrapper-install -l|--link all
 
-Run these steps once per environment after `pip install`:
-
-```bash
-# Compile the pywrapper C binary (once per environment):
-pywrapper-install -c|--compile -u|--user gdexdata
-
-# Wire up dsarch as a setuid entry:
-pywrapper-install -l|--link dsarch -u|--user gdexdata
+# 3. Optionally, install a pgstart_<loginname> binary so <loginname> (any
+#    user in the same group as PGLOG['COMMONUSER']) can run commands as
+#    themselves.  Run either by PGLOG['ADMINUSER'] (default zji, if it has
+#    'sudo -u <loginname>'), or by <loginname> directly:
+pywrapper-install -p|--pgstart -n|--username <loginname>
 ```
 
 `pywrapper-install` with no arguments displays the full user guide.
@@ -81,21 +127,25 @@ Users who do not need the setuid mechanism can create a direct symlink instead:
 
 ```bash
 pywrapper-install -l|--link dsarch -s|--simple
+pywrapper-install -l|--link all -s|--simple   # or link every setuid_* at once
 ```
 
 This creates `bin/dsarch -> bin/setuid_dsarch` and the program runs as the
 current user with no privilege change.
 
-### Setup guide
+### Update an existing installation (no sudo required)
 
-After `pip install`, run `dsarch-setup` at any time to display the setup guide:
+When the package is upgraded and a new `pywrapper.c` is bundled, recompile and
+reinstall all setuid binaries using the existing `pgstart_*` binaries:
 
 ```bash
-dsarch-setup
+pywrapper-install -u|--update
 ```
 
-The guide is also shown automatically if `setuid_dsarch` is invoked directly
-before the setuid wrapper has been configured.
+### Setup guide
+
+The shared setuid setup guide is shown automatically if `setuid_dsarch` is
+invoked directly before the setuid wrapper has been configured.
 
 ## Documentation sync
 
