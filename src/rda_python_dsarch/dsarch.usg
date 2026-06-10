@@ -11,6 +11,14 @@ reference. Files can be organized into nested sub-products called groups.
 Any metadata stored in GDEXDB can also be retrieved or updated through
 'dsarch'.
 
+By default, 'dsarch' runs as the common user (default 'gdexdata') through
+the rda_python_setuid setuid mechanism, so that data files are archived and
+owned under the common user, and all GDEXDB records are written as the
+common user, regardless of which specialist invokes the command. 'dsarch'
+can also be executed directly as an individual specialist without the
+setuid mechanism, in which case archived files are owned by that
+specialist.
+
 A few terms used throughout this document:
   GDEX       - Geoscience Data Exchange, NCAR's data publication platform
   GDEXDB     - the metadata database backing GDEX
