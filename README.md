@@ -154,12 +154,21 @@ invoked directly before the setuid wrapper has been configured.
 
 ## Documentation sync
 
-The user guide rendered at
+The user guide at
 [gdex-docs-dsarch.readthedocs.io](https://gdex-docs-dsarch.readthedocs.io) is
-generated from `src/rda_python_dsarch/dsarch.usg` in this repository.  When a
-pull request that modifies `dsarch.usg` is merged here, an automated workflow
-converts the updated `dsarch.usg` into the RST-format source files in the
-[gdex-docs-dsarch](https://github.com/NCAR/gdex-docs-dsarch) repository and
-opens a pull request there with the regenerated docs, ready for review and
-merge.  No manual RST editing is required — keep all user-facing content in
-`dsarch.usg` and let the sync produce the docs.
+generated from `src/rda_python_dsarch/dsarch.usg`.  Keep all user-facing content
+in `dsarch.usg` — no manual RST editing is required.
+
+When a pull request modifying `dsarch.usg` is opened, an automated workflow
+converts it into RST source files and the version number from this repository's
+`pyproject.toml` into the
+[gdex-docs-dsarch](https://github.com/NCAR/gdex-docs-dsarch) repository, then
+opens a pull request from `automated-update-branch` against its `main` branch for
+review.
+
+To publish to Read the Docs:
+
+- **Merge** that pull request into `main` to serve the content as the `latest`
+  version.
+- **Create a GitHub release** in `gdex-docs-dsarch` to serve the latest release
+  as the `stable` version.
