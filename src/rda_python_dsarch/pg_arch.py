@@ -192,7 +192,7 @@ class PgArch(PgOPT, PgCMD, PgSplit):
          'OG' : [2, 'OriginGroup',   1],
          'OT' : [2, 'OriginType',    1],
          'PI' : [2, 'ParentIndex',  17],
-         'QF' : [2, 'QuasarFile',    0],
+         'QF' : [2, 'QuasarFile',    0, ''],
          'QT' : [2, 'QuasarFileType',  129, 'BD'],
          'RF' : [2, 'OriginFile',    0],
          'SF' : [2, 'SavedFile',     0],

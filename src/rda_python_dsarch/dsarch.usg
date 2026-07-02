@@ -2289,7 +2289,9 @@ They come in two forms:
   parent group for a subgroup. Groups can be nested to any depth.
 
   -QF or -QuasarFile, the name of the Quasar backup (tar) file,
-  required for -AQ (-ArchiveQuasarFile).
+  required for -AQ (-ArchiveQuasarFile).  Give -QF 0 with -DL
+  (-DeleteFile) to force delete a Web or Saved file that is Quasar
+  backed up.
 
   -QT or -QuasarFileType (Alias: -QuasarType|-BackupType), the
   backup scope: 'B' (backup only) or 'D' (backup plus disaster

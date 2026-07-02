@@ -3634,6 +3634,7 @@ class DsArch(PgArch, PgMeta):
       reorder = metatotal = metacnt = dcnt = mcnt = ocnt = wcnt = 0
       self.cache_group_info(self.ALLCNT, 0)
       self.validate_multiple_options(self.ALLCNT, ["WT", 'VI', 'QF', 'LC'])
+      if 'QF' in self.params: self.params['QF'] = self.get_bid_numbers(self.params['QF'])
       if self.PGLOG['DSCHECK']:
          bidx = self.set_dscheck_fcount(self.ALLCNT, self.PGOPT['extlog'])
          if bidx > 0:
@@ -3681,7 +3682,7 @@ class DsArch(PgArch, PgMeta):
                continue
             bid = self.params['QF'][i] if 'QF' in self.params else pgrec['bid']
             if bid:
-               self.pglog(wfile + ": Web file is Quasar backed up, add option -qf '' to force delete", self.PGOPT['errlog'])
+               self.pglog(wfile + ": Web file is Quasar backed up, add option -qf 0 to force delete", self.PGOPT['errlog'])
                continue
             if self.PGOPT['GXTYP'].find(type) > -1 and ('DX' in self.params or pgrec and pgrec['meta_link'] and pgrec['meta_link'] != 'N'):
                metacnt += self.record_meta_delete('W', dsid, wfile)
@@ -4224,6 +4225,7 @@ class DsArch(PgArch, PgMeta):
       bidx = chksize = reorder = scnt = dcnt = 0
       self.cache_group_info(self.ALLCNT, 0)
       self.validate_multiple_options(self.ALLCNT, ["ST", 'VI', 'QF', 'LC'])
+      if 'QF' in self.params: self.params['QF'] = self.get_bid_numbers(self.params['QF'])
       if self.PGLOG['DSCHECK']:
          bidx = self.set_dscheck_fcount(self.ALLCNT, self.PGOPT['extlog'])
          if bidx > 0:
@@ -4260,7 +4262,7 @@ class DsArch(PgArch, PgMeta):
                continue
             bid = self.params['QF'][i] if 'QF' in self.params else pgrec['bid']
             if bid:
-               self.pglog(sfile + ": Saved file is Quasar backed up, add option -qf '' to force delete", self.PGOPT['errlog'])
+               self.pglog(sfile + ": Saved file is Quasar backed up, add option -qf 0 to force delete", self.PGOPT['errlog'])
                continue
          if sdel:
             afile = self.get_saved_path(i, self.params['SF'][i], 1, type)

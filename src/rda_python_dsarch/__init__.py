@@ -20,7 +20,7 @@ object that existing callers expect.
 
 from . import PgArch, PgMeta
 
-__version__ = "2.0.21"
+__version__ = "2.0.22"
 
 __all__ = [
    "PgArch",
