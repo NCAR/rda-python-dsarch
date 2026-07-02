@@ -3846,6 +3846,7 @@ def delete_web_files():
    reorder = metatotal = metacnt = dcnt = mcnt = ocnt = wcnt = 0
    PgArch.cache_group_info(ALLCNT, 0)
    PgOPT.validate_multiple_options(ALLCNT, ["WT", 'VI', 'QF', 'LC'])
+   if 'QF' in PgOPT.params: PgOPT.params['QF'] = PgArch.get_bid_numbers(PgOPT.params['QF'])
 
    if PgLOG.PGLOG['DSCHECK']:
       bidx = PgCMD.set_dscheck_fcount(ALLCNT, PgOPT.PGOPT['extlog'])
@@ -3898,7 +3899,7 @@ def delete_web_files():
             continue
          bid = PgOPT.params['QF'][i] if 'QF' in PgOPT.params else pgrec['bid']
          if bid:
-            PgLOG.pglog(wfile + ": Web file is Quasar backed up, add option -qf '' to force delete", PgOPT.PGOPT['errlog'])
+            PgLOG.pglog(wfile + ": Web file is Quasar backed up, add option -qf 0 to force delete", PgOPT.PGOPT['errlog'])
             continue
          if PgOPT.PGOPT['GXTYP'].find(type) > -1 and ('DX' in PgOPT.params or pgrec and pgrec['meta_link'] and pgrec['meta_link'] != 'N'):
             metacnt += PgMeta.record_meta_delete('W', dsid, wfile)
@@ -4498,6 +4499,7 @@ def delete_saved_files():
    bidx = chksize = reorder = scnt = ocnt = dcnt = 0
    PgArch.cache_group_info(ALLCNT, 0)
    PgOPT.validate_multiple_options(ALLCNT, ["ST", 'VI', 'QF', 'LC'])
+   if 'QF' in PgOPT.params: PgOPT.params['QF'] = PgArch.get_bid_numbers(PgOPT.params['QF'])
 
    if PgLOG.PGLOG['DSCHECK']:
       bidx = PgCMD.set_dscheck_fcount(ALLCNT, PgOPT.PGOPT['extlog'])
@@ -4550,7 +4552,7 @@ def delete_saved_files():
             continue
          bid = PgOPT.params['QF'][i] if 'QF' in PgOPT.params else pgrec['bid']
          if bid:
-            PgLOG.pglog(sfile + ": Saved file is Quasar backed up, add option -qf '' to force delete", PgOPT.PGOPT['errlog'])
+            PgLOG.pglog(sfile + ": Saved file is Quasar backed up, add option -qf 0 to force delete", PgOPT.PGOPT['errlog'])
             continue
 
       if sdel:

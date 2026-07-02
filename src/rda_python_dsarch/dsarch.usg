@@ -108,9 +108,12 @@ publishes the user guide as the 'latest' version at
 https://gdex-docs-dsarch.readthedocs.io, and creating a GitHub release
 there publishes it as the 'stable' version.
 
-This document first covers general 'dsarch' usage, then describes each
-Action option in detail, followed by Mode and Information (Info for
-short) options. Examples are provided throughout each section.
+The remainder of this document is organized as follows. Section 2 covers
+general usage and conventions. Section 3 describes Action options grouped
+by what they manipulate (dataset records, DOI/Version controls, groups,
+files, all-information, and webpages). Section 4 lists Mode options that
+modify how an action behaves. Section 5 lists Information options that
+pass values into an action.
 
 
 2 GENERAL DSARCH USAGE
@@ -119,59 +122,85 @@ short) options. Examples are provided throughout each section.
       or
   dsarch [-(IF|InputFile)] InputFileNames
 
-Brackets [] indicate optional elements. A pipe '|' within parentheses,
-as in (A|B), means either A or B may be used. Options fall into three
-categories:
-  Action options - specify the task to execute
-  Mode options   - modify how an action behaves
-  Info options   - supply values to the action
+Notation:
+  []       - the enclosed element is optional.
+  (A|B)    - either A or B may be used (a short form and a long form).
+  -<OPT>   - OPT is an option name. Names are case-insensitive; values are not.
 
-Options may be given in short or long form (e.g., -DS or -Dataset). Some
-options have alias names; for example, -UseRDADB is an alias for -UD
-(-UseDSARCH). Option names are case-insensitive, but values following
-Info options are case-sensitive.
+Every dsarch invocation has at most one Action option, which selects the
+task to perform. Mode options change how the chosen action behaves. Info
+options carry the data the action needs (file names, group indices, dates,
+etc.). Each action documents which Info options are required and which are
+optional.
 
-Option -DS specifies the dataset number. It is listed separately because
-most actions require it. When -DS is the first argument after 'dsarch',
-the option name itself may be omitted — just supply the dataset number
-directly.
+Option -DS (-Dataset) supplies the dataset number. It is listed separately
+because most actions require it. When -DS is the first argument after
+'dsarch', the option name itself may be omitted — just supply the dataset
+number directly.
 
-Specify exactly one Action option per 'dsarch' invocation. Each action
-has its own set of required and optional Info options, and may accept
-specific Mode options that adjust its behavior.
+Many options have an alias for convenience; for example, -UseRDADB is an
+alias for -UD (-UseDSARCH). Both short and long forms are accepted, and
+aliases are noted with each option.
 
-All options except -IF (-InputFile) may be given either on the command
-line or in input files. Input file names are specified via -IF and can
-only be supplied on the command line. See the -IF option description for
-details on how to format options in input files. One or more input files
-may be combined with command-line options. The -IF option name itself
-may be omitted when a single input file is given on the command line and
-all action and option information is contained within that file.
+2.1 Quick Start
 
-Info options used with GET actions serve as query filters. Four special
-characters enable more precise filtering — they must be quoted or
-escaped on the command line to prevent shell interpretation:
-   '!'  - exclude matches; must appear immediately after the option name
-          (may need escaping as '\!' in some shells due to history
-          expansion)
-   '<'  - less-than comparison on the following value
-   '>'  - greater-than comparison on the following value
-   '<>' - range between two values
+  Show the full document, paged through 'more':
+  dsarch
 
-Combining '!' and '<' as "'!' '<' OptionValue" expresses a 'greater than
-or equal to OptionValue' condition.
+  Show the description of a single option:
+  dsarch -h -AW
 
-The description of an individual option is shown when 'dsarch' is run as
+  Retrieve a dataset record from GDEXDB:
+  dsarch d260001 -GD
+
+  Set the UseDSARCH flag so the dataset can be archived:
+  dsarch d260001 -SD -UD Y
+
+  Archive a local file as a Web file:
+  dsarch d260001 -AW -LF data.nc
+
+  Retrieve the Web file records for a dataset:
+  dsarch d260001 -GW
+
+2.2 Filters and Special Characters in Queries
+
+For Get-style actions (-GD, -GV, -GG, -GS, -GW, -GH, -GQ), Info options are
+interpreted as query filters. Four characters refine those filters; quote or
+escape them on the command line so the shell does not consume them:
+
+  '!'   - negate the match. Must appear immediately after the option name
+          (may need escaping as '\!' in some shells due to history expansion).
+  '<'   - less-than comparison against the next value.
+  '>'   - greater-than comparison against the next value.
+  '<>'  - range between the next two values (inclusive).
+
+The combination "'!' '<' value" expresses 'greater than or equal to value'.
+
+2.3 Input Files
+
+Every option except -IF (-InputFile) may be supplied either on the command
+line or in an input file. -IF is itself only valid on the command line. A
+single dsarch invocation may combine command-line options with one or more
+input files. If the only options are inside a single input file, the -IF
+prefix may be omitted. See the description of -IF in Section 5.2 for the
+input-file format (comments, action/mode markers, single-value assignments,
+and tabular multi-value assignments, including delimiter overrides).
+
+As a safeguard against operating on the wrong dataset, input file names must
+begin with the dataset number in the format 'dNNNNNN.*', where '*' matches
+one or more valid filename characters.
+
+2.4 Getting Help
 
   dsarch [Option] -(h|help) [Option]
 
-The description is shown for the option placed either before or after
--(h|help). If no option is given, or 'dsarch' is run without arguments,
-the full document is displayed using the UNIX 'more' utility. A hard
-copy of this document can be printed from the saved file, dsarch.usg,
-in the rda_python_dsarch Python package.
+The description of a single option is shown when -h (-help) is given with
+that option, placed either before or after -h. With no option, or when
+'dsarch' is run without arguments, the full document is displayed through
+the UNIX 'more' utility. A printable copy of this document is the file
+dsarch.usg installed under the python package rda_python_dsarch.
 
-#The online version of this document is available at
+#The online HTML version of this document is available at
 #https://gdex-docs-dsarch.readthedocs.io
 
 
@@ -2260,7 +2289,9 @@ They come in two forms:
   parent group for a subgroup. Groups can be nested to any depth.
 
   -QF or -QuasarFile, the name of the Quasar backup (tar) file,
-  required for -AQ (-ArchiveQuasarFile).
+  required for -AQ (-ArchiveQuasarFile).  Give -QF 0 with -DL
+  (-DeleteFile) to force delete a Web or Saved file that is Quasar
+  backed up.
 
   -QT or -QuasarFileType (Alias: -QuasarType|-BackupType), the
   backup scope: 'B' (backup only) or 'D' (backup plus disaster
