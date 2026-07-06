@@ -2058,11 +2058,12 @@ class DsArch(PgArch, PgMeta):
 
    def set_dataset_info(self, include=None):
       """
-      Insert or update the dataset record in RDADB.
+      Update an existing dataset record in RDADB.
 
-      Reads dataset fields from params, builds an update/insert record, and
-      calls the appropriate database function.  When *include* is 'P', only
-      period-related fields are updated.
+      Reads dataset fields from params, builds an update record, and updates
+      the existing dataset record.  New datasets are created via the Metadata
+      Manager, not dsarch, so a missing dataset record is left unchanged.
+      When *include* is 'P', only period-related fields are updated.
 
       Args:
          include -- field subset selector string, or None for all fields
@@ -2071,35 +2072,24 @@ class DsArch(PgArch, PgMeta):
       dsid = self.params['DS']
       dcnd = "dsid = '{}'".format(dsid)
       self.pglog("Set {} info of {} ...".format(tname, dsid), self.WARNLG)
-      mcnt = acnt = pcnt = kcnt = 0
+      mcnt = pcnt = kcnt = 0
       fnames = self.get_field_keys(tname, include)
-      if fnames: # set dataset record
+      if fnames: # set dataset record; new datasets are created via the Metadata Manager, not dsarch
          pgrec = self.pgget(tname, self.get_string_fields(fnames, tname), dcnd, self.LGEREX)
          record = self.build_record(fnames, pgrec, tname, 0)
-         if record:
+         if record and pgrec:
             if 'backflag' in record and record['backflag'] == 'P': record['backflag'] = 'N'
             if 'locflag' in record and record['locflag'] in 'BR': record['locflag'] = 'G'
-            if pgrec:
-               record['date_change'] = self.curdate()
-               if self.pgupdt(tname, record, dcnd, self.LGEREX):
-                  mcnt += 1
-                  if 'use_rdadb' in record and re.search(r'^[PYW]$', record['use_rdadb']):
-                     self.params['WN'] = 6
-            else:
-               record['dsid'] = dsid
-               record['date_change'] = record['date_create'] = self.curdate()
-               if not record['use_rdadb']: record['use_rdadb'] = 'Y'
-               acnt += self.pgadd(tname, record, self.LGEREX)
-      if acnt == 0: pcnt = self.set_period_info(dcnd)   # set dsperiod record
+            record['date_change'] = self.curdate()
+            if self.pgupdt(tname, record, dcnd, self.LGEREX):
+               mcnt += 1
+      pcnt = self.set_period_info(dcnd)   # set dsperiod record
       kvalues = self.params['KV'] if 'KV' in self.params else []
       kcnt = self.set_keyvalues(dsid, kvalues)
-      if (pcnt + kcnt + mcnt + acnt) == 0:
+      if (pcnt + kcnt + mcnt) == 0:
          if not include: self.pglog("No change of dataset record for {}!".format(dsid), self.LOGWRN)
       else:
-         if acnt:
-            self.pglog("Dataset record added for {}!".format(dsid),  self.LOGWRN)
-         else:
-            self.pglog("Dataset record modified for {}!".format(dsid),  self.LOGWRN)
+         self.pglog("Dataset record modified for {}!".format(dsid),  self.LOGWRN)
          if pcnt + mcnt:
             self.reset_rdadb_version(dsid)
 

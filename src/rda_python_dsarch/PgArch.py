@@ -131,7 +131,6 @@ PgOPT.OPTS = {                         # (!= 0) - setting actions
    'ON' : [1, 'OrderNames',      0],
    'PO' : [1, 'PatternOffset',  16],
    'QS' : [1, 'QsubOptions',     1],
-   'UD' : [1, 'UseDSARCH',       0,  'YNIPW'],  # Internal, Public, Web only, Y - ready for dsarch 
    'VS' : [1, 'ValidSize',      17],  # default to PgLOG.PGLOG['MINSIZE']
    'WI' : [1, 'WaitInternval',   1],
 
@@ -257,7 +256,6 @@ PgOPT.ALIAS = {
    'TS' : ['ToSavedFile', 'MovedToSaved'],
    'TW' : ['ToWebFile', 'MovedToWeb'],
    'UC' : ['UpdateCacheNumber'],
-   'UD' : ['UseRDADB'],
    'HD' : ['UpdateHTML', 'GenerateHTML'],
    'UZ' : ['Uncompress', 'UncompressData', 'Unzip'],
    'WC' : ['ValidateChecksum', "WithMD5", "ValidateMD5"],
@@ -281,7 +279,6 @@ PgOPT.TBLHASH['dataset'] = {         # condition flag, 0-int, 1-string, -1-exclu
    'H' : ['WH', "webhome",      1],
    'W' : ['WP', "webpath",      1],
    'F' : ['DF', "data_format",  1],
-   'U' : ['UD', "use_rdadb",    1],
    'L' : ['LC', "locflag",      1],
    'Q' : ['BF', "backflag",     1],
    'A' : ['DA', "accessflag",   1],
@@ -412,7 +409,7 @@ PgOPT.TBLHASH['dsvrsn'] = {
 # global info to be used by the whole application
 PgOPT.PGOPT['MSET']  = "SA"
 #default fields for getting info
-PgOPT.PGOPT['dataset'] = "SWFULQA"
+PgOPT.PGOPT['dataset'] = "SWFLQA"
 PgOPT.PGOPT['dsperiod'] = "GJKXY"
 PgOPT.PGOPT['dsgroup'] = "IGXTPQASW"
 PgOPT.PGOPT['wfile'] = "FTIVMNLHPS"
@@ -420,10 +417,9 @@ PgOPT.PGOPT['sfile'] = "FTIVMNLHPS"
 PgOPT.PGOPT['bfile'] = "FNMTHS"
 PgOPT.PGOPT['hfile'] = 'FMNLTHPSU'
 PgOPT.PGOPT['dsvrsn'] = "VIEDSJX"
-PgOPT.PGOPT['UACTS'] = (PgOPT.OPTS['AQ'][0]|PgOPT.OPTS['SD'][0]|PgOPT.OPTS['DL'][0])
 
 #all fields for getting info
-PgOPT.PGOPT['dsall'] = "TSHWFULQAVCBMPIDNGJKXYIJKXY"   # include 'pdall'
+PgOPT.PGOPT['dsall'] = "TSHWFLQAVCBMPIDNGJKXYIJKXY"   # include 'pdall'
 PgOPT.PGOPT['pdall'] = "GJKXY"
 PgOPT.PGOPT['gpall'] = "IGXTRQAPSWMDN"
 PgOPT.PGOPT['wfall'] = "FTCIXVMNOBQLHPSJKAED"
@@ -492,7 +488,7 @@ def check_enough_options(cact, acts):
       "Miss Saved file types per -ST(-SavedFileType)",
       "Cannot Cross Copy/Move (-XC/-XM) Saved Files",
       "14",
-      "Miss Use-RDADB flag, ('Y', 'P', 'W', 'I'), per -UD(-UseRDADB) for ",
+      "15",
       "16",
       "miss Saved file names per -SF(-SavedFile)",
       "Miss Version Control Index per -VI(-VersionIndex)",
@@ -675,14 +671,8 @@ def check_enough_options(cact, acts):
    elif acts == PgOPT.OPTS['UC'][0] or acts == PgOPT.OPTS['UW'][0]:
       if 'DS' not in PgOPT.params: erridx = 4
 
-   if erridx < 0:
-      if(PgOPT.OPTS[cact][2] > 0 and acts&PgOPT.PGOPT['UACTS'] == 0 and
-         PgDBI.use_rdadb(PgOPT.params['DS'], PgOPT.PGOPT['extlog']) == 'N' and
-         ('UD' not in PgOPT.params or PgOPT.params['UD'] == 'N')):
-         erridx = 15
-         errmsg[erridx] += PgOPT.params['DS']
-
    if erridx >= 0: PgOPT.action_error(errmsg[erridx], cact)
+   PgOPT.validate_dataset()   # error out if the dataset does not exist in RDADB
 
    PgOPT.set_uid("dsarch")   # set uid before any action
    if 'VS' in PgOPT.params: PgLOG.PGLOG['MINSIZE'] = PgOPT.params['VS']   # minimal size for a file to be valid for archive

@@ -53,13 +53,6 @@ perform the following major functions:
     GDEXDB
   - Regenerate filelist and main webpages on demand after dataset changes
 
-The dataset flag -UD (-UseDSARCH) must be set to at least 'Y' before
-'dsarch' can archive files or write to GDEXDB. This flag also controls
-file list publication: setting it to 'P' or 'W' publishes file lists for
-GDEX Server data files, making them visible in the dataset's user
-interface on the GDEX Web Server. See the -SD (-SetDataset) action and
-the -UD (-UseDSARCH) option for details.
-
 When a file is moved and its name or path changes, 'dsarch' records the
 new name as the primary entry in GDEXDB and retains the original as a
 linked alias. Both names resolve to the same file for usage tracking.
@@ -138,8 +131,8 @@ because most actions require it. When -DS is the first argument after
 'dsarch', the option name itself may be omitted — just supply the dataset
 number directly.
 
-Many options have an alias for convenience; for example, -UseRDADB is an
-alias for -UD (-UseDSARCH). Both short and long forms are accepted, and
+Many options have an alias for convenience; for example, -Compress is an
+alias for -ZD (-ZipData). Both short and long forms are accepted, and
 aliases are noted with each option.
 
 2.1 Quick Start
@@ -152,9 +145,6 @@ aliases are noted with each option.
 
   Retrieve a dataset record from GDEXDB:
   dsarch d260001 -GD
-
-  Set the UseDSARCH flag so the dataset can be archived:
-  dsarch d260001 -SD -UD Y
 
   Archive a local file as a Web file:
   dsarch d260001 -AW -LF data.nc
@@ -211,10 +201,6 @@ actions perform a single task; others bundle multiple tasks together and
 may trigger additional steps when certain Mode options are present. Only
 one Action option may be specified per execution.
 
-Write actions require the -UD (-UseDSARCH) flag to be set to 'Y', 'I',
-'P', or 'W' for the target dataset before they can modify GDEXDB. Read
-actions have no such requirement.
-
 Actions are grouped into seven categories based on the information they
 handle:
      Dataset Actions - create, modify and retrieve dataset information
@@ -248,7 +234,6 @@ handle:
   periods.
 
   dsarch [-(DS|Dataset)] dNNNNNN [-](SD|SetDataset) [Mode Options]
-         [-(UD|UseDSARCH) UseDSARCHFlag]   # Y, P, W, I, or N
          [-(LC|Location) AccessLocationFlag]   # C - CGD, G - Glade, O - bOreas
          [-(BF|BackupFlag) QuasarBackupFlag]   # B - Backup, D - Backup & Drdata
          [-(DA|AccessFlag) DataAccessFlags]    # B - Both, C - Complete, F - Faceted, or N - No
@@ -286,20 +271,21 @@ handle:
                           dataset level
    -(WN|WithFileNumber) - re-evaluates and resets file counts
 
-  Dataset numbers are normally created via the Metadata Manager. Action
-  -SD modifies the dataset record and any associated group data
-  periods. Data periods for groups can be modified in 'dsarch', but
-  must be created or removed through Metadata Manager.
+  Dataset numbers are created via the Metadata Manager, not 'dsarch'.
+  Action -SD only modifies an existing dataset record and its associated
+  group data periods; if no dataset record exists, -SD makes no change to
+  it. Data periods for groups can be modified in 'dsarch', but the groups
+  themselves must be created or removed through the Metadata Manager.
 
   The web file access location flag is set via -LC (-Location). The
   default is 'G' (Glade Disk) when any web data files exist. The default
   becomes 'O' if all web files reside on bOreas, or 'C' if all are at
   the CGD data path.
 
-  For example, to set the UseDSARCH flag, reset file counts and data
-  size, and set the beginning data date for dataset d744004:
+  For example, to reset file counts and data size, and set the
+  beginning data date for dataset d744004:
 
-  dsarch d744004 SD -WN -UD Y -BD 1999-07-01
+  dsarch d744004 SD -WN -BD 1999-07-01
 
 3.1.2 Get Dataset Information
   -GD or -GetDataset, reads and displays dataset record fields from
@@ -318,7 +304,7 @@ handle:
   -(WN|WithFileNumber) - gathers and displays Saved/Web file counts
 
   Use -FN (-FieldNames) to select which dataset fields to include.
-  Defaults to 'SWFULQ'. Use -FN ALL to retrieve every available field.
+  Defaults to 'SWFLQA'. Use -FN ALL to retrieve every available field.
 
   Valid dataset field names and their corresponding Info options:
 
@@ -328,7 +314,6 @@ handle:
   H      -(WH|WebHome)         path for the web data home directory
   W      -(WP|WebPath)         path relative to web home directory
   F      -(DF|DataFormat)      default data content format
-  U      -(UD|UseDSARCH)       use DSARCH flag
   L      -(LC|Location)        Online web file access location flags
   Q      -(BF|BackupFlag)      Quasar Backup flags
   A      -(DA|DataAccessFlag)  dataset data file list access flags
@@ -360,7 +345,6 @@ SavedPath<=>
 WebPath<=>
 Location<=>G
 DataFormat<=>
-UseDSARCH<=>P
 GroupLevel<=>3
 FileLimit<=>500
 ButtonLimit<=>2
@@ -2036,18 +2020,6 @@ They come in two forms:
   -QS or -QsubOptions (Alias: -PBSOptions), passes options to qsub
   when running 'dsarch' as a PBS batch job. Quote the value on the
   command line, e.g., -QS '-l walltime=12:00:00'.
-
-  -UD or -UseDSARCH (Alias: -UseGDEXDB), the gating flag that
-  controls 'dsarch' access to a dataset. Set via -SD (-SetDataset).
-  Values:
-    'N' - disabled (default; blocks all 'dsarch' writes)
-    'Y' - enabled for modification
-    'I' - enabled for internal users only
-    'P' - enabled and file lists are published publicly
-    'W' - file list publication only
-
-  Any value except 'N' must be set before 'dsarch' can write to
-  GDEXDB.
 
   -VS or -ValidSize, the minimum acceptable file size (in bytes) for
   archiving. Files smaller than this threshold are rejected.
