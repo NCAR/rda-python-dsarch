@@ -148,7 +148,6 @@ class PgArch(PgOPT, PgCMD, PgSplit):
          'ON' : [1, 'OrderNames',      0],
          'PO' : [1, 'PatternOffset',  16],
          'QS' : [1, 'QsubOptions',     1],
-         'UD' : [1, 'UseDSARCH',       0,  'YNIPW'],  # Internal, Public, Web only, Y - ready for dsarch 
          'VS' : [1, 'ValidSize',      17],  # default to self.PGLOG['MINSIZE']
          'WI' : [1, 'WaitInternval',   1],
          'AF' : [2, 'ArchiveFormat', 1],
@@ -272,7 +271,6 @@ class PgArch(PgOPT, PgCMD, PgSplit):
          'TS' : ['ToSavedFile', 'MovedToSaved'],
          'TW' : ['ToWebFile', 'MovedToWeb'],
          'UC' : ['UpdateCacheNumber'],
-         'UD' : ['UseRDADB'],
          'HD' : ['UpdateHTML', 'GenerateHTML'],
          'UZ' : ['Uncompress', 'UncompressData', 'Unzip'],
          'WC' : ['ValidateChecksum', "WithMD5", "ValidateMD5"],
@@ -293,7 +291,6 @@ class PgArch(PgOPT, PgCMD, PgSplit):
          'H' : ['WH', "webhome",      1],
          'W' : ['WP', "webpath",      1],
          'F' : ['DF', "data_format",  1],
-         'U' : ['UD', "use_rdadb",    1],
          'L' : ['LC', "locflag",      1],
          'Q' : ['BF', "backflag",     1],
          'A' : ['DA', "accessflag",   1],
@@ -416,7 +413,7 @@ class PgArch(PgOPT, PgCMD, PgSplit):
       # global info to be used by the whole application
       self.PGOPT['MSET']  = "SA"
       #default fields for getting info
-      self.PGOPT['dataset'] = "SWFULQA"
+      self.PGOPT['dataset'] = "SWFLQA"
       self.PGOPT['dsperiod'] = "GJKXY"
       self.PGOPT['dsgroup'] = "IGXTPQASW"
       self.PGOPT['wfile'] = "FTIVMNLHPS"
@@ -424,10 +421,9 @@ class PgArch(PgOPT, PgCMD, PgSplit):
       self.PGOPT['bfile'] = "FNMTHS"
       self.PGOPT['hfile'] = 'FMNLTHPSU'
       self.PGOPT['dsvrsn'] = "VIEDSJX"
-      self.PGOPT['UACTS'] = (self.OPTS['AQ'][0]|self.OPTS['SD'][0]|self.OPTS['DL'][0])
-      
+
       #all fields for getting info
-      self.PGOPT['dsall'] = "TSHWFULQAVCBMPIDNGJKXYIJKXY"   # include 'pdall'
+      self.PGOPT['dsall'] = "TSHWFLQAVCBMPIDNGJKXYIJKXY"   # include 'pdall'
       self.PGOPT['pdall'] = "GJKXY"
       self.PGOPT['gpall'] = "IGXTRQAPSWMDN"
       self.PGOPT['wfall'] = "FTCIXVMNOBQLHPSJKAED"
@@ -506,7 +502,7 @@ class PgArch(PgOPT, PgCMD, PgSplit):
          "Miss Saved file types per -ST(-SavedFileType)",
          "Cannot Cross Copy/Move (-XC/-XM) Saved Files",
          "14",
-         "Miss Use-RDADB flag, ('Y', 'P', 'W', 'I'), per -UD(-UseRDADB) for ",
+         "15",
          "16",
          "miss Saved file names per -SF(-SavedFile)",
          "Miss Version Control Index per -VI(-VersionIndex)",
@@ -684,13 +680,8 @@ class PgArch(PgOPT, PgCMD, PgSplit):
          self.validate_versions()
       elif acts == self.OPTS['UC'][0] or acts == self.OPTS['UW'][0]:
          if 'DS' not in self.params: erridx = 4
-      if erridx < 0:
-         if(self.OPTS[cact][2] > 0 and acts&self.PGOPT['UACTS'] == 0 and
-            self.use_rdadb(self.params['DS'], self.PGOPT['extlog']) == 'N' and
-            ('UD' not in self.params or self.params['UD'] == 'N')):
-            erridx = 15
-            errmsg[erridx] += self.params['DS']
       if erridx >= 0: self.action_error(errmsg[erridx], cact)
+      self.validate_dataset()   # error out if the dataset does not exist in RDADB
       self.set_uid("dsarch")   # set uid before any action
       if 'VS' in self.params: self.PGLOG['MINSIZE'] = self.params['VS']   # minimal size for a file to be valid for archive
       self.PGLOG['RSOptions'] = " -R -S" if 'RS' in self.params else ''

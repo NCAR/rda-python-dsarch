@@ -2264,37 +2264,26 @@ def set_dataset_info(include = None):
    dcnd = "dsid = '{}'".format(dsid)
    PgLOG.pglog("Set {} info of {} ...".format(tname, dsid), PgLOG.WARNLG)
 
-   mcnt = acnt = pcnt = kcnt = 0
+   mcnt = pcnt = kcnt = 0
    fnames = PgOPT.get_field_keys(tname, include)
-   if fnames: # set dataset record
+   if fnames: # set dataset record; new datasets are created via the Metadata Manager, not dsarch
       pgrec = PgDBI.pgget(tname, PgOPT.get_string_fields(fnames, tname), dcnd, PgLOG.LGEREX)
       record = PgOPT.build_record(fnames, pgrec, tname, 0)
-      if record:
+      if record and pgrec:
          if 'backflag' in record and record['backflag'] == 'P': record['backflag'] = 'N'
          if 'locflag' in record and record['locflag'] in 'BR': record['locflag'] = 'G'
-         if pgrec:
-            record['date_change'] = PgUtil.curdate()
-            if PgDBI.pgupdt(tname, record, dcnd, PgLOG.LGEREX):
-               mcnt += 1
-               if 'use_rdadb' in record and re.search(r'^[PYW]$', record['use_rdadb']):
-                  PgOPT.params['WN'] = 6
-         else:
-            record['dsid'] = dsid
-            record['date_change'] = record['date_create'] = PgUtil.curdate()
-            if not record['use_rdadb']: record['use_rdadb'] = 'Y'
-            acnt += PgDBI.pgadd(tname, record, PgLOG.LGEREX)
+         record['date_change'] = PgUtil.curdate()
+         if PgDBI.pgupdt(tname, record, dcnd, PgLOG.LGEREX):
+            mcnt += 1
 
-   if acnt == 0: pcnt = set_period_info(dcnd)   # set dsperiod record
+   pcnt = set_period_info(dcnd)   # set dsperiod record
    kvalues = PgOPT.params['KV'] if 'KV' in PgOPT.params else []
    kcnt = set_keyvalues(dsid, kvalues)
 
-   if (pcnt + kcnt + mcnt + acnt) == 0:
-      if not include: PgLOG.pglog("No change of dataset record for {}!".format(dsid), PgLOG.LOGWRN)   
+   if (pcnt + kcnt + mcnt) == 0:
+      if not include: PgLOG.pglog("No change of dataset record for {}!".format(dsid), PgLOG.LOGWRN)
    else:
-      if acnt:
-         PgLOG.pglog("Dataset record added for {}!".format(dsid),  PgLOG.LOGWRN)
-      else:
-         PgLOG.pglog("Dataset record modified for {}!".format(dsid),  PgLOG.LOGWRN)
+      PgLOG.pglog("Dataset record modified for {}!".format(dsid),  PgLOG.LOGWRN)
       if pcnt + mcnt:
          PgDBI.reset_rdadb_version(dsid)
 
