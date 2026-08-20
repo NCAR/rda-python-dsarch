@@ -1618,7 +1618,7 @@ class DsArch(PgArch, PgMeta):
          if not pgrec:
             self.pglog("Backup-{}: is not in RDADB".format(bfile, self.PGLOG['MISSFILE']), self.LOGWRN)
             continue
-         ms = re.match(r'^<(ds\d+\.\d+)_(\w)_\d+.txt>', pgrec['note'])
+         ms = re.match(r'^<([a-z]\d{6}|ds\d+\.\d+)_(\w)_\d+\.txt>', pgrec['note'])
          if not ms:
             self.pglog("Backup-{}: Note field not formatted properly\n{}".format(bfile, pgrec['note']), self.LGEREX)
          fdsid = ms.group(1)

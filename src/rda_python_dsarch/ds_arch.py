@@ -1826,7 +1826,7 @@ def retrieve_backup_files():
       if not pgrec:
          PgLOG.pglog("Backup-{}: is not in RDADB".format(bfile, PgLOG.PGLOG['MISSFILE']), PgLOG.LOGWRN)
          continue
-      ms = re.match(r'^<(ds\d+\.\d+)_(\w)_\d+.txt>', pgrec['note'])
+      ms = re.match(r'^<([a-z]\d{6}|ds\d+\.\d+)_(\w)_\d+\.txt>', pgrec['note'])
       if not ms:
          PgLOG.pglog("Backup-{}: Note field not formatted properly\n{}".format(bfile, pgrec['note']), PgLOG.LGEREX)
       fdsid = ms.group(1)
