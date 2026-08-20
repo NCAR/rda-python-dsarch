@@ -45,6 +45,7 @@ class DsArch(PgArch, PgMeta):
       MODCNT   -- number of existing records modified during the current action
       OVERRIDE -- non-zero when the -OE (OverrideExist) flag is active
       TARFILES -- dict mapping tar archive paths to their member-file metadata
+      BCKNOTES -- dict mapping backup IDs to their bfile.note member/move history
       VINDEX   -- dict mapping version indices to version records
       CHGGRPS  -- dict of group indices whose file-number counts need updating
       ERRMSG   -- accumulated error message string for the current action
@@ -54,6 +55,7 @@ class DsArch(PgArch, PgMeta):
       super().__init__()  # initialize parent class
       self.ERRCNT = self.RETSTAT = self.ALLCNT = self.ADDCNT = self.MODCNT = self.OVERRIDE = 0
       self.TARFILES = {}
+      self.BCKNOTES = {}
       self.VINDEX = {}
       self.CHGGRPS = {}
       self.ERRMSG = ''
@@ -1639,6 +1641,7 @@ class DsArch(PgArch, PgMeta):
          tofile = "{}/{}".format(todir, op.basename(bfile))
          tarfile = "{}/{}".format(tardir, op.basename(bfile))
          self.TARFILES[pgrec['bid']] = tarfile
+         self.BCKNOTES[pgrec['bid']] = pgrec['note']
          tinfo = self.check_local_file(tarfile, 0, self.PGOPT['extlog'])
          if tinfo:
             self.pglog(tarfile + ": tar file exists already", self.PGOPT['wrnlog'])
@@ -1744,8 +1747,9 @@ class DsArch(PgArch, PgMeta):
          Path to the extracted file, or None on failure.
       """
       mfile = wfile = pgrec['wfile'] if 'wfile' in pgrec else pgrec['sfile']
-      note = pgrec['note']
-      while not re.search(r'{}<:>'.format(mfile), note):
+      # the member list and move history are on bfile.note, not on the wfile/sfile record
+      note = self.BCKNOTES.get(pgrec['bid'])
+      while note and not re.search(r'{}<:>'.format(mfile), note):
          ms = re.search(r'>MV .* File (\S+) To .*{}'.format(mfile), note)
          if not ms: break
          mfile = ms.group(1)
