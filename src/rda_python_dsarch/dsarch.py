@@ -1616,7 +1616,7 @@ class DsArch(PgArch, PgMeta):
          (bfile, qfile) = self.get_backup_filenames(self.params['QF'][i], dsid)
          pgrec = self.pgget(tname, "*", "bfile = '{}'".format(bfile), self.LGEREX)
          if not pgrec:
-            self.pglog("Backup-{}: is not in RDADB".format(bfile, self.PGLOG['MISSFILE']), self.LOGWRN)
+            self.pglog("Backup-{}: is not in RDADB".format(bfile), self.LOGWRN)
             continue
          ms = re.match(r'^<([a-z]\d{6}|ds\d+\.\d+)_(\w)_\d+\.txt>', pgrec['note'])
          if not ms:
@@ -1625,7 +1625,11 @@ class DsArch(PgArch, PgMeta):
          ftype = ms.group(2)
          if fdsid != dsid: qfile = "/{}/{}".format(fdsid, bfile)
          info = self.check_backup_file(qfile)
-         if not info:
+         if info == self.FAILURE:   # error checking the endpoint, not a missing file
+            errmsg = "Backup-{}: Error checking file on Quasar Endpoint {}".format(qfile, endpoint)
+            if self.PGLOG['SYSERR']: errmsg += "\n" + self.PGLOG['SYSERR']
+            self.pglog(errmsg, self.PGOPT['extlog'])
+         elif not info:
             self.pglog("Backup-{}: {}".format(qfile, self.PGLOG['MISSFILE']), self.LOGWRN)
             continue
          endpath = 'decsdata' if ftype == 'S' else 'data'
@@ -1644,7 +1648,7 @@ class DsArch(PgArch, PgMeta):
             self.set_local_mode(tarfile, 1, 0o664)
       if self.PGLOG['DSCHECK']:
          self.set_dscheck_dcount(self.ALLCNT, chksize, self.PGOPT['extlog'])
-      self.pglog("{} of Quasar Backup file{} downloaded for {}".format(dcnt, self.ALLCNT, s, dsid), self.LOGWRN)
+      self.pglog("{} of {} Quasar Backup file{} downloaded for {}".format(dcnt, self.ALLCNT, s, dsid), self.LOGWRN)
       if 'EM' in self.params: self.PGLOG['PRGMSG'] = ""
 
    def restore_backup_webfiles(self):
@@ -1699,6 +1703,9 @@ class DsArch(PgArch, PgMeta):
          if ainfo:
             self.pglog(afile + ": File exists already", self.PGOPT['wrnlog'])
          else:
+            if pgrec['bid'] not in self.TARFILES:
+               self.pglog("{}: Backup tar file of Backup Id {} is not downloaded".format(wfile, pgrec['bid']), self.PGOPT['wrnlog'])
+               continue
             tarfile = self.TARFILES[pgrec['bid']]
             ainfo = self.get_backup_member_file(pgrec, tarfile, tardir)
             tarcmd = "tar -xvf {} -C {} {}".format(tarfile, tardir, wfile)
@@ -1706,6 +1713,7 @@ class DsArch(PgArch, PgMeta):
             ainfo = self.check_local_file(afile, 0, self.PGOPT['extlog'])
             if not ainfo:
                self.pglog("{}: Error untar File {}".format(tarfile, afile), self.PGOPT['wrnlog'])
+               continue
             if warch: wcnt += 1
          if ainfo['data_size'] != pgrec['data_size']:
             self.pglog("{}: Different Restored/RDADB file sizes {}/{}".format(afile, ainfo['data_size'], pgrec['data_size']), self.PGOPT['wrnlog'])
@@ -1735,7 +1743,7 @@ class DsArch(PgArch, PgMeta):
       Returns:
          Path to the extracted file, or None on failure.
       """
-      mfile = wfile = pgrec['wfile']
+      mfile = wfile = pgrec['wfile'] if 'wfile' in pgrec else pgrec['sfile']
       note = pgrec['note']
       while not re.search(r'{}<:>'.format(mfile), note):
          ms = re.search(r'>MV .* File (\S+) To .*{}'.format(mfile), note)
@@ -1801,6 +1809,9 @@ class DsArch(PgArch, PgMeta):
          if ainfo:
             self.pglog(afile + ": File exists already", self.PGOPT['wrnlog'])
          else:
+            if pgrec['bid'] not in self.TARFILES:
+               self.pglog("{}: Backup tar file of Backup Id {} is not downloaded".format(sfile, pgrec['bid']), self.PGOPT['wrnlog'])
+               continue
             tarfile = self.TARFILES[pgrec['bid']]
             ainfo = self.get_backup_member_file(pgrec, tarfile, tardir)
             tarcmd = "tar -xvf {} -C {} {}".format(tarfile, tardir, sfile)
@@ -1808,6 +1819,7 @@ class DsArch(PgArch, PgMeta):
             ainfo = self.check_local_file(afile, 0, self.PGOPT['extlog'])
             if not ainfo:
                self.pglog("{}: Error untar File {}".format(tarfile, afile), self.PGOPT['wrnlog'])
+               continue
             if sarch: scnt += 1
          if ainfo['data_size'] != pgrec['data_size']:
             self.pglog("{}: Different Restored/RDADB file sizes {}/{}".format(afile, ainfo['data_size'], pgrec['data_size']), self.PGOPT['wrnlog'])
