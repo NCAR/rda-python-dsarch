@@ -1710,10 +1710,8 @@ class DsArch(PgArch, PgMeta):
                self.pglog("{}: Backup tar file of Backup Id {} is not downloaded".format(wfile, pgrec['bid']), self.PGOPT['wrnlog'])
                continue
             tarfile = self.TARFILES[pgrec['bid']]
+            self.make_local_directory(tardir, self.PGOPT['extlog'])
             ainfo = self.get_backup_member_file(pgrec, tarfile, tardir)
-            tarcmd = "tar -xvf {} -C {} {}".format(tarfile, tardir, wfile)
-            self.pgsystem(tarcmd, self.PGOPT['extlog'], 5)
-            ainfo = self.check_local_file(afile, 0, self.PGOPT['extlog'])
             if not ainfo:
                self.pglog("{}: Error untar File {}".format(tarfile, afile), self.PGOPT['wrnlog'])
                continue
@@ -1817,10 +1815,8 @@ class DsArch(PgArch, PgMeta):
                self.pglog("{}: Backup tar file of Backup Id {} is not downloaded".format(sfile, pgrec['bid']), self.PGOPT['wrnlog'])
                continue
             tarfile = self.TARFILES[pgrec['bid']]
+            self.make_local_directory(tardir, self.PGOPT['extlog'])
             ainfo = self.get_backup_member_file(pgrec, tarfile, tardir)
-            tarcmd = "tar -xvf {} -C {} {}".format(tarfile, tardir, sfile)
-            self.pgsystem(tarcmd, self.PGOPT['extlog'], 5)
-            ainfo = self.check_local_file(afile, 0, self.PGOPT['extlog'])
             if not ainfo:
                self.pglog("{}: Error untar File {}".format(tarfile, afile), self.PGOPT['wrnlog'])
                continue
