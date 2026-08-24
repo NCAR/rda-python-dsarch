@@ -1914,14 +1914,18 @@ class DsArch(PgArch, PgMeta):
                self.pglog(binfo + ": No need Cross Copy, Both Backup & Drdata Exist", self.PGOPT['wrnlog'])
                continue
             if barch:
-               if not self.endpoint_copy_endpoint(qfile, qfile, bpoint, dpoint, self.PGOPT['emerol']|self.OVERRIDE):
+               bstat = self.endpoint_copy_endpoint(qfile, qfile, bpoint, dpoint, self.PGOPT['emerol']|self.OVERRIDE)
+               if bstat == self.FINISH: bstat = self.check_globus_finished(qfile, bpoint, self.PGOPT['emerol']|self.NOWAIT)
+               if not bstat:
                   errcnt += 1
                   efiles[i] = 1
                   dflags['B'] = bpoint
                   continue
                bcnt += 1
             elif darch:
-               if not self.endpoint_copy_endpoint(qfile, qfile, dpoint, bpoint, self.PGOPT['emerol']|self.OVERRIDE):
+               dstat = self.endpoint_copy_endpoint(qfile, qfile, dpoint, bpoint, self.PGOPT['emerol']|self.OVERRIDE)
+               if dstat == self.FINISH: dstat = self.check_globus_finished(qfile, dpoint, self.PGOPT['emerol']|self.NOWAIT)
+               if not dstat:
                   errcnt += 1
                   efiles[i] = 1
                   dflags['D'] = dpoint
@@ -1952,9 +1956,9 @@ class DsArch(PgArch, PgMeta):
          self.check_background(None, 0, self.LOGWRN, 1)
          for i in range(self.ALLCNT):
             if barchs[i]:
-               self.validate_backarch(qfiles[i], "{}-{}".format(bpoint, qfiles[i]), i)
+               self.validate_backarch(qfiles[i], "{}-{}".format(dpoint, qfiles[i]), bpoint, i)
             elif qfiles[i]:
-               self.validate_backarch(qfiles[i], "{}-{}".format(dpoint, qfiles[i]), i)
+               self.validate_backarch(qfiles[i], "{}-{}".format(bpoint, qfiles[i]), dpoint, i)
       if bcnt > 0: self.pglog("{} of {} Backup file{} Cross Copied for {}".format(bcnt, self.ALLCNT, s, dsid), self.PGOPT['emllog'])
       if dcnt > 0: self.pglog("{} of {} Drdata file{} Cross Copied for {}".format(dcnt, self.ALLCNT, s, dsid), self.PGOPT['emllog'])
       if self.PGLOG['DSCHECK']:
