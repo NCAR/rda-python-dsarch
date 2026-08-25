@@ -1802,7 +1802,8 @@ class DsArch(PgArch, PgMeta):
             oarch = 0
          ofile = (self.join_paths(dsid, sfile) if oarch else None)
          if sarch:
-            tardir = "{}/{}".format(self.PGLOG['DECSHOME'], dsid)
+            # saved files are tarred relative to DECSHOME/<dsid>/<type>, per tar_backup_savedfiles()
+            tardir = "{}/{}/{}".format(self.PGLOG['DECSHOME'], dsid, type)
          else:
             tardir = "{}/{}/{}".format(self.PGLOG['DECSHOME'], self.PGLOG['BACKUPEP'], dsid)
          afile = "{}/{}".format(tardir, sfile)
