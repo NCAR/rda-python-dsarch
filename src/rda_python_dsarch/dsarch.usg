@@ -622,13 +622,13 @@ GroupIndex<:>GroupName<:>ParentIndex<:>Title<:>GroupPattern<:>BackupFlag<:>Saved
 2<:>MONTHLY<:>0<:>MONTHLY OAFlux Products<:><:>P<:><:>monthly<:>
 2 group records retrieved
 d260001-G1: DS-11094192261 DC-327 WC-327 SS-8909173908 SC-51
-d260001-G1 Web Files: Total 327(11094192261), Missing 0(0), Quasar Backup&DR 327(11094192261)
-d260001-G1 Saved Files: Total 51(8909173908), Missing 0(0), Quasar Backup&DR 51(8909173908)
+d260001-G1 Web Files: Total 327(11.09GB), Quasar Backup&DR 327(11.09GB)
+d260001-G1 Saved Files: Total 51(8.91GB), Quasar Backup&DR 51(8.91GB)
 d260001-G2: DS-552780725 DC-522 WC-522 SS-465789806 SC-51
-d260001-G2 Web Files: Total 522(552780725), Missing 2(2116424), Missing but on Quasar 1(1058212), Missing on Glade 2(2116424), Quasar Backup&DR 521(551722513), Not Backed Up 1(1058212)
+d260001-G2 Web Files: Total 522(552.78MB), Missing on Glade 2(2.12MB) [Quasar Backup&DR 1(1.06MB), Not Backed Up 1(1.06MB)], Quasar Backup&DR 521(551.72MB), Not Backed Up 1(1.06MB)
 d260001-G2-W-D: monthly/2025/oaflux_202511.nc: Missing on Glade; on Quasar Backup&DR (Backup ID 3456789)
 d260001-G2-W-D: monthly/2025/oaflux_202512.nc: Missing on Glade; Not Backed Up
-d260001-G2 Saved Files: Total 51(465789806), Missing 0(0), Quasar Backup&DR 51(465789806)
+d260001-G2 Saved Files: Total 51(465.79MB), Quasar Backup&DR 51(465.79MB)
 
 
 3.3.3 Delete Group Information
@@ -1941,14 +1941,16 @@ behavior.
   Files with Location Flag C (CGD) or R (remote) are not stored by
   GDEX and are not checked. One summary line per file category shows
   the file counts with -WN and the total file sizes with -WS (both as
-  Count(Size) when both options are given): the Total, the total
-  Missing (each file counted once; a Saved file found in COLD_STORAGE
-  is not missing), Missing but on Quasar (missing files that can still
-  be restored from a finished Quasar backup with action -RQ, so Missing
-  minus it is what is lost), then the result of each check. It is
-  followed by one line for every file missing or not backed up yet;
-  the line of a missing file also tells its Quasar backup, or that it
-  is not backed up.
+  Count(Size) when both options are given, sizes in KB/MB/GB/TB): the
+  Total, then the result of each check. Each Missing on Glade/Boreas
+  count is followed by the Quasar status of its files in [], e.g.
+  [Quasar Backup&DR 1(1.06MB), Not Backed Up 1(1.06MB)], so it tells
+  how many of the missing files can be restored with action -RQ and
+  how many are lost; for Saved files it also tells how many are In
+  COLD_STORAGE. The Quasar counts after them are of all the files,
+  missing or not. It is followed by one line for every file missing or
+  not backed up yet; the line of a missing file also tells its Quasar
+  backup, or that it is not backed up.
 
   -XC or -CrossCopy, used with -AW or -AS to fill gaps in storage:
   copies files from Glade disk to bOreas (or vice versa) wherever

@@ -1462,11 +1462,11 @@ class PgArch(PgOPT, PgCMD, PgSplit):
    # are not stored by GDEX and are checked neither on storage nor on Quasar
    # 'M' is the total of files missing, each counted once even when missing in both
    # places; a saved file found in COLD_STORAGE is not missing
-   # 'Q' are the missing files that can still be restored from a finished Quasar backup,
-   # so 'M' minus 'Q' is what is lost
-   QMSTATS = (('M', 'Missing'), ('Q', 'Missing but on Quasar'), ('G', 'Missing on Glade'),
-              ('O', 'Missing on Boreas'), ('C', 'In COLD_STORAGE'),
-              ('X', 'Not Checked (CGD/Remote)'))
+   # each 'Missing on' count is broken down by the Quasar status of its files, so
+   # it tells how many of them can still be restored and how many are lost; the
+   # Quasar counts that follow are of all the files, missing or not
+   QMSTATS = (('G', 'Missing on Glade'), ('O', 'Missing on Boreas'),
+              ('C', 'In COLD_STORAGE'), ('X', 'Not Checked (CGD/Remote)'))
 
    def check_file_storage(self, dsid, head, gidxs, wn, ws):
       """
@@ -1527,6 +1527,8 @@ class PgArch(PgOPT, PgCMD, PgSplit):
       total = [0, 0]
       bcnts = {k: [0, 0] for (k, m) in self.QBSTATS}
       mcnts = {k: [0, 0] for (k, m) in self.QMSTATS}
+      # Quasar status (and COLD_STORAGE for saved files) of the files missing per location
+      mbcnts = {'G': {}, 'O': {}}
       lines = []
       for i in range(fcnt):
          fname = frecs['fname'][i]
@@ -1555,7 +1557,6 @@ class PgArch(PgOPT, PgCMD, PgSplit):
             if bkey != 'N': bmsg += " (Backup ID {})".format(frecs['bid'][i])
             # physical copies
             msgs = []
-            missed = False
             if locflag != 'O':
                if cate == 'S':
                   lfile = "{}/{}/{}".format(self.RTPATH['SP'], ftype, fname)
@@ -1570,24 +1571,18 @@ class PgArch(PgOPT, PgCMD, PgSplit):
                if not op.exists(lfile):
                   mcnts['G'][0] += 1
                   mcnts['G'][1] += fsize
-                  msg = self.QMSTATS[2][1]
+                  self.add_file_count(mbcnts['G'], bkey, fsize)
+                  msg = self.QMSTATS[0][1]
                   if cfile:
+                     self.add_file_count(mbcnts['G'], 'C', fsize)
                      msg += ", Found in COLD_STORAGE " + cfile
-                  else:
-                     missed = True
                   msgs.append(msg)
             if locflag in ('O', 'B'):
                if not self.object_file_exists(dsid, fname, bucket):
                   mcnts['O'][0] += 1
                   mcnts['O'][1] += fsize
-                  msgs.append(self.QMSTATS[3][1])
-                  missed = True
-            if missed:
-               mcnts['M'][0] += 1
-               mcnts['M'][1] += fsize
-               if bkey in ('B', 'D'):
-                  mcnts['Q'][0] += 1
-                  mcnts['Q'][1] += fsize
+                  self.add_file_count(mbcnts['O'], bkey, fsize)
+                  msgs.append(self.QMSTATS[1][1])
             # one line per file: where it is missing and where it is backed up, so a
             # missing file shows whether it can be restored; a present file is listed
             # only when it is not backed up yet
@@ -1598,8 +1593,14 @@ class PgArch(PgOPT, PgCMD, PgSplit):
             if msgs: lines.append("{}: {}".format(finfo, '; '.join(msgs)))
       msg = "{} {} Files: Total {}".format(head, cname, self.file_number_size(total, wn, ws))
       for (k, m) in self.QMSTATS:
-         # the total missing is always shown, so a clean check reads 'Missing 0'
-         if mcnts[k][0] or k == 'M': msg += ", {} {}".format(m, self.file_number_size(mcnts[k], wn, ws))
+         if not mcnts[k][0]: continue
+         msg += ", {} {}".format(m, self.file_number_size(mcnts[k], wn, ws))
+         if k in mbcnts:
+            # e.g. Missing on Glade 6309(65.73GB) [Quasar Backup 10(1.20GB), Not Backed Up 6299(64.53GB)]
+            subs = [(bk, bm) for (bk, bm) in self.QBSTATS] + [('C', self.QMSTATS[2][1])]
+            parts = ["{} {}".format(bm, self.file_number_size(mbcnts[k][bk], wn, ws))
+                     for (bk, bm) in subs if bk in mbcnts[k]]
+            msg += " [{}]".format(', '.join(parts))
       for (k, m) in self.QBSTATS:
          if bcnts[k][0]: msg += ", {} {}".format(m, self.file_number_size(bcnts[k], wn, ws))
       self.OUTPUT.write(msg + "\n")
@@ -1607,10 +1608,17 @@ class PgArch(PgOPT, PgCMD, PgSplit):
          self.OUTPUT.write(line + "\n")
 
    @staticmethod
-   def file_number_size(cnts, wn, ws):
-      """Format [count, size] as 'count', 'size' or 'count(size)' per -WN/-WS."""
-      if wn and ws: return "{}({})".format(cnts[0], cnts[1])
-      return str(cnts[1] if ws else cnts[0])
+   def add_file_count(cnts, key, fsize):
+      """Add one file of fsize bytes to the [count, size] of key in dict cnts."""
+      if key not in cnts: cnts[key] = [0, 0]
+      cnts[key][0] += 1
+      cnts[key][1] += fsize
+
+   def file_number_size(self, cnts, wn, ws):
+      """Format [count, size] as 'count', 'size' or 'count(size)' per -WN/-WS, size readable."""
+      size = self.format_float_value(cnts[1])
+      if wn and ws: return "{}({})".format(cnts[0], size)
+      return size if ws else str(cnts[0])
 
    def object_file_exists(self, dsid, fname, bucket):
       """
