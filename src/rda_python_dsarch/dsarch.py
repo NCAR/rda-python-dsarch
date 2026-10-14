@@ -2049,7 +2049,7 @@ class DsArch(PgArch, PgMeta):
          self.print_row_format(pgrec, fnames, hash)
       self.view_keyvalues(dsid, kvalues, getkeys)
       if fnames and 'PE' in self.params: self.get_period_info()
-      if 'WN' in self.params: self.view_filenumber(dsid, 0)
+      if 'WN' in self.params or 'WS' in self.params: self.view_filenumber(dsid, 0)
       return 1   # get one dataset record
 
    def get_period_info(self):
@@ -2206,7 +2206,7 @@ class DsArch(PgArch, PgMeta):
       onames = self.params['ON'] if 'ON' in self.params else "I"
       qnames = fnames
       if fnames.find('Y') > -1 and fnames.find('X') < 0: qnames += 'X'
-      if 'WN' in self.params and fnames.find('I') < 0: qnames += 'I'
+      if ('WN' in self.params or 'WS' in self.params) and fnames.find('I') < 0: qnames += 'I'
       qnames += self.append_order_fields(onames, qnames, tname, "Y")
       condition = self.get_condition(tname)
       if 'ON' in self.params and ('OB' in self.params or re.search(r'Y', onames, re.I)):
@@ -2227,7 +2227,7 @@ class DsArch(PgArch, PgMeta):
          cnt = self.print_column_format(pgrecs, fnames, hash, lens)
          s = 's' if cnt > 1 else ''
          self.pglog("{} group record{} retrieved".format(cnt, s), self.LOGWRN)
-         if 'WN' in self.params: self.view_filenumber(dsid, pgrecs['gindex'], cnt)
+         if 'WN' in self.params or 'WS' in self.params: self.view_filenumber(dsid, pgrecs['gindex'], cnt)
       else:
          self.pglog("No group found for " + condition, self.LOGWRN)
 
