@@ -609,10 +609,11 @@ QSCAT observations.<:>
   Results can be filtered by group index (-GI), name (-GN), or parent
   index (-PI). The -GN option accepts the '%' wildcard.
 
-  For example, to retrieve the default group fields and file counts for
-  groups 1 and 2 of d260001:
+  For example, to retrieve the default group fields, the file numbers
+  and sizes, and the storage and Quasar backup checks for groups 1 and
+  2 of d260001:
 
-  dsarch d260001 GG -WN -GI 1 2
+  dsarch d260001 GG -WN -WS -GI 1 2
 
 <<Content of the output>>
 Dataset<=>d260001
@@ -621,7 +622,13 @@ GroupIndex<:>GroupName<:>ParentIndex<:>Title<:>GroupPattern<:>BackupFlag<:>Saved
 2<:>MONTHLY<:>0<:>MONTHLY OAFlux Products<:><:>P<:><:>monthly<:>
 2 group records retrieved
 d260001-G1: DS-11094192261 DC-327 WC-327 SS-8909173908 SC-51
+d260001-G1 Web Files: Total 327(11094192261), Missing 0(0), Quasar Backup&DR 327(11094192261)
+d260001-G1 Saved Files: Total 51(8909173908), Missing 0(0), Quasar Backup&DR 51(8909173908)
 d260001-G2: DS-552780725 DC-522 WC-522 SS-465789806 SC-51
+d260001-G2 Web Files: Total 522(552780725), Missing 2(2116424), Missing but on Quasar 1(1058212), Missing on Glade 2(2116424), Quasar Backup&DR 521(551722513), Not Backed Up 1(1058212)
+d260001-G2-W-D: monthly/2025/oaflux_202511.nc: Missing on Glade; on Quasar Backup&DR (Backup ID 3456789)
+d260001-G2-W-D: monthly/2025/oaflux_202512.nc: Missing on Glade; Not Backed Up
+d260001-G2 Saved Files: Total 51(465789806), Missing 0(0), Quasar Backup&DR 51(465789806)
 
 
 3.3.3 Delete Group Information
@@ -1909,12 +1916,39 @@ behavior.
 
   -WN or -WithFileNumber, recomputes and updates Saved/Web file
   counts for the dataset and any specified groups. With -GD
-  (-GetDataset), the counts are calculated on the fly and included
-  in the output.
+  (-GetDataset) or -GG (-GetGroup), shows the Web/Saved file numbers
+  of the dataset or each group, and checks their files as described
+  below.
 
   -WS or -WithFileSize, rechecks Web file sizes and timestamps for
   provided web files with -WF (-WebFile), and updates them into GDEXDB
-  This Mode option works with action -SW (SetWebFile) only.
+  with action -SW (SetWebFile). With -GD (-GetDataset) or -GG
+  (-GetGroup), shows the Web/Saved file sizes of the dataset or each
+  group, and checks their files as described below.
+
+  With -GD/-GG, either -WN or -WS also checks every Web and Saved file
+  (including the files of sub groups for a group) that is not deleted:
+    - a file with Location Flag G or B must exist on Glade, and one
+      with Location Flag O or B on Boreas (object store);
+    - a Saved file on Glade (Location Flag G or B) is looked for in
+      COLD_STORAGE, <decsdata>/COLD_STORAGE/<dsid> or
+      <decsdata>/cold_storage_<YYYYMMDD>/COLD_STORAGE/<dsid>, and is
+      counted as In COLD_STORAGE whether or not it is on Glade too;
+    - its Quasar backup, by the backup file (bfile) of its Backup ID:
+      type B for Quasar Backup, type D for Quasar Backup & Disaster
+      Recovery, counted once the backup file status is A; Pending
+      when it is not, and Not Backed Up when it has no Backup ID.
+  Files with Location Flag C (CGD) or R (remote) are not stored by
+  GDEX and are not checked. One summary line per file category shows
+  the file counts with -WN and the total file sizes with -WS (both as
+  Count(Size) when both options are given): the Total, the total
+  Missing (each file counted once; a Saved file found in COLD_STORAGE
+  is not missing), Missing but on Quasar (missing files that can still
+  be restored from a finished Quasar backup with action -RQ, so Missing
+  minus it is what is lost), then the result of each check. It is
+  followed by one line for every file missing or not backed up yet;
+  the line of a missing file also tells its Quasar backup, or that it
+  is not backed up.
 
   -XC or -CrossCopy, used with -AW or -AS to fill gaps in storage:
   copies files from Glade disk to bOreas (or vice versa) wherever

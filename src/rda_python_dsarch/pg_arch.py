@@ -21,6 +21,7 @@ and caching dataset/group metadata.
 import time
 import re
 import os
+import glob
 from os import path as op
 from rda_python_common.pg_split import PgSplit
 from rda_python_common.pg_cmd import PgCMD
@@ -61,6 +62,8 @@ class PgArch(PgOPT, PgCMD, PgSplit):
          'SP' : '',         # dataset savedpath
       }
       self.webpaths = {}
+      self.OBJKEYS = {}    # object keys listed per bucket:dsid, by object_file_exists()
+      self.COLDDIRS = {}   # cold storage directories found per dsid, by cold_storage_file()
       self.savedpaths = {}
       self.grouptypes = {}
       self.CORDERS = {}
@@ -1417,27 +1420,248 @@ class PgArch(PgOPT, PgCMD, PgSplit):
       else:
          cnt = 1
          grecs = [gindex]
+      # -WN shows the file numbers and -WS the file sizes; either one also checks the
+      # files on storage and on Quasar, see check_file_storage()
+      wn = 'WN' in self.params
+      ws = 'WS' in self.params
       fields = ("dwebcnt, webcnt, cdwcnt, nwebcnt, dweb_size, nweb_size, savedcnt, saved_size")
+      dcnd = "dsid = '{}'".format(dsid)
       for i in range(cnt):
          if grecs[i] == 0:
             table = "dataset"
-            cnd = "dsid = '{}'".format(dsid)
+            cnd = dcnd
             head = dsid
          else:
             table = "dsgroup"
-            cnd = "dsid = '{}' AND gindex = {}".format(dsid, grecs[i])
+            cnd = "{} AND gindex = {}".format(dcnd, grecs[i])
             head = "{}-G{}".format(dsid, grecs[i])
          pgrec = self.pgget(table, fields, cnd, self.PGOPT['extlog'])
          if pgrec:
             msg = ''
             if pgrec['webcnt']:
-               if pgrec['dwebcnt']: msg += " DS-{} DC-{}".format(pgrec['dweb_size'], pgrec['dwebcnt'])
-               if pgrec['cdwcnt']: msg += " CDC-{}".format(pgrec['cdwcnt'])
-               if pgrec['nwebcnt']: msg += " NS-{} NC-{}".format(pgrec['nweb_size'], pgrec['nwebcnt'])
-               msg += " WC-{}".format(pgrec['webcnt'])
+               if pgrec['dwebcnt']:
+                  if ws: msg += " DS-{}".format(pgrec['dweb_size'])
+                  if wn: msg += " DC-{}".format(pgrec['dwebcnt'])
+               if pgrec['cdwcnt'] and wn: msg += " CDC-{}".format(pgrec['cdwcnt'])
+               if pgrec['nwebcnt']:
+                  if ws: msg += " NS-{}".format(pgrec['nweb_size'])
+                  if wn: msg += " NC-{}".format(pgrec['nwebcnt'])
+               if wn: msg += " WC-{}".format(pgrec['webcnt'])
             if pgrec['savedcnt']:
-               msg += " SS-{} SC-{}".format(pgrec['saved_size'], pgrec['savedcnt'])
-            if msg: print("{}:{}".format(head, msg))
+               if ws: msg += " SS-{}".format(pgrec['saved_size'])
+               if wn: msg += " SC-{}".format(pgrec['savedcnt'])
+            if msg: self.OUTPUT.write("{}:{}\n".format(head, msg))
+         # group counts include the sub groups, so check the files of all of them
+         gidxs = self.get_all_subgroups(dcnd, grecs[i]) if grecs[i] else None
+         self.check_file_storage(dsid, head, gidxs, wn, ws)
+
+   # Quasar backup status of a file, by bfile.type and bfile.status of its bid
+   QBSTATS = (('B', 'Quasar Backup'), ('D', 'Quasar Backup&DR'),
+              ('P', 'Quasar Backup Pending'), ('N', 'Not Backed Up'))
+   # where a missing file was looked for, by locflag; 'C' (CGD) and 'R' (remote) files
+   # are not stored by GDEX and are checked neither on storage nor on Quasar
+   # 'M' is the total of files missing, each counted once even when missing in both
+   # places; a saved file found in COLD_STORAGE is not missing
+   # 'Q' are the missing files that can still be restored from a finished Quasar backup,
+   # so 'M' minus 'Q' is what is lost
+   QMSTATS = (('M', 'Missing'), ('Q', 'Missing but on Quasar'), ('G', 'Missing on Glade'),
+              ('O', 'Missing on Boreas'), ('C', 'In COLD_STORAGE'),
+              ('X', 'Not Checked (CGD/Remote)'))
+
+   def check_file_storage(self, dsid, head, gidxs, wn, ws):
+      """
+      Check the web and saved files of a dataset or group on storage and Quasar.
+
+      For every web/saved file that is not deleted: a Glade copy (locflag G or B)
+      must exist under the dataset home, a Boreas copy (locflag O or B) must exist
+      in the object store, and a Glade saved file is looked for under COLD_STORAGE,
+      counted there whether or not it is still on Glade too. The Quasar backup status comes from bfile.type ('B' backup,
+      'D' backup and disaster recovery) of the file's bid, counted only once the
+      backup file status is 'A'. Writes the totals and every missing or not
+      backed up file to self.OUTPUT.
+
+      Args:
+         dsid  -- dataset ID string
+         head  -- line prefix, dsid or dsid-G<gindex>
+         gidxs -- group indices to check, None for the whole dataset
+         wn    -- show file numbers (-WN)
+         ws    -- show file sizes (-WS)
+      """
+      if gidxs is None:
+         gcnd = ''
+      elif len(gidxs) == 1:
+         gcnd = " AND {{0}}.gindex = {}".format(gidxs[0])
+      else:
+         gcnd = " AND {{0}}.gindex IN ({})".format(', '.join(str(g) for g in gidxs))
+      bflds = "bfile.type btype, bfile.status bstat"
+      bjoin = "LEFT JOIN bfile ON {0}.bid = bfile.bid"
+      wrecs = self.pgmget_wfile_join(dsid, bjoin.format('wfile'),
+                                     "wfile.wid fid, wfile.wfile fname, wfile.type, wfile.data_size, " +
+                                     "wfile.locflag, wfile.bid, " + bflds,
+                                     "wfile.status <> 'D'" + gcnd.format('wfile'), self.PGOPT['extlog'])
+      srecs = self.pgmget("sfile " + bjoin.format('sfile'),
+                          "sfile.sid fid, sfile.sfile fname, sfile.type, sfile.data_size, " +
+                          "sfile.locflag, sfile.bid, " + bflds,
+                          "sfile.dsid = '{}' AND sfile.status <> 'D'".format(dsid) + gcnd.format('sfile'),
+                          self.PGOPT['extlog'])
+      for (cate, frecs) in (('W', wrecs), ('S', srecs)):
+         fcnt = len(frecs['fid']) if frecs else 0
+         if fcnt: self.view_file_storage(dsid, head, cate, frecs, fcnt, wn, ws)
+
+   def view_file_storage(self, dsid, head, cate, frecs, fcnt, wn, ws):
+      """
+      Check one category (W-web or S-saved) of file records and write the report.
+
+      Args:
+         dsid  -- dataset ID string
+         head  -- line prefix, dsid or dsid-G<gindex>
+         cate  -- 'W' for web files, 'S' for saved files
+         frecs -- multi-record dict from check_file_storage()
+         fcnt  -- number of records in frecs
+         wn    -- show file numbers (-WN)
+         ws    -- show file sizes (-WS)
+      """
+      self.cache_rtpath(dsid)
+      bucket = 'gdex-decsdata' if cate == 'S' else self.PGLOG['OBJCTBKT']
+      cname = 'Saved' if cate == 'S' else 'Web'
+      total = [0, 0]
+      bcnts = {k: [0, 0] for (k, m) in self.QBSTATS}
+      mcnts = {k: [0, 0] for (k, m) in self.QMSTATS}
+      lines = []
+      for i in range(fcnt):
+         fname = frecs['fname'][i]
+         ftype = frecs['type'][i]
+         fsize = frecs['data_size'][i] or 0
+         locflag = frecs['locflag'][i]
+         finfo = "{}-{}-{}: {}".format(head, cate, ftype, fname)
+         total[0] += 1
+         total[1] += fsize
+         if locflag in ('C', 'R'):
+            # not stored by GDEX, so neither on storage nor on Quasar
+            mcnts['X'][0] += 1
+            mcnts['X'][1] += fsize
+            continue
+         else:
+            # quasar backup, by the backup file of the bid
+            if not frecs['bid'][i]:
+               bkey = 'N'
+            elif frecs['bstat'][i] == 'A' and frecs['btype'][i] in ('B', 'D'):
+               bkey = frecs['btype'][i]
+            else:
+               bkey = 'P'
+            bcnts[bkey][0] += 1
+            bcnts[bkey][1] += fsize
+            bmsg = dict(self.QBSTATS)[bkey]
+            if bkey != 'N': bmsg += " (Backup ID {})".format(frecs['bid'][i])
+            # physical copies
+            msgs = []
+            missed = False
+            if locflag != 'O':
+               if cate == 'S':
+                  lfile = "{}/{}/{}".format(self.RTPATH['SP'], ftype, fname)
+               else:
+                  lfile = self.join_paths(self.RTPATH.get(ftype, self.RTPATH['D']), fname)
+               # every Glade saved file is looked for in cold storage, so the count tells
+               # how much of the saved data is on tape, whether or not it is on Glade too
+               cfile = self.cold_storage_file(dsid, ftype, fname) if cate == 'S' else None
+               if cfile:
+                  mcnts['C'][0] += 1
+                  mcnts['C'][1] += fsize
+               if not op.exists(lfile):
+                  mcnts['G'][0] += 1
+                  mcnts['G'][1] += fsize
+                  msg = self.QMSTATS[2][1]
+                  if cfile:
+                     msg += ", Found in COLD_STORAGE " + cfile
+                  else:
+                     missed = True
+                  msgs.append(msg)
+            if locflag in ('O', 'B'):
+               if not self.object_file_exists(dsid, fname, bucket):
+                  mcnts['O'][0] += 1
+                  mcnts['O'][1] += fsize
+                  msgs.append(self.QMSTATS[3][1])
+                  missed = True
+            if missed:
+               mcnts['M'][0] += 1
+               mcnts['M'][1] += fsize
+               if bkey in ('B', 'D'):
+                  mcnts['Q'][0] += 1
+                  mcnts['Q'][1] += fsize
+            # one line per file: where it is missing and where it is backed up, so a
+            # missing file shows whether it can be restored; a present file is listed
+            # only when it is not backed up yet
+            if msgs:
+               msgs.append("on " + bmsg if bkey in ('B', 'D') else bmsg)
+            elif bkey in ('N', 'P'):
+               msgs.append(bmsg)
+            if msgs: lines.append("{}: {}".format(finfo, '; '.join(msgs)))
+      msg = "{} {} Files: Total {}".format(head, cname, self.file_number_size(total, wn, ws))
+      for (k, m) in self.QMSTATS:
+         # the total missing is always shown, so a clean check reads 'Missing 0'
+         if mcnts[k][0] or k == 'M': msg += ", {} {}".format(m, self.file_number_size(mcnts[k], wn, ws))
+      for (k, m) in self.QBSTATS:
+         if bcnts[k][0]: msg += ", {} {}".format(m, self.file_number_size(bcnts[k], wn, ws))
+      self.OUTPUT.write(msg + "\n")
+      for line in lines:
+         self.OUTPUT.write(line + "\n")
+
+   @staticmethod
+   def file_number_size(cnts, wn, ws):
+      """Format [count, size] as 'count', 'size' or 'count(size)' per -WN/-WS."""
+      if wn and ws: return "{}({})".format(cnts[0], cnts[1])
+      return str(cnts[1] if ws else cnts[0])
+
+   def object_file_exists(self, dsid, fname, bucket):
+      """
+      Check whether an object key, or a directory key such as a zarr store, exists.
+
+      Lists the whole dataset prefix once per dataset and bucket, so checking a
+      dataset of many object files costs one object store call instead of one per
+      file. A listing error is reported once and the files are then taken as present.
+      """
+      ckey = "{}:{}".format(bucket, dsid)
+      if ckey not in self.OBJKEYS:
+         keys = set()
+         flist = self.object_glob(dsid + '/', bucket, 0, self.PGOPT['wrnlog'])
+         if flist == self.FAILURE:
+            keys = None
+         elif flist:
+            for key in flist:
+               # a key under a directory key also stands for each of its parent directories
+               while key and key not in keys:
+                  keys.add(key)
+                  key = op.dirname(key)
+         self.OBJKEYS[ckey] = keys
+      keys = self.OBJKEYS[ckey]
+      if keys is None: return True
+      return self.join_paths(dsid, fname) in keys
+
+   def cold_storage_file(self, dsid, stype, sfile):
+      """
+      Find a saved file moved into GLADE cold storage.
+
+      A dataset is moved either to <DECSHOME>/COLD_STORAGE/<dsid> or to
+      <DECSHOME>/cold_storage_<YYYYMMDD>/COLD_STORAGE/<dsid>; both are searched,
+      the root one first and then the dated ones newest first. Checking a migrated
+      file only reads its inode, it does not recall it from tape.
+
+      Returns:
+         Path of the file in cold storage, or None if not found.
+      """
+      if dsid not in self.COLDDIRS:
+         dhome = self.PGLOG['DECSHOME']
+         cdirs = []
+         for cname in ('COLD_STORAGE', 'COLD_STORAGE_SINGLE_COPY'):
+            cdirs.append("{}/{}/{}".format(dhome, cname, dsid))
+         for cdir in sorted(glob.glob(dhome + "/cold_storage_*"), reverse = True):
+            for cname in ('COLD_STORAGE', 'COLD_STORAGE_SINGLE_COPY'):
+               cdirs.append("{}/{}/{}".format(cdir, cname, dsid))
+         self.COLDDIRS[dsid] = [cdir for cdir in cdirs if op.isdir(cdir)]
+      for cdir in self.COLDDIRS[dsid]:
+         cfile = "{}/{}/{}".format(cdir, stype, sfile)
+         if op.exists(cfile): return cfile
+      return None
    
    def get_bid_numbers(self, bfiles):
       """
