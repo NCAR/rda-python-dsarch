@@ -639,6 +639,9 @@ class PgMeta(PgCMD, PgSplit):
       d = self.metadata_dataset_id(dsid)
       if d not in self.META[c]: self.META[c][d] = []
       f = fmt.lower()
+      if f == "zarr":   # gatherxml has no reader for Zarr stores
+         self.pglog("{}-{}: Skip 'gatherxml' for Data Format '{}'".format(dsid, file, fmt), self.LOGWRN)
+         return 0
       if f == "netcdf": f = "cf" + f
       if not lfile: lfile = op.basename(file)
       self.META[c][d].append([file, f, lfile, mfile])

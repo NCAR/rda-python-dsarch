@@ -534,7 +534,7 @@ class DsArch(PgArch, PgMeta):
             if self.PGSIG['BPROC'] < 2:
                if not fnames: fnames = self.get_field_keys(tname, None, "G")  # get setting fields if not yet
                info = None
-               if warch:
+               if afile:   # also when already in place, so a directory gets its real total size
                   info = self.check_local_file(afile, 1, self.PGOPT['emerol']|self.PFSIZE)
                elif oarch:
                   info = self.check_object_file(ofile, bucket, 1, self.PGOPT['emerol'])
@@ -926,10 +926,8 @@ class DsArch(PgArch, PgMeta):
                   bgcnt += 1
             if self.PGSIG['BPROC'] < 2:
                if not fnames: fnames = self.get_field_keys(tname, None, "G")  # get setting fields if not yet
-               info = None
-               if sarch:
-                  info = self.check_local_file(afile, 1, self.PGOPT['emerol']|self.PFSIZE)
-               elif pgrec:
+               info = self.check_local_file(afile, 1, self.PGOPT['emerol']|self.PFSIZE)   # also when already in place
+               if not info and pgrec:
                   info = self.get_file_origin_info(sfile, pgrec)
                sid = self.set_one_savedfile(i, pgrec, sfile, fnames, type, info)
                if not sid:
