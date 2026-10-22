@@ -2047,8 +2047,36 @@ class DsArch(PgArch, PgMeta):
          self.print_row_format(pgrec, fnames, hash)
       self.view_keyvalues(dsid, kvalues, getkeys)
       if fnames and 'PE' in self.params: self.get_period_info()
+      if 'SO' in self.params: self.get_owner_info(dsid)
       if 'WN' in self.params or 'WS' in self.params: self.view_filenumber(dsid, 0)
       return 1   # get one dataset record
+
+   def get_owner_info(self, dsid):
+      """
+      Display the specialists who own a dataset.
+
+      Joins dsowner with dssgrp to list each owner's login name, priority
+      (1 = primary specialist) and name, ordered by priority.  Lines are
+      written as comments so the output can still be fed back via -IF.
+
+      Args:
+         dsid -- dataset ID string
+      """
+      tjoin = "dsowner LEFT JOIN dssgrp ON specialist = logname"
+      pgrecs = self.pgmget(tjoin, "specialist, priority, fstname, lstname",
+                           "dsid = '{}' ORDER BY priority, specialist".format(dsid), self.LGEREX)
+      cnt = len(pgrecs['specialist']) if pgrecs else 0
+      if not cnt:
+         self.OUTPUT.write("#Owner{}NONE\n".format(self.params['ES']))
+         return self.pglog("No owner found for {} in dsowner".format(dsid), self.LOGWRN)
+      dv = self.params['DV']
+      self.OUTPUT.write("#Owner{0}Priority{0}Name{0}\n".format(dv))
+      for i in range(cnt):
+         name = ' '.join(n for n in (pgrecs['fstname'][i], pgrecs['lstname'][i]) if n)
+         if not name: name = 'Not in dssgrp'
+         self.OUTPUT.write("#{1}{0}{2}{0}{3}{0}\n".format(dv, pgrecs['specialist'][i], pgrecs['priority'][i], name))
+      s = 's' if cnt > 1 else ''
+      self.pglog("{} owner record{} retrieved for {}".format(cnt, s, dsid), self.LOGWRN)
 
    def get_period_info(self):
       """
