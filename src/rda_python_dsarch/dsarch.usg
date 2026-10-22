@@ -301,6 +301,8 @@ handle:
     -(FO|FormatOutput) - formats each column to a uniform fixed width
       -(PE|ShowPeriod) - includes associated period information for the
                          dataset and any groups
+       -(SO|ShowOwner) - includes the dataset owners (specialists) and
+                         their priorities, 1 for the primary specialist
   -(WN|WithFileNumber) - gathers and displays Saved/Web file counts
 
   Use -FN (-FieldNames) to select which dataset fields to include.
@@ -1888,6 +1890,12 @@ behavior.
   -SC or -SetChecksum, calculates MD5 checksums for data files on
   the GDEX Server and stores them in GDEXDB for integrity
   verification.
+
+  -SO or -ShowOwner (Alias: -ShowOwners|-ShowSpecialist|-ShowSpecialists),
+  adds the dataset owners from dsowner to the output of -GD
+  (-GetDataset): login name, priority (1 = primary specialist) and
+  name. The lines are written as comments starting with '#', so the
+  output can still be read back with -IF.
 
   -TO or -TarOnly, builds the Quasar tar file locally without
   uploading it to the Globus Quasar Server. Useful for testing. Used
