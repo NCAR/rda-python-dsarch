@@ -1249,7 +1249,8 @@ IMMA_2.4_2007.tar<:>37<:>IMMA<:>Z.TAR<:>D<:>656820224<:>
        -(NE|NoEmail) - suppresses email notification on failure
         -(NT|NoTrim) - skips trimming of spaces and comments from input
                        values, speeding up input file processing
- -(OE|OverrideExist) - overwrites existing Saved files
+ -(OE|OverrideExist) - overwrites existing Saved files, even ones of the
+                       same size
     -(RO|ResetOrder) - resets display order indices to match the order
                        files are given per -SF. Alternatively, use -ON
                        (-OrderNames) to reorder all files in the dataset
@@ -1347,7 +1348,8 @@ IMMA_2.4_2007.tar<:>37<:>IMMA<:>Z.TAR<:>D<:>656820224<:>
        -(NE|NoEmail) - suppresses email notification on failure
         -(NT|NoTrim) - skips trimming of spaces and comments from input
                        values, speeding up input file processing
- -(OE|OverrideExist) - overwrites existing Web files
+ -(OE|OverrideExist) - overwrites existing Web files, even ones of the
+                       same size
     -(RO|ResetOrder) - resets display order indices to match the order
                        files are given per -WF. Alternatively, use -ON
                        (-OrderNames) to reorder all files in the dataset
@@ -1438,7 +1440,8 @@ IMMA_2.4_2007.tar<:>37<:>IMMA<:>Z.TAR<:>D<:>656820224<:>
        -(NE|NoEmail) - suppresses email notification on failure
         -(NT|NoTrim) - skips trimming of spaces and comments from input
                        values, speeding up input file processing
- -(OE|OverrideExist) - overwrites existing Help files
+ -(OE|OverrideExist) - overwrites existing Help files, even ones of the
+                       same size
     -(RO|ResetOrder) - resets display order indices to match the order
                        files are given per -HF. Alternatively, use -ON
                        (-OrderNames) to reorder all files in the dataset

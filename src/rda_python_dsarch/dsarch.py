@@ -476,7 +476,7 @@ class DsArch(PgArch, PgMeta):
                   if pgrec and chksum and pgrec['checksum'] and pgrec['checksum'] == chksum:
                      self.pglog("Web-{}: Same-Checksum ARCHIVED at {}:{}".format(winfo, info['date_modified'], info['time_modified']), self.PGOPT['emllog'])
                      warch = 0
-                  elif info['data_size'] == lsize:
+                  elif not override and info['data_size'] == lsize:
                      self.pglog("Web-{}: Same-Size ARCHIVED at {}:{}".format(winfo, info['date_modified'], info['time_modified']), self.PGOPT['wrnlog'])
                      warch = 0
                   elif vsnctl and not override:
@@ -495,7 +495,7 @@ class DsArch(PgArch, PgMeta):
                   if pgrec and chksum and pgrec['checksum'] and pgrec['checksum'] == chksum:
                      self.pglog("Object-{}-{}: Same-Checksum ARCHIVED at {}:{}".format(bucket, ofile, info['date_modified'], info['time_modified']), self.PGOPT['emllog'])
                      oarch = 0
-                  elif info['data_size'] == lsize:
+                  elif not override and info['data_size'] == lsize:
                      self.pglog("Object-{}-{}: Same-Size ARCHIVED at {}:{}".format(bucket, ofile, info['date_modified'], info['time_modified']), self.PGOPT['wrnlog'])
                      oarch = 0
                   elif vsnctl and not override:
@@ -714,7 +714,7 @@ class DsArch(PgArch, PgMeta):
                   if pgrec and chksum and pgrec['checksum'] and pgrec['checksum'] == chksum:
                      self.pglog("Object-{}-{}: Same-Checksum ARCHIVED at {}:{}".format(bucket, ofile, info['date_modified'], info['time_modified']), self.PGOPT['emllog'])
                      oarch = 0
-                  elif info['data_size'] == lsize:
+                  elif not override and info['data_size'] == lsize:
                      self.pglog("Object-{}-{}: Same-Size ARCHIVED at {}:{}".format(bucket, ofile, info['date_modified'], info['time_modified']), self.PGOPT['wrnlog'])
                      oarch = 0
                   else:
@@ -901,7 +901,7 @@ class DsArch(PgArch, PgMeta):
                   if pgrec and chksum and pgrec['checksum'] and pgrec['checksum'] == chksum:
                      self.pglog("Saved-{}: Same-Checksum ARCHIVED at {}:{}".format(sinfo, info['date_modified'], info['time_modified']), self.PGOPT['emllog'])
                      sarch = 0
-                  elif info['data_size'] == lsize:
+                  elif not override and info['data_size'] == lsize:
                      self.pglog("Saved-{}: Same-Size ARCHIVED at {}:{}".format(sinfo, info['date_modified'], info['time_modified']), self.PGOPT['wrnlog'])
                      sarch = 0
                   elif vsnctl and not override:
