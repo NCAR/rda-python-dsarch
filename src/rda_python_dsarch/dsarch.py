@@ -58,6 +58,8 @@ class DsArch(PgArch, PgMeta):
       self.BCKNOTES = {}
       self.VINDEX = {}
       self.CHGGRPS = {}
+      self.CPFILES = {}   # file index -> copy/move child pname (or 1/0) of an -AL first pass
+      self.CPDIRS = {}    # file index -> cross copy direction ('G','O','B','D') of an -AL first pass
       self.ERRMSG = ''
 
    def read_parameters(self):
@@ -115,16 +117,16 @@ class DsArch(PgArch, PgMeta):
       if self.PGOPT['ACTS'] == self.OPTS['AH'][0]:
          self.ALLCNT = len(self.params['HF']) if 'HF' in self.params else len(self.params['LF'])
          if 'XC' in self.params:
-            self.crosscopy_help_files('Copy')
+            self.archive_in_passes(self.crosscopy_help_files, 'Copy')
          elif 'XM' in self.params:
-            self.crosscopy_help_files('Move')
+            self.archive_in_passes(self.crosscopy_help_files, 'Move')
          else:
             self.archive_in_passes(self.archive_help_files)
          if 'CL' in self.params: self.delete_local_files()
       elif self.PGOPT['ACTS'] == self.OPTS['AQ'][0]:
          if 'XC' in self.params:
             self.ALLCNT = len(self.params['QF'])
-            self.crosscopy_backup_files()
+            self.archive_in_passes(self.crosscopy_backup_files)
          else:
             self.archive_backup_file()
       elif self.PGOPT['ACTS'] == self.OPTS['AS'][0]:
@@ -137,9 +139,9 @@ class DsArch(PgArch, PgMeta):
          if 'ML' in self.params and 'GX' in self.params: del self.params['ML']
          self.cache_group_info(self.ALLCNT)
          if 'XC' in self.params:
-            self.crosscopy_web_files('Copy')
+            self.archive_in_passes(self.crosscopy_web_files, 'Copy')
          elif 'XM' in self.params:
-            self.crosscopy_web_files('Move')
+            self.archive_in_passes(self.crosscopy_web_files, 'Move')
          else:
             self.archive_in_passes(self.archive_web_files)
          if 'CL' in self.params: self.delete_local_files()
@@ -205,17 +207,17 @@ class DsArch(PgArch, PgMeta):
                      (len(self.params['QF']) if 'QF' in self.params else 0))))
          if 'DD' in self.params: self.record_delete_directory(None, self.params['DD'])
          if 'HF' in self.params:
-            self.move_help_files()
+            self.archive_in_passes(self.move_help_files)
          elif 'TS' in self.params:
-            self.web_to_saved_files()
+            self.archive_in_passes(self.web_to_saved_files)
          elif 'TW' in self.params:
-            self.saved_to_web_files()
+            self.archive_in_passes(self.saved_to_web_files)
          elif 'SF' in self.params:
-            self.move_saved_files()
+            self.archive_in_passes(self.move_saved_files)
          elif 'WF' in self.params:
-            self.move_web_files()
+            self.archive_in_passes(self.move_web_files)
          else:
-            self.move_backup_files()
+            self.archive_in_passes(self.move_backup_files)
          if 'DD' in self.params: self.clean_delete_directory(self.PGOPT['wrnlog'])
       elif self.PGOPT['ACTS'] == self.OPTS['RQ'][0]:
          if 'WF' in self.params or 'SF' in self.params:
@@ -975,12 +977,14 @@ class DsArch(PgArch, PgMeta):
          self.reset_rdadb_version(dsid)
       if 'EM' in self.params: self.PGLOG['PRGMSG'] = ""
 
-   def crosscopy_web_files(self, aname):
+   def crosscopy_web_files(self, aname, cpass=0):
       """
       Cross-copy (or cross-move) web files between GLADE and the object store.
 
       Args:
          aname -- 'Copy' to copy files, 'Move' to move (deletes the source)
+         cpass -- 0 for a single pass; with -AL N, archive_in_passes() calls 1 for the
+                  copy pass and 2 for the record pass (see archive_in_passes())
       """
       tname = 'wfile'
       dsid = self.params['DS']
@@ -1004,7 +1008,7 @@ class DsArch(PgArch, PgMeta):
       fnames = None
       while True:
          for i in range(bidx, self.ALLCNT):
-            if i > bidx and ((i-bidx)%20) == 0:
+            if cpass != 1 and i > bidx and ((i-bidx)%20) == 0:
                if self.PGLOG['DSCHECK']:
                   self.set_dscheck_dcount(i, chksize, self.PGOPT['extlog'])
                if metacnt >= self.PGOPT['RSMAX']:
@@ -1050,7 +1054,32 @@ class DsArch(PgArch, PgMeta):
             elif (warch + oarch) == 0 and pgrec['locflag'] == 'B':
                self.pglog(winfo + ": No need Cross {}, Both Web & Object Exist".format(aname), self.PGOPT['wrnlog'])
                continue
-            if warch:
+            if cpass == 1:   # -AL copy pass: cross copy in a child process; the record pass does the rest
+               if warch or oarch:
+                  cdir = self.CPDIRS[i] = 'G' if warch else 'O'
+                  self.run_copy(i, self.cross_copy_file, cdir, (afile if warch else ofile), (ofile if warch else afile),
+                                bucket, None, self.PGOPT['emerol']|self.OVERRIDE)
+               continue
+            cdone = None
+            if cpass == 2 and i in self.CPDIRS:   # cross copied in the copy pass; copy again only if it failed
+               cdir = self.CPDIRS[i]
+               if self.check_cross_copy(i, winfo, cdir, (afile if cdir == 'G' else ofile), bucket, pgrec['data_size']):
+                  cdone = cdir
+               elif cdir == 'G':
+                  warch = 1
+               else:
+                  oarch = 1
+            if cdone == 'G':
+               if aname == 'Move':
+                  self.params['LC'][i] = 'G'
+                  self.delete_object_file(ofile, bucket, self.PGOPT['extlog'])
+               acnt += 1
+            elif cdone == 'O':
+               if aname == 'Move':
+                  self.params['LC'][i] = 'O'
+                  self.delete_local_file(afile, self.PGOPT['extlog'])
+               ocnt += 1
+            elif warch:
                if not self.object_copy_local(afile, ofile, bucket, self.PGOPT['emerol']|self.OVERRIDE):
                   errcnt += 1
                   efiles[i] = 1
@@ -1087,10 +1116,14 @@ class DsArch(PgArch, PgMeta):
                   gindex = self.params['GI'][i]
                   if gindex != pgrec['gindex'] and (gindex or (self.OPTS['GI'][2]&2) == 0):
                      metacnt += self.record_meta_summary('W', dsid, gindex, pgrec['gindex'])
-         if errcnt == 0 or errcnt >= perrcnt or self.PGLOG['DSCHECK']: break
+         if cpass == 1 or errcnt == 0 or errcnt >= perrcnt or self.PGLOG['DSCHECK']: break
          perrcnt = errcnt
          self.pglog("Recopy failed {}/{} Web file{} for {}".format(errcnt, self.ALLCNT, s, dsid), self.PGOPT['emllog'])
          errcnt = self.reset_errmsg(0)
+      if cpass == 1:   # the record pass checks the copies, copies again failed ones and sets the records
+         self.wait_copy_children()
+         self.reset_errmsg(0)   # the record pass finds and counts any error again
+         return
       if errcnt:
          self.RETSTAT = self.reset_errmsg(errcnt)
          for i in range(bidx, self.ALLCNT):
@@ -1111,12 +1144,14 @@ class DsArch(PgArch, PgMeta):
          self.reset_rdadb_version(dsid)
       if 'EM' in self.params: self.PGLOG['PRGMSG'] = ""
 
-   def crosscopy_help_files(self, aname):
+   def crosscopy_help_files(self, aname, cpass=0):
       """
       Cross-copy (or cross-move) help files between GLADE and the object store.
 
       Args:
          aname -- 'Copy' to copy files, 'Move' to move (deletes the source)
+         cpass -- 0 for a single pass; with -AL N, archive_in_passes() calls 1 for the
+                  copy pass and 2 for the record pass (see archive_in_passes())
       """
       tname = 'hfile'
       dsid = self.params['DS']
@@ -1141,7 +1176,7 @@ class DsArch(PgArch, PgMeta):
       fnames = None
       while True:
          for i in range(bidx, self.ALLCNT):
-            if i > bidx and ((i-bidx)%20) == 0:
+            if cpass != 1 and i > bidx and ((i-bidx)%20) == 0:
                if self.PGLOG['DSCHECK']:
                   self.set_dscheck_dcount(i, chksize, self.PGOPT['extlog'])
                if 'EM' in self.params:
@@ -1197,7 +1232,32 @@ class DsArch(PgArch, PgMeta):
             elif not (harch or oarch) and pgrec['locflag'] == 'B':
                self.pglog(hinfo + ": No need Cross {} Help file, on Both Glade & Object".format(aname), self.PGOPT['wrnlog'])
                continue
-            if harch:
+            if cpass == 1:   # -AL copy pass: cross copy in a child process; the record pass does the rest
+               if harch or oarch:
+                  cdir = self.CPDIRS[i] = 'G' if harch else 'O'
+                  self.run_copy(i, self.cross_copy_file, cdir, (afile if harch else ofile), (ofile if harch else afile),
+                                bucket, None, self.PGOPT['emerol']|self.OVERRIDE)
+               continue
+            cdone = None
+            if cpass == 2 and i in self.CPDIRS:   # cross copied in the copy pass; copy again only if it failed
+               cdir = self.CPDIRS[i]
+               if self.check_cross_copy(i, hinfo, cdir, (afile if cdir == 'G' else ofile), bucket, pgrec['data_size']):
+                  cdone = cdir
+               elif cdir == 'G':
+                  harch = 1
+               else:
+                  oarch = 1
+            if cdone == 'G':
+               if aname == 'Move':
+                  self.params['LC'][i] = 'G'
+                  self.delete_object_file(ofile, bucket, self.PGOPT['extlog'])
+               acnt += 1
+            elif cdone == 'O':
+               if aname == 'Move':
+                  self.params['LC'][i] = 'O'
+                  self.delete_local_file(afile, self.PGOPT['extlog'])
+               ocnt += 1
+            elif harch:
                if not self.object_copy_local(afile, ofile, bucket, self.PGOPT['emerol']|self.OVERRIDE):
                   errcnt += 1
                   efiles[i] = 1
@@ -1224,10 +1284,14 @@ class DsArch(PgArch, PgMeta):
             if not hid:
                self.params['HF'][i] = None
                continue
-         if errcnt == 0 or errcnt >= perrcnt or self.PGLOG['DSCHECK']: break
+         if cpass == 1 or errcnt == 0 or errcnt >= perrcnt or self.PGLOG['DSCHECK']: break
          perrcnt = errcnt
          self.pglog("Re{} {} Help file{} for {}".format(aname, errcnt, self.ALLCNT, s, dsid), self.PGOPT['emllog'])
          errcnt = self.reset_errmsg(0)
+      if cpass == 1:   # the record pass checks the copies, copies again failed ones and sets the records
+         self.wait_copy_children()
+         self.reset_errmsg(0)   # the record pass finds and counts any error again
+         return
       if errcnt:
          self.RETSTAT = self.reset_errmsg(errcnt)
          for i in range(bidx, self.ALLCNT):
@@ -1820,13 +1884,17 @@ class DsArch(PgArch, PgMeta):
          self.set_dscheck_dcount(self.ALLCNT, chksize, self.PGOPT['extlog'])
       if 'EM' in self.params: self.PGLOG['PRGMSG'] = ""
 
-   def crosscopy_backup_files(self):
+   def crosscopy_backup_files(self, cpass=0):
       """
       Cross-copy Quasar backup files between Globus endpoints.
 
       Transfers backup files between gdex-quasar and gdex-quasar-drdata
       endpoints using Globus transfer, updating RDADB records on completion.
       Sets self.RETSTAT on transfer failures.
+
+      Args:
+         cpass -- 0 for a single pass; with -AL N, archive_in_passes() calls 1 for the
+                  copy pass and 2 for the record pass (see archive_in_passes())
       """
       tname = 'bfile'
       qtype = 'D'
@@ -1852,7 +1920,7 @@ class DsArch(PgArch, PgMeta):
       fnames = None
       while True:
          for i in range(bidx, self.ALLCNT):
-            if i > bidx and ((i-bidx)%20) == 0:
+            if cpass != 1 and i > bidx and ((i-bidx)%20) == 0:
                if self.PGLOG['DSCHECK']:
                   self.set_dscheck_dcount(i, chksize, self.PGOPT['extlog'])
                if 'EM' in self.params:
@@ -1891,7 +1959,26 @@ class DsArch(PgArch, PgMeta):
             elif not (barch or darch) and pgrec['type'] == 'D':
                self.pglog(binfo + ": No need Cross Copy, Both Backup & Drdata Exist", self.PGOPT['wrnlog'])
                continue
-            if barch:
+            if cpass == 1:   # -AL copy pass: cross copy in a child process; the record pass sets the record
+               if barch or darch:
+                  cdir = self.CPDIRS[i] = 'B' if barch else 'D'
+                  self.run_copy(i, self.cross_copy_file, cdir, qfile, qfile, (bpoint if barch else dpoint),
+                                (dpoint if barch else bpoint), self.PGOPT['emerol']|self.OVERRIDE)
+               continue
+            cdone = None
+            if cpass == 2 and i in self.CPDIRS:   # cross copied in the copy pass; copy again only if it failed
+               cdir = self.CPDIRS[i]
+               if self.check_cross_copy(i, binfo, cdir, bfile, (bpoint if cdir == 'B' else dpoint), pgrec['data_size']):
+                  cdone = cdir
+               elif cdir == 'B':
+                  barch = 1
+               else:
+                  darch = 1
+            if cdone == 'B':
+               bcnt += 1
+            elif cdone == 'D':
+               dcnt += 1
+            elif barch:
                bstat = self.endpoint_copy_endpoint(qfile, qfile, bpoint, dpoint, self.PGOPT['emerol']|self.OVERRIDE)
                if bstat == self.FINISH: bstat = self.check_globus_finished(qfile, bpoint, self.PGOPT['emerol']|self.NOWAIT)
                if not bstat:
@@ -1935,26 +2022,34 @@ class DsArch(PgArch, PgMeta):
          self.reset_rdadb_version(dsid)
       if 'EM' in self.params: self.PGLOG['PRGMSG'] = ""
 
-   def archive_in_passes(self, archfunc):
+   def archive_in_passes(self, archfunc, *args):
       """
-      Run an archive action (archive_web/help/saved_files) once, or in two passes for -AL.
+      Run a file action once, or in two passes for -AL.
 
-      With -AL N (N > 1, so PGSIG['MPROC'] > 1) the action runs twice:
-        1. copy pass -- the usual checks, then each file that needs a copy is copied
-           in one of up to N child processes (run_copy()); no records are set;
-        2. record pass -- the usual single process loop; a file the copy pass copied
-           is checked (check_pass_copies()) instead of copied again, and copied again
-           only if its child copy failed; records, dscheck progress and metadata are
-           all set here exactly as without -AL.
+      Used for archive_web/help/saved_files, crosscopy_web/help/backup_files and
+      move_web/help/saved/backup_files.  With -AL N (N > 1, so PGSIG['MPROC'] > 1)
+      the action runs twice:
+        1. copy pass -- the usual checks, then the slow file work of each file (its
+           copy, cross copy or moves) runs in one of up to N child processes
+           (run_copy()); no records are set;
+        2. record pass -- the usual single process loop; work the copy pass did is
+           checked (check_pass_copies(), check_cross_copy(), pass_moved()) instead
+           of done again, and done again only if it failed; source deletes of a
+           cross move, records, dscheck progress and metadata are all done here
+           exactly as without -AL.
 
       Args:
-         archfunc -- bound archive method taking the pass number (0, 1 or 2)
+         archfunc -- bound action method taking its own args and then the pass
+                     number (0, 1 or 2) as keyword cpass
+         args     -- arguments of archfunc before cpass, such as 'Copy'/'Move'
       """
-      if self.PGSIG['MPROC'] < 2: return archfunc()
+      if self.PGSIG['MPROC'] < 2: return archfunc(*args)
       self.CPFILES = {}
-      archfunc(1)
-      archfunc(2)
+      self.CPDIRS = {}
+      archfunc(*args, cpass=1)
+      archfunc(*args, cpass=2)
       self.CPFILES = {}
+      self.CPDIRS = {}
 
    def run_copy(self, i, copyfunc, *args):
       """
@@ -2026,6 +2121,133 @@ class DsArch(PgArch, PgMeta):
          if not self.local_copy_object(ofile, lfile, bucket, None, logact): return 0
       return 1
 
+   def child_copy_failed(self, i):
+      """
+      Return true if the -AL copy pass work of file *i* is known to have failed.
+
+      self.CPFILES[i] holds the child's process name, whose exit code is then in
+      self.CEXITS, or 1/0 for work done in the parent; unknown counts as not failed.
+      """
+      cstat = self.CPFILES.get(i)
+      if isinstance(cstat, str):   # done in a child: failed if it exited with an error
+         ecode = self.CEXITS.get(cstat)
+         return ecode is not None and ecode != 0
+      return cstat == 0            # done in the parent: 1 or 0
+
+   def cross_copy_file(self, cdir, tofile, fromfile, topoint, frompoint, logact):
+      """
+      Cross copy one file in the given direction; run in a copy pass child.
+
+      Args:
+         cdir      -- 'G' object store to GLADE, 'O' GLADE to object store,
+                      'B'/'D' Globus copy to the Quasar backup/drdata endpoint
+         tofile    -- target path, object key or Quasar file
+         fromfile  -- source path, object key or Quasar file
+         topoint   -- object store bucket for 'G'/'O', target endpoint for 'B'/'D'
+         frompoint -- source endpoint for 'B'/'D', None otherwise
+         logact    -- logging flags
+
+      Returns:
+         a true value if the copy succeeded (Globus copies wait for their task)
+      """
+      if cdir == 'G': return self.object_copy_local(tofile, fromfile, topoint, logact)
+      if cdir == 'O': return self.local_copy_object(tofile, fromfile, topoint, None, logact)
+      stat = self.endpoint_copy_endpoint(tofile, fromfile, topoint, frompoint, logact)
+      if stat == self.FINISH: stat = self.check_globus_finished(tofile, topoint, logact|self.NOWAIT)
+      return stat
+
+   def check_cross_copy(self, i, finfo, cdir, tofile, topoint, size):
+      """
+      Check a cross copy, upload or download the -AL copy pass made, for the record pass.
+
+      Args:
+         i       -- file index, the key of self.CPFILES
+         finfo   -- file description, for the message
+         cdir    -- copy direction, see cross_copy_file()
+         tofile  -- target path, object key or Quasar file
+         topoint -- object store bucket or target endpoint
+         size    -- size in the file record, 0 to skip the size check
+
+      Returns:
+         1 if the target holds the file, 0 if the copy is to be made again
+      """
+      if not self.child_copy_failed(i):
+         if cdir == 'G':
+            info = self.check_local_file(tofile, 0, self.PGOPT['emerol']|self.PFSIZE)
+         elif cdir == 'O':
+            info = self.check_object_file(tofile, topoint, 0, self.PGOPT['emerol'])
+         else:
+            info = self.check_backup_file(tofile, topoint, 0, self.PGOPT['emerol'])
+         if info and (not size or info['data_size'] == size): return 1
+      self.pglog("{}: copy in child process failed, copy again".format(finfo), self.PGOPT['wrnlog'])
+      return 0
+
+   def do_move(self, mtype, tofile, fromfile, where, logact):
+      """
+      Do one step of a file's move: a move, an upload/download or a delete.
+
+      Args:
+         mtype    -- 'L' move a GLADE file, 'O' move an object, 'B' move a Quasar
+                     backup file, 'U' upload a GLADE file to the object store,
+                     'G' download an object to GLADE, 'X' delete an object,
+                     'Y' delete a GLADE file
+         tofile   -- new path, object key or Quasar file (None for a delete)
+         fromfile -- old path, object key or Quasar file
+         where    -- bucket for 'O'/'U'/'G'/'X', endpoint for 'B', None otherwise
+         logact   -- logging flags
+
+      Returns:
+         a true value if done (a move also when it was moved already)
+      """
+      if mtype == 'L': return self.move_local_file(tofile, fromfile, logact)
+      if mtype == 'O': return self.move_object_file(tofile, fromfile, where, where, logact)
+      if mtype == 'B': return self.move_backup_file(tofile, fromfile, where, logact)
+      if mtype == 'U': return self.local_copy_object(tofile, fromfile, where, None, logact)
+      if mtype == 'G': return self.object_copy_local(tofile, fromfile, where, logact)
+      if mtype == 'X': return self.delete_object_file(fromfile, where, logact)
+      return self.delete_local_file(fromfile, logact)
+
+   def move_pass_files(self, moves, logact):
+      """
+      Do the moves of one file in order; run in a copy pass child.
+
+      Args:
+         moves  -- list of (mtype, tofile, fromfile, where) steps, see do_move()
+         logact -- logging flags
+
+      Returns:
+         1 if all moves succeeded, 0 at the first failure
+      """
+      for (mtype, tofile, fromfile, where) in moves:
+         if not self.do_move(mtype, tofile, fromfile, where, logact): return 0
+      return 1
+
+   def move_one(self, i, mtype, tofile, fromfile, where, logact):
+      """
+      Move one file in the record pass, or the only pass without -AL.
+
+      When the -AL copy pass already moved it (target there, source gone) the
+      move counts as done without another call; otherwise do_move() moves it,
+      which also finishes a move that failed in its child process.
+      """
+      if i in self.CPFILES and self.pass_moved(mtype, tofile, fromfile, where): return 1
+      return self.do_move(mtype, tofile, fromfile, where, logact)
+
+   def pass_moved(self, mtype, tofile, fromfile, where):
+      """
+      Return true if the target of a move exists and its source is gone, checked quietly.
+
+      The source counts as gone only when its check finds no file (None), not
+      when the check itself fails (FAILURE), so an error leads to a real move.
+      """
+      if mtype == 'L':
+         check = lambda f: self.check_local_file(f, 0, 0)
+      elif mtype == 'O':
+         check = lambda f: self.check_object_file(f, where, 0, 0)
+      else:
+         check = lambda f: self.check_backup_file(f, where, 0, 0)
+      return bool(check(tofile)) and check(fromfile) is None
+
    def check_pass_copies(self, i, fname, afile, ofile, bucket, lsize):
       """
       Check the targets the -AL copy pass copied a file to, for the record pass.
@@ -2047,13 +2269,7 @@ class DsArch(PgArch, PgMeta):
          a 0 for a target given means its copy failed and is to be copied again
       """
       gdone = odone = 0
-      cstat = self.CPFILES.get(i)
-      if isinstance(cstat, str):   # copied in a child: failed if it exited with an error
-         ecode = self.CEXITS.get(cstat)
-         failed = ecode is not None and ecode != 0
-      else:                        # copied in the parent: 1 or 0
-         failed = cstat == 0
-      if failed:
+      if self.child_copy_failed(i):
          self.pglog("{}: copy in child process failed, copy again".format(fname), self.PGOPT['wrnlog'])
          return (0, 0)
       if afile:
@@ -3268,7 +3484,7 @@ class DsArch(PgArch, PgMeta):
                self.ADDCNT += 1
       return bid
 
-   def move_web_files(self):
+   def move_web_files(self, cpass=0):
       """
       Rename or relocate web files on disk and update their RDADB records.
 
@@ -3276,6 +3492,11 @@ class DsArch(PgArch, PgMeta):
       type changes (e.g. D→N).  Supports -TS (to-saved) conversions and
       updates backup file notes via save_move_info().
       Sets self.RETSTAT on unresolved failures.
+
+      Args:
+         cpass -- 0 for a single pass; with -AL N, archive_in_passes() calls 1 for the
+                  move pass (moves in up to N child processes, no records) and then 2
+                  for the record pass (see archive_in_passes())
       """
       tname = 'wfile'
       dsid = self.params['DS']
@@ -3341,7 +3562,7 @@ class DsArch(PgArch, PgMeta):
       self.validate_multiple_values(tname, self.ALLCNT, fnames)
       reorder = metatotal = metacnt = wcnt = ocnt = self.MODCNT = 0
       for i in range(bidx, self.ALLCNT):
-         if i > bidx and ((i-bidx)%20) == 0:
+         if cpass != 1 and i > bidx and ((i-bidx)%20) == 0:
             if metacnt > self.PGOPT['RSMAX']:
                metatotal += self.process_metadata("W", metacnt, self.PGOPT['emerol'])
                metacnt = 0
@@ -3381,8 +3602,14 @@ class DsArch(PgArch, PgMeta):
             wmove = 0
          elif pgrec['locflag'] == 'G':
             omove = 0
+         if cpass == 1:   # -AL move pass: move the files in a child process; the record pass sets the record
+            moves = []
+            if wmove and aolds[i] != anews[i]: moves.append(('L', anews[i], aolds[i], None))
+            if omove and oolds[i] != onews[i]: moves.append(('O', onews[i], oolds[i], bucket))
+            if moves: self.run_copy(i, self.move_pass_files, moves, self.PGOPT['emerol']|self.OVERRIDE)
+            continue
          if wmove and aolds[i] != anews[i]:
-            ret = self.move_local_file(anews[i], aolds[i], self.PGOPT['emerol']|self.OVERRIDE)
+            ret = self.move_one(i, 'L', anews[i], aolds[i], None, self.PGOPT['emerol']|self.OVERRIDE)
             if not ret:
                self.RETSTAT = 1
                continue
@@ -3390,7 +3617,7 @@ class DsArch(PgArch, PgMeta):
             wcnt += 1
             self.set_web_move(pgrec)
          if omove and oolds[i] != onews[i]:
-            if not self.move_object_file(onews[i], oolds[i], bucket, bucket, self.PGOPT['emerol']|self.OVERRIDE):
+            if not self.move_one(i, 'O', onews[i], oolds[i], bucket, self.PGOPT['emerol']|self.OVERRIDE):
                self.RETSTAT = 1
                continue
             if self.PGLOG['DSCHECK']: chksize += pgrec['data_size']
@@ -3405,6 +3632,10 @@ class DsArch(PgArch, PgMeta):
                gindex = self.params['GI'][i]
                if gindex != pgrec['gindex'] and (gindex or (self.OPTS['GI'][2]&2) == 0):
                   metacnt += self.record_meta_summary('W', dsid, gindex, pgrec['gindex'])
+      if cpass == 1:   # the record pass checks the moves, finishes failed ones and sets the records
+         self.wait_copy_children()
+         self.reset_errmsg(0)   # the record pass finds and counts any error again
+         return
       self.pglog("{}/{}/{}, Disk/Object/Record, of {} Web file{} moved".format(wcnt, ocnt, self.MODCNT, self.ALLCNT, s), self.PGOPT['emllog'])
       if metacnt > 0:
          metatotal += self.process_metadata('W', metacnt, self.PGOPT['emerol'])
@@ -3418,12 +3649,17 @@ class DsArch(PgArch, PgMeta):
             self.reset_rdadb_version(self.params['OD'])
       if 'EM' in self.params: self.PGLOG['PRGMSG'] = ''
 
-   def move_help_files(self):
+   def move_help_files(self, cpass=0):
       """
       Rename or relocate help files on disk and update their RDADB records.
 
       Handles renaming within the same dataset and cross-dataset moves, along
       with any type changes.  Sets self.RETSTAT on unresolved failures.
+
+      Args:
+         cpass -- 0 for a single pass; with -AL N, archive_in_passes() calls 1 for the
+                  move pass (moves in up to N child processes, no records) and then 2
+                  for the record pass (see archive_in_passes())
       """
       tname = 'hfile'
       dsid = self.params['DS']
@@ -3481,7 +3717,7 @@ class DsArch(PgArch, PgMeta):
       self.validate_multiple_values(tname, self.ALLCNT, fnames)
       reorder = hcnt = ocnt = self.MODCNT = 0
       for i in range(bidx, self.ALLCNT):
-         if i > bidx and ((i-bidx)%20) == 0:
+         if cpass != 1 and i > bidx and ((i-bidx)%20) == 0:
             if self.PGLOG['DSCHECK']:
                self.set_dscheck_dcount(i, chksize, self.PGOPT['extlog'])
             if 'EM' in self.params:
@@ -3504,20 +3740,30 @@ class DsArch(PgArch, PgMeta):
             hmove = 0
          elif pgrec['locflag'] == 'G':
             omove = 0
+         if cpass == 1:   # -AL move pass: move the files in a child process; the record pass sets the record
+            moves = []
+            if hmove and aolds[i] != anews[i]: moves.append(('L', anews[i], aolds[i], None))
+            if omove and oolds[i] != onews[i]: moves.append(('O', onews[i], oolds[i], bucket))
+            if moves: self.run_copy(i, self.move_pass_files, moves, self.PGOPT['emerol']|self.OVERRIDE)
+            continue
          if hmove and aolds[i] != anews[i]:
-            ret = self.move_local_file(anews[i], aolds[i], self.PGOPT['emerol']|self.OVERRIDE)
+            ret = self.move_one(i, 'L', anews[i], aolds[i], None, self.PGOPT['emerol']|self.OVERRIDE)
             if not ret:
                self.RETSTAT = 1
                continue
             if self.PGLOG['DSCHECK']: chksize += pgrec['data_size']
             hcnt += 1
          if omove and oolds[i] != onews[i]:
-            if not self.move_object_file(onews[i], oolds[i], bucket, bucket, self.PGOPT['emerol']|self.OVERRIDE):
+            if not self.move_one(i, 'O', onews[i], oolds[i], bucket, self.PGOPT['emerol']|self.OVERRIDE):
                self.RETSTAT = 1
                continue
             if self.PGLOG['DSCHECK']: chksize += pgrec['data_size']
             ocnt += 1
          if not self.set_one_helpfile(i, pgrec, hnews[i], fnames, tnews[i], None, tmpds): continue
+      if cpass == 1:   # the record pass checks the moves, finishes failed ones and sets the records
+         self.wait_copy_children()
+         self.reset_errmsg(0)   # the record pass finds and counts any error again
+         return
       self.pglog("{}/{}/{}/{}, Disk/Object/Record, of {} Help file{} moved".format(hcnt, ocnt, self.MODCNT, self.ALLCNT, s), self.PGOPT['emllog'])
       if self.PGLOG['DSCHECK']: self.set_dscheck_dcount(self.ALLCNT, 0, self.PGOPT['extlog'])
       if 'ON' in self.params: reorder = self.reorder_files(dsid, self.params['ON'], tname)
@@ -3527,7 +3773,7 @@ class DsArch(PgArch, PgMeta):
             self.reset_rdadb_version(self.params['OD'])
       if 'EM' in self.params: self.PGLOG['PRGMSG'] = ''
 
-   def saved_to_web_files(self):
+   def saved_to_web_files(self, cpass=0):
       """
       Convert saved files to web files (-TS action).
 
@@ -3535,6 +3781,11 @@ class DsArch(PgArch, PgMeta):
       store), creates a new wfile RDADB record, and removes the old sfile
       record.  Preserves backup links by updating bfile.note via save_move_info().
       Sets self.RETSTAT on unresolved failures.
+
+      Args:
+         cpass -- 0 for a single pass; with -AL N, archive_in_passes() calls 1 for the
+                  move pass (moves in up to N child processes, no records) and then 2
+                  for the record pass (see archive_in_passes())
       """
       tname = 'wfile'
       dsid = self.params['DS']
@@ -3612,7 +3863,7 @@ class DsArch(PgArch, PgMeta):
       fnames = None
       reorder = metatotal = metacnt = wcnt = ocnt = dcnt = self.ADDCNT = self.MODCNT = 0
       for i in range(bidx, self.ALLCNT):
-         if i > bidx and ((i-bidx)%20) == 0:
+         if cpass != 1 and i > bidx and ((i-bidx)%20) == 0:
             if metacnt > self.PGOPT['RSMAX']:
                metatotal += self.process_metadata("W", metacnt, self.PGOPT['emerol'])
                metacnt = 0
@@ -3650,8 +3901,16 @@ class DsArch(PgArch, PgMeta):
          elif locflag == 'G':
             omove = 0
             dslocflags.add('G')
+         if cpass == 1:   # -AL move pass: move the file in a child process; the record pass sets the record
+            moves = []
+            if wmove: moves.append(('L', anews[i], aolds[i], None))
+            if omove: moves.append(('U', onews[i], (anews[i] if wmove else aolds[i]), tobucket))
+            if omove and not wmove: moves.append(('Y', None, aolds[i], None))
+            if moves: self.run_copy(i, self.move_pass_files, moves, self.PGOPT['emerol']|self.OVERRIDE)
+            continue
+         inpass = cpass == 2 and i in self.CPFILES
          if wmove:
-            stat = self.move_local_file(anews[i], aolds[i], self.PGOPT['emerol']|self.OVERRIDE)
+            stat = self.move_one(i, 'L', anews[i], aolds[i], None, self.PGOPT['emerol']|self.OVERRIDE)
             sfrom = 0
             if not stat:
                self.RETSTAT = 1
@@ -3659,13 +3918,18 @@ class DsArch(PgArch, PgMeta):
             wcnt += 1
             if self.PGLOG['DSCHECK']: chksize += pgrec['data_size']
          if omove:
-            stat = self.local_copy_object(onews[i], aolds[i], tobucket, None, self.PGOPT['emerol']|self.OVERRIDE)
+            # upload from the new web path once the saved file was moved there
+            if inpass and self.check_cross_copy(i, solds[i], 'O', onews[i], tobucket, pgrec['data_size']):
+               stat = 1   # uploaded in the move pass
+            else:
+               stat = self.local_copy_object(onews[i], (aolds[i] if sfrom else anews[i]), tobucket, None, self.PGOPT['emerol']|self.OVERRIDE)
             if not stat:
                self.RETSTAT = 1
                continue
             ocnt += 1
             if self.PGLOG['DSCHECK']: chksize += pgrec['data_size']
-         if sfrom: self.delete_local_file(aolds[i], self.PGOPT['emerol'])
+         if sfrom and (not inpass or self.check_local_file(aolds[i], 0, 0)):
+            self.delete_local_file(aolds[i], self.PGOPT['emerol'])
          if pgrec['bid'] and not self.params['QF'][i]: self.params['QF'][i] = pgrec['bid']
          if pgrec['gindex'] and not self.params['GI'][i]: self.params['GI'][i] = pgrec['gindex']
          if pgrec['data_size'] and not self.params['SZ'][i]: self.params['SZ'][i] = pgrec['data_size']
@@ -3683,6 +3947,10 @@ class DsArch(PgArch, PgMeta):
          if 'GX' in self.params and self.PGOPT['GXTYP'].find(type) > -1:
             metacnt += self.record_meta_gather('W', dsid, wnews[i], self.params['DF'][i])
             self.cache_meta_tindex(dsid, wid, 'W')
+      if cpass == 1:   # the record pass checks the moves, finishes failed ones and sets the records
+         self.wait_copy_children()
+         self.reset_errmsg(0)   # the record pass finds and counts any error again
+         return
       self.pglog("{}/{}/{}/{}, Disk/Object/RecordDelete/RecordAdd, of {} Saved file{} moved".format(wcnt, ocnt, dcnt, self.ADDCNT, self.ALLCNT, s), self.PGOPT['emllog'])
       if metacnt > 0:
          metatotal += self.process_metadata('W', metacnt, self.PGOPT['emerol'])
@@ -3890,12 +4158,17 @@ class DsArch(PgArch, PgMeta):
       if (dcnt + reorder) > 0: self.reset_rdadb_version(dsid)
       if 'EM' in self.params: self.PGLOG['PRGMSG'] = ""
 
-   def move_saved_files(self):
+   def move_saved_files(self, cpass=0):
       """
       Rename or relocate saved files on disk and update their RDADB records.
 
       Handles renaming within the same dataset and cross-dataset moves, along
       with any type changes.  Sets self.RETSTAT on unresolved failures.
+
+      Args:
+         cpass -- 0 for a single pass; with -AL N, archive_in_passes() calls 1 for the
+                  move pass (moves in up to N child processes, no records) and then 2
+                  for the record pass (see archive_in_passes())
       """
       tname = 'sfile'
       dsid = self.params['DS']
@@ -3957,7 +4230,7 @@ class DsArch(PgArch, PgMeta):
             chksize = self.PGLOG['DSCHECK']['size']
       reorder = self.MODCNT = scnt = 0
       for i in range(bidx, self.ALLCNT):
-         if i > bidx and ((i-bidx)%20) == 0:
+         if cpass != 1 and i > bidx and ((i-bidx)%20) == 0:
             if self.PGLOG['DSCHECK']:
                self.set_dscheck_dcount(i, chksize, self.PGOPT['extlog'])
             if 'EM' in self.params:
@@ -3986,14 +4259,23 @@ class DsArch(PgArch, PgMeta):
              not self.pgget("dsgroup", "", "{} and gindex = {}".format(dcnd, pgrec['gindex']), self.PGOPT['extlog'])):
             self.pglog("Group Index {} is not in RDADB for {}\n".format(pgrec['gindex'], dsid) +
                         "Specify Original/New group index via options -OG/-GI", self.PGOPT['extlog'])
+         if cpass == 1:   # -AL move pass: move the files in a child process; the record pass sets the record
+            moves = []
+            if aolds[i] != anews[i]: moves.append(('L', anews[i], aolds[i], None))
+            if moves: self.run_copy(i, self.move_pass_files, moves, self.PGOPT['emerol']|self.OVERRIDE)
+            continue
          if aolds[i] != anews[i]:
-            if not self.move_local_file(anews[i], aolds[i], self.PGOPT['emerol']|self.OVERRIDE):
+            if not self.move_one(i, 'L', anews[i], aolds[i], None, self.PGOPT['emerol']|self.OVERRIDE):
                self.RETSTAT = 1
                continue
             if self.PGLOG['DSCHECK']: chksize += pgrec['data_size']
             scnt += 1
          self.set_one_savedfile(i, pgrec, snews[i], fnames, tnews[i], None, tmpds)
          if pgrec['bid']: self.save_move_info(pgrec['bid'], solds[i], type, 'S', self.params['OD'], snews[i], tnews[i], 'S', dsid)
+      if cpass == 1:   # the record pass checks the moves, finishes failed ones and sets the records
+         self.wait_copy_children()
+         self.reset_errmsg(0)   # the record pass finds and counts any error again
+         return
       self.pglog("{}/{}, Disk/Record, of {} Saved file{} moved".format(scnt, self.MODCNT, self.ALLCNT, s), self.PGOPT['emllog'])
       if self.PGLOG['DSCHECK']:
          self.set_dscheck_dcount(self.ALLCNT, chksize, self.PGOPT['extlog'])
@@ -4005,13 +4287,18 @@ class DsArch(PgArch, PgMeta):
             self.reset_rdadb_version(self.params['OD'])
       if 'EM' in self.params: self.PGLOG['PRGMSG'] = ""  
 
-   def move_backup_files(self):
+   def move_backup_files(self, cpass=0):
       """
       Move Quasar backup files to a different dataset and update RDADB records.
 
       Transfers ownership of bfile records to the target dataset (-OD) and
       updates the backup archive note via save_move_info().
       Sets self.RETSTAT on failures.
+
+      Args:
+         cpass -- 0 for a single pass; with -AL N, archive_in_passes() calls 1 for the
+                  move pass (moves in up to N child processes, no records) and then 2
+                  for the record pass (see archive_in_passes())
       """
       s = 's' if self.ALLCNT > 1 else ''
       tname = 'bfile'
@@ -4060,7 +4347,7 @@ class DsArch(PgArch, PgMeta):
             chksize = self.PGLOG['DSCHECK']['size']
       reorder = self.MODCNT = bcnt = dcnt = 0
       for i in range(bidx, self.ALLCNT):
-         if i > bidx and ((i-bidx)%20) == 0:
+         if cpass != 1 and i > bidx and ((i-bidx)%20) == 0:
             if self.PGLOG['DSCHECK']:
                self.set_dscheck_dcount(i, chksize, self.PGOPT['extlog'])
             if 'EM' in self.params:
@@ -4083,20 +4370,31 @@ class DsArch(PgArch, PgMeta):
             continue
          dmove = bmove = 1
          if type == 'B': dmove = 0
+         if cpass == 1:   # -AL move pass: move the files in a child process; the record pass sets the record
+            moves = []
+            if qolds[i] != qnews[i]:
+               if bmove: moves.append(('B', qnews[i], qolds[i], bkend))
+               if dmove: moves.append(('B', qnews[i], qolds[i], drend))
+            if moves: self.run_copy(i, self.move_pass_files, moves, self.PGOPT['emerol']|self.OVERRIDE)
+            continue
          if qolds[i] != qnews[i]:
             if bmove:
-               if not self.move_backup_file(qnews[i], qolds[i], bkend, self.PGOPT['emerol']|self.OVERRIDE):
+               if not self.move_one(i, 'B', qnews[i], qolds[i], bkend, self.PGOPT['emerol']|self.OVERRIDE):
                   self.RETSTAT = 1
                   continue
                if self.PGLOG['DSCHECK']: chksize += pgrec['data_size']
                bcnt += 1
             if dmove:
-               if not self.move_backup_file(qnews[i], qolds[i], drend, self.PGOPT['emerol']|self.OVERRIDE):
+               if not self.move_one(i, 'B', qnews[i], qolds[i], drend, self.PGOPT['emerol']|self.OVERRIDE):
                   self.RETSTAT = 1
                   continue
                if self.PGLOG['DSCHECK']: chksize += pgrec['data_size']
                dcnt += 1
          self.set_one_backfile(i, pgrec, bnews[i], fnames, tnews[i], tmpds)
+      if cpass == 1:   # the record pass checks the moves, finishes failed ones and sets the records
+         self.wait_copy_children()
+         self.reset_errmsg(0)   # the record pass finds and counts any error again
+         return
       self.pglog("{}/{}/{}, Quasar/Drdata/Record, of {} Backup file{} moved".format(bcnt, dcnt, self.MODCNT, self.ALLCNT, s), self.PGOPT['emllog'])
       if self.PGLOG['DSCHECK']:
          self.set_dscheck_dcount(self.ALLCNT, chksize, self.PGOPT['extlog'])
@@ -4108,7 +4406,7 @@ class DsArch(PgArch, PgMeta):
             self.reset_rdadb_version(self.params['OD'])
       if 'EM' in self.params: self.PGLOG['PRGMSG'] = ""  
 
-   def web_to_saved_files(self):
+   def web_to_saved_files(self, cpass=0):
       """
       Convert web files to saved files (-TW action).
 
@@ -4116,6 +4414,11 @@ class DsArch(PgArch, PgMeta):
       new sfile RDADB record, and removes the old wfile record.  Optionally
       also deletes the file from the object store.  Preserves backup links.
       Sets self.RETSTAT on unresolved failures.
+
+      Args:
+         cpass -- 0 for a single pass; with -AL N, archive_in_passes() calls 1 for the
+                  move pass (moves in up to N child processes, no records) and then 2
+                  for the record pass (see archive_in_passes())
       """
       s = 's' if self.ALLCNT > 1 else ''
       tname = 'sfile'
@@ -4193,7 +4496,7 @@ class DsArch(PgArch, PgMeta):
       fnames = None
       metatotal = metacnt = reorder = wcnt = ocnt = dcnt = self.ADDCNT = self.MODCNT = 0
       for i in range(bidx, self.ALLCNT):
-         if i > bidx and ((i-bidx)%20) == 0:
+         if cpass != 1 and i > bidx and ((i-bidx)%20) == 0:
             if metacnt >= self.PGOPT['RSMAX']:
                metatotal += self.process_meta_delete("W", self.PGOPT['emerol'])
                metacnt = 0
@@ -4225,19 +4528,29 @@ class DsArch(PgArch, PgMeta):
             wfrom = 0
          elif locflag == 'G':
             ofrom = 0
+         if cpass == 1:   # -AL move pass: move the file in a child process; the record pass sets the record
+            moves = [('L', anews[i], aolds[i], None) if wfrom else ('G', anews[i], oolds[i], frombucket)]
+            if ofrom: moves.append(('X', None, oolds[i], frombucket))
+            self.run_copy(i, self.move_pass_files, moves, self.PGOPT['emerol']|self.OVERRIDE)
+            continue
+         inpass = cpass == 2 and i in self.CPFILES
          if wfrom:
-            stat = self.move_local_file(anews[i], aolds[i], self.PGOPT['emerol']|self.OVERRIDE)
+            stat = self.move_one(i, 'L', anews[i], aolds[i], None, self.PGOPT['emerol']|self.OVERRIDE)
             wfrom = 0
             wcnt += 1
          else:
-            stat = self.object_copy_local(anews[i], oolds[i], frombucket, self.PGOPT['emerol']|self.OVERRIDE)
+            if inpass and self.check_cross_copy(i, wolds[i], 'G', anews[i], None, pgrec['data_size']):
+               stat = 1   # downloaded in the move pass
+            else:
+               stat = self.object_copy_local(anews[i], oolds[i], frombucket, self.PGOPT['emerol']|self.OVERRIDE)
             ocnt += 1
          if not stat:
             self.RETSTAT = 1
             continue
          if self.PGLOG['DSCHECK']: chksize += pgrec['data_size']
          if wfrom: self.delete_local_file(aolds[i], self.PGOPT['emerol'])
-         if ofrom: self.delete_object_file(oolds[i], frombucket, self.PGOPT['emerol'])
+         if ofrom and (not inpass or self.check_object_file(oolds[i], frombucket, 0, 0)):
+            self.delete_object_file(oolds[i], frombucket, self.PGOPT['emerol'])
          if self.PGOPT['GXTYP'].find(type) > -1 and ('DX' in self.params or pgrec and pgrec['meta_link'] and pgrec['meta_link'] != 'N' and 'KM' not in self.params):
             metacnt += self.record_meta_delete('W', dsid, pgrec['wfile'])
          if pgrec['bid'] and not self.params['QF'][i]: self.params['QF'][i] = pgrec['bid']
@@ -4254,6 +4567,10 @@ class DsArch(PgArch, PgMeta):
          info = self.get_file_origin_info(snews[i], pgrec)
          self.set_one_savedfile(i, None, snews[i], fnames, tnews[i], info, dsid, 12)
          if pgrec['bid']: self.save_move_info(pgrec['bid'], wolds[i], type, 'W', self.params['OD'], snews[i], tnews[i], 'S', dsid)
+      if cpass == 1:   # the record pass checks the moves, finishes failed ones and sets the records
+         self.wait_copy_children()
+         self.reset_errmsg(0)   # the record pass finds and counts any error again
+         return
       self.pglog("{}/{}/{}/{}, Disk/Object/RecordDelete/RecordAdd, of {} Web file{} moved".format(wcnt, ocnt, dcnt, self.ADDCNT, self.ALLCNT, s), self.PGOPT['emllog'])
       if metacnt > 0:
          metatotal += self.process_meta_delete('W', self.PGOPT['emerol'])

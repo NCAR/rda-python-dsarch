@@ -699,7 +699,7 @@ class PgArch(PgOPT, PgCMD, PgSplit):
          # set command line Batch options
          self.set_qsub_walltime()
          self.set_batch_options(self.params, 1)
-         self.set_qsub_resources()   # after -QS, so a user resource request is kept
+         self.set_qsub_resources(acts)   # after -QS, so a user resource request is kept
          self.init_dscheck(0, '', "dsarch", self.params['DS'], cact, self.PGLOG['CURDIR'], self.params['LN'],
                             self.params['BP'], self.PGOPT['emerol'])
       if 'EM' in self.params: self.PGOPT['emlerr'] = self.LOGERR|self.EMEROL
@@ -738,19 +738,43 @@ class PgArch(PgOPT, PgCMD, PgSplit):
       self.set_one_boption('qoptions', '-l walltime={}:00:00'.format(hr), 1)
       return
 
-   def set_qsub_resources(self):
+   def uses_async_limit(self, acts):
       """
-      Request PBS cpus and memory for the -AL background processes of a -d batch job.
+      Return true if action *acts* with the current options can run -AL processes.
 
-      With -AL N (N > 1) the batch job runs up to N background copies at once,
-      so its PBS chunk gets select=1:ncpus=N:mem=Ngb (1gb per process), added
-      to the existing '-l' list of the qsub options (after any walltime) or as
-      a new '-l'.  Leaves the qsub options alone when -AL is under 2, when they
-      already request select/ncpus/mem (a -QS from the user wins), or when they
-      are dynamic options starting with '!'.
+      -AW/-AH/-AS and -MV copy, cross copy or move files in -AL child processes
+      (DsArch.archive_in_passes()), as does -AQ with -XC; -CG, -DL of web files,
+      and -SW with -GX/-DX/-GI/-WT can run 'gatherxml'/'dcm'/'scm' in -AL
+      background processes.  Every other action (such as -SS) runs one process.
+
+      Args:
+         acts -- bitmask of the action being run
+      """
+      if acts in (self.OPTS['AW'][0], self.OPTS['AH'][0], self.OPTS['AS'][0], self.OPTS['MV'][0]): return True
+      if acts & self.OPTS['CG'][0]: return True
+      if acts == self.OPTS['AQ'][0]: return 'XC' in self.params
+      if acts == self.OPTS['DL'][0]: return 'WF' in self.params and not ('HF' in self.params or 'SF' in self.params)
+      if acts == self.OPTS['SW'][0]:
+         return 'WF' in self.params and any(opt in self.params for opt in ('GX', 'DX', 'GI', 'WT'))
+      return False
+
+   def set_qsub_resources(self, acts):
+      """
+      Request PBS cpus and memory for the -AL processes of a -d batch job.
+
+      With -AL N (N > 1) the batch job runs up to N processes at once, so its PBS
+      chunk gets select=1:ncpus=N:mem=Ngb (1gb per process), added to the
+      existing '-l' list of the qsub options (after any walltime) or as a new
+      '-l'.  Leaves the qsub options alone when -AL is under 2, when the action
+      cannot use -AL (see uses_async_limit()), when they already request
+      select/ncpus/mem (a -QS from the user wins), or when they are dynamic
+      options starting with '!'.
+
+      Args:
+         acts -- bitmask of the action being run
       """
       pcnt = self.params['AL'] if 'AL' in self.params else 0
-      if not pcnt or pcnt < 2: return
+      if not pcnt or pcnt < 2 or not self.uses_async_limit(acts): return
       qopts = self.BOPTIONS['qoptions'] or ''
       if qopts.startswith('!') or re.search(r'(select|ncpus|mem)=', qopts): return
       res = "select=1:ncpus={0}:mem={0}gb".format(pcnt)
