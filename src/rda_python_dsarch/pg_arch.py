@@ -694,16 +694,19 @@ class PgArch(PgOPT, PgCMD, PgSplit):
          self.PGLOG['LOGMASK'] &= ~self.EMLALL   # turn off all email acts
          if 'EM' in self.params: del self.params['EM']
       if 'BP' in self.params:
-         if 'AL' in self.params: self.params['AL'] = 0
          if 'EM' not in self.params: self.PGLOG['LOGMASK'] &= ~self.EMLALL   # turn off email if not yet
          self.PGOPT['emerol'] |= self.EXITLG
          # set command line Batch options
          self.set_qsub_walltime()
          self.set_batch_options(self.params, 1)
+         self.set_qsub_resources()   # after -QS, so a user resource request is kept
          self.init_dscheck(0, '', "dsarch", self.params['DS'], cact, self.PGLOG['CURDIR'], self.params['LN'],
                             self.params['BP'], self.PGOPT['emerol'])
       if 'EM' in self.params: self.PGOPT['emlerr'] = self.LOGERR|self.EMEROL
-      self.start_none_daemon('dsarch', self.PGOPT['CACT'], self.params['LN'], 1, self.params['WI'], 1, self.params['AL'])
+      # -AL N: up to N child processes copy files in the copy pass of -AW/-AH/-AS (see
+      # DsArch.archive_in_passes()) and up to N background processes run gatherxml/dcm
+      pcnt = self.params['AL'] if self.params['AL'] and self.params['AL'] > 1 else 1
+      self.start_none_daemon('dsarch', self.PGOPT['CACT'], self.params['LN'], pcnt, self.params['WI'], 1, pcnt)
    
    def set_qsub_walltime(self):
       """
@@ -734,7 +737,30 @@ class PgArch(PgOPT, PgCMD, PgSplit):
          hr = 24
       self.set_one_boption('qoptions', '-l walltime={}:00:00'.format(hr), 1)
       return
-   
+
+   def set_qsub_resources(self):
+      """
+      Request PBS cpus and memory for the -AL background processes of a -d batch job.
+
+      With -AL N (N > 1) the batch job runs up to N background copies at once,
+      so its PBS chunk gets select=1:ncpus=N:mem=Ngb (1gb per process), added
+      to the existing '-l' list of the qsub options (after any walltime) or as
+      a new '-l'.  Leaves the qsub options alone when -AL is under 2, when they
+      already request select/ncpus/mem (a -QS from the user wins), or when they
+      are dynamic options starting with '!'.
+      """
+      pcnt = self.params['AL'] if 'AL' in self.params else 0
+      if not pcnt or pcnt < 2: return
+      qopts = self.BOPTIONS['qoptions'] or ''
+      if qopts.startswith('!') or re.search(r'(select|ncpus|mem)=', qopts): return
+      res = "select=1:ncpus={0}:mem={0}gb".format(pcnt)
+      ms = re.search(r'-l\s+(\S+)', qopts)
+      if ms:
+         qopts = qopts[:ms.end(1)] + ',' + res + qopts[ms.end(1):]
+      else:
+         qopts = (qopts + ' ' if qopts else '') + '-l ' + res
+      self.set_one_boption('qoptions', qopts, 1)
+
    def build_localfile_list(self, cact, dir):
       """
       Populate params['LF'] from all files found under a local directory.

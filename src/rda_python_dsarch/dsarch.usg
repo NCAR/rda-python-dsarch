@@ -1991,9 +1991,16 @@ They come in two forms:
   A single-value Info option accepts exactly one value. Providing no
   value or more than one causes an error.
 
-  -AL or -AsyncLimit (Alias: -AsynchronousLimit), caps the number of
-  simultaneous background processes spawned for 'cp' and 'gatherxml'
-  calls. Has no effect when running as a PBS batch job.
+  -AL or -AsyncLimit (Alias: -AsynchronousLimit), the number of
+  processes that run at the same time. For -AW, -AH and -AS (not with
+  -XC/-XM), up to this many child processes copy the files in a first
+  pass; a second pass then checks each copy, copies again any that
+  failed, and sets the file records as usual. It also caps the
+  'gatherxml' and 'dcm' calls run in the background. Cross copies
+  (-XC/-XM) and -AQ run one file at a time. Works with -BP (-d) too:
+  the PBS batch job then gets one cpu and 1gb of memory per process
+  (select=1:ncpus=N:mem=Ngb) unless -QS already requests select,
+  ncpus or mem.
 
   -AO or -ActOption (Alias: -ActionOption), the token that marks
   Action and Mode options in input files. Defaults to '<!>'. Change
@@ -2066,7 +2073,9 @@ They come in two forms:
 
   -QS or -QsubOptions (Alias: -PBSOptions), passes options to qsub
   when running 'dsarch' as a PBS batch job. Quote the value on the
-  command line, e.g., -QS '-l walltime=12:00:00'.
+  command line, e.g., -QS '-l walltime=12:00:00'. With -AL N (N > 1),
+  'select=1:ncpus=N:mem=Ngb' is added to these options unless they
+  already request select, ncpus or mem.
 
   -VS or -ValidSize, the minimum acceptable file size (in bytes) for
   archiving. Files smaller than this threshold are rejected.
@@ -2114,7 +2123,9 @@ They come in two forms:
   exclude specific hosts (e.g., '-d PBS' to use PBS batch hosts).
   An optional retry limit (1-99) can also be specified, e.g.,
   '-d 5'; defaults to 2. Archive actions (-AS, -AW, -AH, -AQ) retry
-  automatically after storage system outage.
+  automatically after storage system outage. Add -AL N to run the
+  batch job with N parallel copies and a matching PBS cpu/memory
+  request, e.g., '-d -AL 4'.
 
   -BS or -BackupStatus, the current Quasar backup state for a file:
     'A' - archived to Quasar (complete)

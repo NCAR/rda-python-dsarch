@@ -119,7 +119,7 @@ class DsArch(PgArch, PgMeta):
          elif 'XM' in self.params:
             self.crosscopy_help_files('Move')
          else:
-            self.archive_help_files()
+            self.archive_in_passes(self.archive_help_files)
          if 'CL' in self.params: self.delete_local_files()
       elif self.PGOPT['ACTS'] == self.OPTS['AQ'][0]:
          if 'XC' in self.params:
@@ -130,7 +130,7 @@ class DsArch(PgArch, PgMeta):
       elif self.PGOPT['ACTS'] == self.OPTS['AS'][0]:
          self.ALLCNT = len(self.params['SF']) if 'SF' in self.params else len(self.params['LF'])
          self.cache_group_info(self.ALLCNT)
-         self.archive_saved_files()
+         self.archive_in_passes(self.archive_saved_files)
          if 'CL' in self.params: self.delete_local_files()
       elif self.PGOPT['ACTS'] == self.OPTS['AW'][0]:
          self.ALLCNT = len(self.params['WF']) if 'WF' in self.params else len(self.params['LF'])
@@ -141,8 +141,7 @@ class DsArch(PgArch, PgMeta):
          elif 'XM' in self.params:
             self.crosscopy_web_files('Move')
          else:
-            self.archive_web_files()
-         if self.PGSIG['BPROC'] > 1: self.set_webfile_info()
+            self.archive_in_passes(self.archive_web_files)
          if 'CL' in self.params: self.delete_local_files()
       elif self.PGOPT['ACTS'] & self.OPTS['CG'][0]:
          self.ALLCNT = len(self.params['GI'])
@@ -355,7 +354,7 @@ class DsArch(PgArch, PgMeta):
             else:
                self.cmdlog()
 
-   def archive_web_files(self):
+   def archive_web_files(self, cpass=0):
       """
       Archive local files as web files on GLADE and/or the object store.
 
@@ -369,6 +368,11 @@ class DsArch(PgArch, PgMeta):
 
       Retries the whole batch if transient errors occur, stopping when the
       error count stabilises.  Sets self.RETSTAT on unresolved failures.
+
+      Args:
+         cpass -- 0 for a single pass; with -AL N, archive_in_passes() calls 1 for the
+                  copy pass (copies in up to N child processes, no records) and then 2
+                  for the record pass (see archive_in_passes())
       """
       tname = 'wfile'
       dftloc = None
@@ -379,7 +383,7 @@ class DsArch(PgArch, PgMeta):
       dslocflags = set()
       dflags = {}
       self.pglog("Archive {} Web file{} of {} ...".format(self.ALLCNT, s, dsid), self.WARNLG)
-      if 'ZD' in self.params or 'UZ' in self.params:
+      if cpass != 2 and ('ZD' in self.params or 'UZ' in self.params):
          self.compress_localfile_list(self.PGOPT['CACT'], self.ALLCNT)
       if 'QF' in self.params: self.params['QF'] = self.get_bid_numbers(self.params['QF'])
       self.validate_multiple_values(tname, self.ALLCNT)
@@ -406,19 +410,15 @@ class DsArch(PgArch, PgMeta):
          self.params['SZ'] = [0]*self.ALLCNT
          self.OPTS['SZ'][2] |= 2
       if 'MC' not in self.params: self.params['MC'] = [None]*self.ALLCNT
-      reorder = errcnt = metatotal = metacnt = self.ADDCNT = self.MODCNT = bgcnt = acnt = ocnt = 0
+      reorder = errcnt = metatotal = metacnt = self.ADDCNT = self.MODCNT = acnt = ocnt = 0
       perrcnt = self.ALLCNT
       efiles = [1]*self.ALLCNT
-      if self.PGSIG['BPROC'] > 1:
-         afiles = [None]*self.ALLCNT
-         lfiles = [None]*self.ALLCNT
-         ofiles = [None]*self.ALLCNT
       fnames = None
       override = self.OVERRIDE
       if not override and 'GF' in self.params: override = self.OVRIDE
       while True:
          for i in range(bidx, self.ALLCNT):
-            if self.PGSIG['BPROC'] < 2 and i > bidx and ((i-bidx)%20) == 0:
+            if cpass != 1 and i > bidx and ((i-bidx)%20) == 0:
                if metacnt >= self.PGOPT['RSMAX']:
                   metatotal += self.process_metadata("W", metacnt, self.PGOPT['emerol'])
                   metacnt = 0
@@ -470,14 +470,20 @@ class DsArch(PgArch, PgMeta):
             if warch and locfile == afile: warch = 0
             vsnctl = 1 if pgrec and pgrec['vindex'] and pgrec['data_size'] else 0
             chksum = self.params['MC'][i]
+            gdone = odone = 0
+            if cpass == 2 and i in self.CPFILES:   # copied in the -AL copy pass; recopy only what failed
+               (gdone, odone) = self.check_pass_copies(i, wfile, afile if warch else None, ofile if oarch else None, bucket, lsize)
+               if gdone: warch = 0; acnt += 1
+               if odone: oarch = 0; ocnt += 1
+               if self.PGLOG['DSCHECK'] and (gdone or odone) and not (warch or oarch): chksize += lsize
             if warch and (vsnctl or not override):
                info = self.check_local_file(afile, 1, self.PGOPT['emerol']|self.PFSIZE)
                if info:
                   if pgrec and chksum and pgrec['checksum'] and pgrec['checksum'] == chksum:
-                     self.pglog("Web-{}: Same-Checksum ARCHIVED at {}:{}".format(winfo, info['date_modified'], info['time_modified']), self.PGOPT['emllog'])
+                     self.pglog("Web-{}: Same-Checksum ARCHIVED at {}:{}".format(winfo, info['date_modified'], info['time_modified']), (0 if cpass == 1 else self.PGOPT['emllog']))
                      warch = 0
                   elif not override and info['data_size'] == lsize:
-                     self.pglog("Web-{}: Same-Size ARCHIVED at {}:{}".format(winfo, info['date_modified'], info['time_modified']), self.PGOPT['wrnlog'])
+                     self.pglog("Web-{}: Same-Size ARCHIVED at {}:{}".format(winfo, info['date_modified'], info['time_modified']), (0 if cpass == 1 else self.PGOPT['wrnlog']))
                      warch = 0
                   elif vsnctl and not override:
                      self.pglog("Web-{}: Cannot rearchive version controlled file".format(winfo), self.PGOPT['extlog'])
@@ -493,10 +499,10 @@ class DsArch(PgArch, PgMeta):
                info = self.check_object_file(ofile, bucket, 1, self.PGOPT['emerol'])
                if info:
                   if pgrec and chksum and pgrec['checksum'] and pgrec['checksum'] == chksum:
-                     self.pglog("Object-{}-{}: Same-Checksum ARCHIVED at {}:{}".format(bucket, ofile, info['date_modified'], info['time_modified']), self.PGOPT['emllog'])
+                     self.pglog("Object-{}-{}: Same-Checksum ARCHIVED at {}:{}".format(bucket, ofile, info['date_modified'], info['time_modified']), (0 if cpass == 1 else self.PGOPT['emllog']))
                      oarch = 0
                   elif not override and info['data_size'] == lsize:
-                     self.pglog("Object-{}-{}: Same-Size ARCHIVED at {}:{}".format(bucket, ofile, info['date_modified'], info['time_modified']), self.PGOPT['wrnlog'])
+                     self.pglog("Object-{}-{}: Same-Size ARCHIVED at {}:{}".format(bucket, ofile, info['date_modified'], info['time_modified']), (0 if cpass == 1 else self.PGOPT['wrnlog']))
                      oarch = 0
                   elif vsnctl and not override:
                      self.pglog("Object-{}-{}: Cannot rearchive version controlled file".format(bucket, ofile), self.PGOPT['extlog'])
@@ -510,6 +516,10 @@ class DsArch(PgArch, PgMeta):
                   dflags['O'] = bucket
                   continue
             if (warch + oarch) > 0:
+               if cpass == 1:   # -AL copy pass: copy in a child process; the record pass sets the record
+                  self.run_copy(i, self.copy_archive_file, afile if warch else None, ofile if oarch else None,
+                                lfile, bucket, (replace if oarch else 0), self.PGOPT['emerol']|override)
+                  continue
                if warch:
                   if not self.local_copy_local(afile, lfile, self.PGOPT['emerol']|override):
                      errcnt += 1
@@ -526,40 +536,41 @@ class DsArch(PgArch, PgMeta):
                      continue
                   ocnt += 1
                if self.PGLOG['DSCHECK']: chksize += lsize
-               if self.PGSIG['BPROC'] > 1:
-                  afiles[i] = afile
-                  lfiles[i] = lfile
-                  ofiles[i] = ofile
-                  bgcnt += 1
-            if self.PGSIG['BPROC'] < 2:
-               if not fnames: fnames = self.get_field_keys(tname, None, "G")  # get setting fields if not yet
-               info = None
-               if afile:   # also when already in place, so a directory gets its real total size
-                  info = self.check_local_file(afile, 1, self.PGOPT['emerol']|self.PFSIZE)
-               elif oarch:
-                  info = self.check_object_file(ofile, bucket, 1, self.PGOPT['emerol'])
-               elif pgrec:
-                  info = self.get_file_origin_info(wfile, pgrec)
-               elif locflag == 'O':
-                  info = self.check_object_file(ofile, bucket, 1, self.PGOPT['emerol'])               
-               wid = self.set_one_webfile(i, pgrec, wfile, fnames, type, info)
-               if not wid:
-                  self.params['LF'][i] = self.params['WF'][i] = None
-                  continue
-               if 'GX' in self.params and self.PGOPT['GXTYP'].find(type) > -1:
-                  metacnt += self.record_meta_gather('W', dsid, wfile, self.params['DF'][i])
-                  self.cache_meta_tindex(dsid, wid, 'W')
-               if pgrec and pgrec['meta_link'] and pgrec['meta_link'] != 'N':
-                  if 'DX' in self.params or self.PGOPT['GXTYP'].find(type) < 0 and self.PGOPT['GXTYP'].find(pgrec['type']) > -1:
-                     metacnt += self.record_meta_delete('W', dsid, wfile)
-                  elif 'GI' in self.params:
-                     gindex = self.params['GI'][i]
-                     if gindex != pgrec['gindex'] and (gindex or (self.OPTS['GI'][2]&2) == 0):
-                        metacnt += self.record_meta_summary('W', dsid, gindex, pgrec['gindex'])
-         if errcnt == 0 or errcnt >= perrcnt or self.PGLOG['DSCHECK']: break
+            if cpass == 1: continue   # the record pass sets the record, also for a file not copied
+            if gdone: warch = 1   # as if copied in this pass, for the file info below
+            if odone: oarch = 1
+            if not fnames: fnames = self.get_field_keys(tname, None, "G")  # get setting fields if not yet
+            info = None
+            if afile:   # also when already in place, so a directory gets its real total size
+               info = self.check_local_file(afile, 1, self.PGOPT['emerol']|self.PFSIZE)
+            elif oarch:
+               info = self.check_object_file(ofile, bucket, 1, self.PGOPT['emerol'])
+            elif pgrec:
+               info = self.get_file_origin_info(wfile, pgrec)
+            elif locflag == 'O':
+               info = self.check_object_file(ofile, bucket, 1, self.PGOPT['emerol'])               
+            wid = self.set_one_webfile(i, pgrec, wfile, fnames, type, info)
+            if not wid:
+               self.params['LF'][i] = self.params['WF'][i] = None
+               continue
+            if 'GX' in self.params and self.PGOPT['GXTYP'].find(type) > -1:
+               metacnt += self.record_meta_gather('W', dsid, wfile, self.params['DF'][i])
+               self.cache_meta_tindex(dsid, wid, 'W')
+            if pgrec and pgrec['meta_link'] and pgrec['meta_link'] != 'N':
+               if 'DX' in self.params or self.PGOPT['GXTYP'].find(type) < 0 and self.PGOPT['GXTYP'].find(pgrec['type']) > -1:
+                  metacnt += self.record_meta_delete('W', dsid, wfile)
+               elif 'GI' in self.params:
+                  gindex = self.params['GI'][i]
+                  if gindex != pgrec['gindex'] and (gindex or (self.OPTS['GI'][2]&2) == 0):
+                     metacnt += self.record_meta_summary('W', dsid, gindex, pgrec['gindex'])
+         if cpass == 1 or errcnt == 0 or errcnt >= perrcnt or self.PGLOG['DSCHECK']: break
          perrcnt = errcnt
-         self.pglog("Rearchive failed {}/{} Web file{} for {}".format(errcnt, self.ALLCNT. s, dsid), self.PGOPT['emllog'])
+         self.pglog("Rearchive failed {}/{} Web file{} for {}".format(errcnt, self.ALLCNT, s, dsid), self.PGOPT['emllog'])
          errcnt = self.reset_errmsg(0)
+      if cpass == 1:   # the record pass checks the copies, retries failed ones and sets the records
+         self.wait_copy_children()
+         self.reset_errmsg(0)   # the record pass finds and counts any error again
+         return
       if errcnt:
          if 'CL' in self.params: del self.params['CL']
          self.RETSTAT = self.reset_errmsg(errcnt)
@@ -567,13 +578,6 @@ class DsArch(PgArch, PgMeta):
             if efiles[i]: self.params['WF'][i] = ''
          if self.PGLOG['DSCHECK']:
             self.check_storage_dflags(dflags, self.PGLOG['DSCHECK'], self.PGOPT['emerol'])
-      if bgcnt:
-         self.check_background(None, 0, self.LOGWRN, 1)
-         for i in range(self.ALLCNT):
-            if afiles[i]:
-               self.validate_gladearch(afiles[i], lfiles[i], i)
-            if ofiles[i]:
-               self.validate_objectarch(ofiles[i], lfiles[i], bucket, i)
       if acnt > 0:
          self.pglog("{} of {} Web file{} archived for {}".format(acnt, self.ALLCNT, s, self.params['DS']), self.PGOPT['emllog'])
       if ocnt > 0:
@@ -590,7 +594,7 @@ class DsArch(PgArch, PgMeta):
       if 'EM' in self.params: self.PGLOG['PRGMSG'] = ""
       if dslocflags: self.set_dataset_locflag(dsid, dslocflags.pop())
 
-   def archive_help_files(self):
+   def archive_help_files(self, cpass=0):
       """
       Archive local files as dataset help/documentation files on GLADE/object store.
 
@@ -598,6 +602,11 @@ class DsArch(PgArch, PgMeta):
       file path (RTPATH['H<type>']) and registering records in the hfile table.
       Handles both GLADE (warch) and object-store (oarch) destinations based on
       the file's location flag.  Sets self.RETSTAT on unresolved failures.
+
+      Args:
+         cpass -- 0 for a single pass; with -AL N, archive_in_passes() calls 1 for the
+                  copy pass (copies in up to N child processes, no records) and then 2
+                  for the record pass (see archive_in_passes())
       """
       tname = 'hfile'
       dsid = self.params['DS']
@@ -631,18 +640,14 @@ class DsArch(PgArch, PgMeta):
          self.params['SZ'] = [0]*self.ALLCNT
          self.OPTS['SZ'][2] |= 2
       if 'MC' not in self.params: self.params['MC'] = [None]*self.ALLCNT
-      reorder = errcnt = self.ADDCNT = self.MODCNT = bgcnt = acnt = ocnt = 0
+      reorder = errcnt = self.ADDCNT = self.MODCNT = acnt = ocnt = 0
       perrcnt = self.ALLCNT
       efiles = [1]*self.ALLCNT
-      if self.PGSIG['BPROC'] > 1:
-         afiles = [None]*self.ALLCNT
-         lfiles = [None]*self.ALLCNT
-         ofiles = [None]*self.ALLCNT
       override = self.OVERRIDE
       fnames = None
       while True:
          for i in range(bidx, self.ALLCNT):
-            if self.PGSIG['BPROC'] < 2 and i > bidx and ((i-bidx)%20) == 0:
+            if cpass != 1 and i > bidx and ((i-bidx)%20) == 0:
                if self.PGLOG['DSCHECK']:
                   self.set_dscheck_dcount(i, chksize, self.PGOPT['extlog'])
                if 'EM' in self.params:
@@ -694,14 +699,20 @@ class DsArch(PgArch, PgMeta):
             self.pglog("{}: Archive Help file from {} ...".format(hfile, locfile),  self.WARNLG)
             if harch and locfile == afile: harch = 0
             chksum = self.params['MC'][i]
+            gdone = odone = 0
+            if cpass == 2 and i in self.CPFILES:   # copied in the -AL copy pass; recopy only what failed
+               (gdone, odone) = self.check_pass_copies(i, hfile, afile if harch else None, ofile if oarch else None, bucket, lsize)
+               if gdone: harch = 0; acnt += 1
+               if odone: oarch = 0; ocnt += 1
+               if self.PGLOG['DSCHECK'] and (gdone or odone) and not (harch or oarch): chksize += lsize
             if harch and not self.OVERRIDE:
                info = self.check_local_file(afile, 1, self.PGOPT['emerol']|self.PFSIZE)
                if info:
                   if pgrec and chksum and pgrec['checksum'] and pgrec['checksum'] == chksum:
-                     self.pglog("Help-{}: Same-Checksum ARCHIVED at {}:{}".format(hinfo, info['date_modified'], info['time_modified']), self.PGOPT['emllog'])
+                     self.pglog("Help-{}: Same-Checksum ARCHIVED at {}:{}".format(hinfo, info['date_modified'], info['time_modified']), (0 if cpass == 1 else self.PGOPT['emllog']))
                      harch = 0
                   elif info['data_size'] == lsize:
-                     self.pglog("Help-{}: Same-Size ARCHIVED at {}:{}".format(hinfo, info['date_modified'], info['time_modified']), self.PGOPT['wrnlog'])
+                     self.pglog("Help-{}: Same-Size ARCHIVED at {}:{}".format(hinfo, info['date_modified'], info['time_modified']), (0 if cpass == 1 else self.PGOPT['wrnlog']))
                      harch = 0
                elif info is not None:
                   errcnt += 1
@@ -712,10 +723,10 @@ class DsArch(PgArch, PgMeta):
                info = self.check_object_file(ofile, bucket, 1, self.PGOPT['emerol'])
                if info:
                   if pgrec and chksum and pgrec['checksum'] and pgrec['checksum'] == chksum:
-                     self.pglog("Object-{}-{}: Same-Checksum ARCHIVED at {}:{}".format(bucket, ofile, info['date_modified'], info['time_modified']), self.PGOPT['emllog'])
+                     self.pglog("Object-{}-{}: Same-Checksum ARCHIVED at {}:{}".format(bucket, ofile, info['date_modified'], info['time_modified']), (0 if cpass == 1 else self.PGOPT['emllog']))
                      oarch = 0
                   elif not override and info['data_size'] == lsize:
-                     self.pglog("Object-{}-{}: Same-Size ARCHIVED at {}:{}".format(bucket, ofile, info['date_modified'], info['time_modified']), self.PGOPT['wrnlog'])
+                     self.pglog("Object-{}-{}: Same-Size ARCHIVED at {}:{}".format(bucket, ofile, info['date_modified'], info['time_modified']), (0 if cpass == 1 else self.PGOPT['wrnlog']))
                      oarch = 0
                   else:
                      replace = 1
@@ -725,6 +736,10 @@ class DsArch(PgArch, PgMeta):
                   dflags['O'] = bucket
                   continue
             if (harch + oarch) > 0:
+               if cpass == 1:   # -AL copy pass: copy in a child process; the record pass sets the record
+                  self.run_copy(i, self.copy_archive_file, afile if harch else None, ofile if oarch else None,
+                                lfile, bucket, (replace if oarch else 0), self.PGOPT['emerol']|override)
+                  continue
                if harch:
                   if not self.local_copy_local(afile, lfile, self.PGOPT['emerol']|override):
                      errcnt += 1
@@ -740,30 +755,31 @@ class DsArch(PgArch, PgMeta):
                      continue
                   ocnt += 1
                if self.PGLOG['DSCHECK']: chksize += lsize
-               if self.PGSIG['BPROC'] > 1:
-                  afiles[i] = afile
-                  lfiles[i] = lfile
-                  ofiles[i] = ofile
-                  bgcnt += 1
-            if self.PGSIG['BPROC'] < 2:
-               if not fnames: fnames = self.get_field_keys(tname, None, "G")  # get setting fields if not yet
-               info = None
-               if harch:
-                  info = self.check_local_file(afile, 1, self.PGOPT['emerol']|self.PFSIZE)
-               elif oarch:
-                  info = self.check_object_file(ofile, bucket, 1, self.PGOPT['emerol'])
-               elif pgrec:
-                  info = self.get_file_origin_info(hfile, pgrec)
-               elif locflag == 'O':
-                  info = self.check_object_file(ofile, bucket, 1, self.PGOPT['emerol'])
-               hid = self.set_one_helpfile(i, pgrec, hfile, fnames, type, info)
-               if not hid:
-                  self.params['LF'][i] = self.params['WF'][i] = None
-                  continue
-         if errcnt == 0 or errcnt >= perrcnt or self.PGLOG['DSCHECK']: break
+            if cpass == 1: continue   # the record pass sets the record, also for a file not copied
+            if gdone: harch = 1   # as if copied in this pass, for the file info below
+            if odone: oarch = 1
+            if not fnames: fnames = self.get_field_keys(tname, None, "G")  # get setting fields if not yet
+            info = None
+            if harch:
+               info = self.check_local_file(afile, 1, self.PGOPT['emerol']|self.PFSIZE)
+            elif oarch:
+               info = self.check_object_file(ofile, bucket, 1, self.PGOPT['emerol'])
+            elif pgrec:
+               info = self.get_file_origin_info(hfile, pgrec)
+            elif locflag == 'O':
+               info = self.check_object_file(ofile, bucket, 1, self.PGOPT['emerol'])
+            hid = self.set_one_helpfile(i, pgrec, hfile, fnames, type, info)
+            if not hid:
+               self.params['LF'][i] = self.params['WF'][i] = None
+               continue
+         if cpass == 1 or errcnt == 0 or errcnt >= perrcnt or self.PGLOG['DSCHECK']: break
          perrcnt = errcnt
-         self.pglog("Rearchive failed {}/{} Help file{} for {}".format(errcnt, self.ALLCNT. s, dsid), self.PGOPT['emllog'])
+         self.pglog("Rearchive failed {}/{} Help file{} for {}".format(errcnt, self.ALLCNT, s, dsid), self.PGOPT['emllog'])
          errcnt = self.reset_errmsg(0)
+      if cpass == 1:   # the record pass checks the copies, retries failed ones and sets the records
+         self.wait_copy_children()
+         self.reset_errmsg(0)   # the record pass finds and counts any error again
+         return
       if errcnt:
          if 'CL' in self.params: del self.params['CL']
          self.RETSTAT = self.reset_errmsg(errcnt)
@@ -771,13 +787,6 @@ class DsArch(PgArch, PgMeta):
             if efiles[i]: self.params['HF'][i] = ''
          if self.PGLOG['DSCHECK']:
             self.check_storage_dflags(dflags, self.PGLOG['DSCHECK'], self.PGOPT['emerol'])
-      if bgcnt:
-         self.check_background(None, 0, self.LOGWRN, 1)
-         for i in range(self.ALLCNT):
-            if afiles[i]:
-               self.validate_gladearch(afiles[i], lfiles[i], i)
-            if ofiles[i]:
-               self.validate_objectarch(ofiles[i], lfiles[i], bucket, i)
       if acnt > 0:
          self.pglog("{} of {} Help file{} archived for {}".format(acnt, self.ALLCNT, s, self.params['DS']), self.PGOPT['emllog'])
       if ocnt > 0:
@@ -791,7 +800,7 @@ class DsArch(PgArch, PgMeta):
          self.reset_rdadb_version(dsid)
       if 'EM' in self.params: self.PGLOG['PRGMSG'] = ""
 
-   def archive_saved_files(self):
+   def archive_saved_files(self, cpass=0):
       """
       Archive local files as dataset saved files on GLADE.
 
@@ -799,6 +808,11 @@ class DsArch(PgArch, PgMeta):
       type constraints, handles version control checks, and registers or updates
       the saved file record in RDADB via set_one_savedfile().  Retries on
       transient copy failures.  Sets self.RETSTAT on unresolved failures.
+
+      Args:
+         cpass -- 0 for a single pass; with -AL N, archive_in_passes() calls 1 for the
+                  copy pass (copies in up to N child processes, no records) and then 2
+                  for the record pass (see archive_in_passes())
       """
       tname = 'sfile'
       dftloc = 'G'
@@ -808,7 +822,7 @@ class DsArch(PgArch, PgMeta):
       bidx = chksize = 0
       dflags = {}
       self.pglog("Archive {} Saved file{} of {} ...".format(self.ALLCNT, s, dsid), self.WARNLG)
-      if 'ZD' in self.params or 'UZ' in self.params:
+      if cpass != 2 and ('ZD' in self.params or 'UZ' in self.params):
          self.compress_localfile_list(self.PGOPT['CACT'], self.ALLCNT)
       if 'QF' in self.params: self.params['QF'] = self.get_bid_numbers(self.params['QF'])
       self.validate_multiple_values(tname, self.ALLCNT)
@@ -832,18 +846,15 @@ class DsArch(PgArch, PgMeta):
          self.params['SZ'] = [0]*self.ALLCNT
          self.OPTS['SZ'][2] |= 2
       if 'MC' not in self.params: self.params['MC'] = [None]*self.ALLCNT
-      reorder = errcnt = self.ADDCNT = self.MODCNT = bgcnt = acnt = 0
+      reorder = errcnt = self.ADDCNT = self.MODCNT = acnt = 0
       perrcnt = self.ALLCNT
       efiles = [1]*self.ALLCNT
-      if self.PGSIG['BPROC'] > 1:
-         afiles = [None]*self.ALLCNT
-         lfiles = [None]*self.ALLCNT
       fnames = None
       override = self.OVERRIDE
       if not override and 'GF' in self.params: override = self.OVRIDE
       while True:
          for i in range(bidx, self.ALLCNT):
-            if self.PGSIG['BPROC'] < 2 and i > bidx and ((i-bidx)%20) == 0:
+            if cpass != 1 and i > bidx and ((i-bidx)%20) == 0:
                if self.PGLOG['DSCHECK']:
                   self.set_dscheck_dcount(i, chksize, self.PGOPT['extlog'])
                if 'EM' in self.params:
@@ -895,14 +906,20 @@ class DsArch(PgArch, PgMeta):
             self.pglog("{}: Archive Saved file from {} ...".format(sinfo, locfile),  self.WARNLG)
             vsnctl = 1 if pgrec and pgrec['vindex'] and pgrec['data_size'] else 0
             chksum = self.params['MC'][i]
+            if cpass == 2 and i in self.CPFILES:   # copied in the -AL copy pass; recopy only if it failed
+               (gdone, odone) = self.check_pass_copies(i, sfile, afile if sarch else None, None, None, lsize)
+               if gdone:
+                  sarch = 0
+                  acnt += 1
+                  if self.PGLOG['DSCHECK']: chksize += lsize
             if sarch and (vsnctl or not override):
                info = self.check_local_file(afile, 1, self.PGOPT['emerol']|self.PFSIZE)
                if info:
                   if pgrec and chksum and pgrec['checksum'] and pgrec['checksum'] == chksum:
-                     self.pglog("Saved-{}: Same-Checksum ARCHIVED at {}:{}".format(sinfo, info['date_modified'], info['time_modified']), self.PGOPT['emllog'])
+                     self.pglog("Saved-{}: Same-Checksum ARCHIVED at {}:{}".format(sinfo, info['date_modified'], info['time_modified']), (0 if cpass == 1 else self.PGOPT['emllog']))
                      sarch = 0
                   elif not override and info['data_size'] == lsize:
-                     self.pglog("Saved-{}: Same-Size ARCHIVED at {}:{}".format(sinfo, info['date_modified'], info['time_modified']), self.PGOPT['wrnlog'])
+                     self.pglog("Saved-{}: Same-Size ARCHIVED at {}:{}".format(sinfo, info['date_modified'], info['time_modified']), (0 if cpass == 1 else self.PGOPT['wrnlog']))
                      sarch = 0
                   elif vsnctl and not override:
                      self.pglog("Saved-{}: Cannot rearchive version controlled file".format(sinfo), self.PGOPT['extlog'])
@@ -914,29 +931,32 @@ class DsArch(PgArch, PgMeta):
                   dflags['G'] = self.PGLOG['DECSHOME']
                   continue
             if sarch:
+               if cpass == 1:   # -AL copy pass: copy in a child process; the record pass sets the record
+                  self.run_copy(i, self.copy_archive_file, afile, None, lfile, None, 0, self.PGOPT['emerol']|override)
+                  continue
                if not self.local_copy_local(afile, lfile, self.PGOPT['emerol']|override):
                   errcnt += 1
                   efiles[i] = 1
                   continue
                acnt += 1
                if self.PGLOG['DSCHECK']: chksize += lsize
-               if self.PGSIG['BPROC'] > 1:
-                  afiles[i] = afile
-                  lfiles[i] = lfile
-                  bgcnt += 1
-            if self.PGSIG['BPROC'] < 2:
-               if not fnames: fnames = self.get_field_keys(tname, None, "G")  # get setting fields if not yet
-               info = self.check_local_file(afile, 1, self.PGOPT['emerol']|self.PFSIZE)   # also when already in place
-               if not info and pgrec:
-                  info = self.get_file_origin_info(sfile, pgrec)
-               sid = self.set_one_savedfile(i, pgrec, sfile, fnames, type, info)
-               if not sid:
-                  self.params['LF'][i] = self.params['SF'][i] = None
-                  continue
-         if errcnt == 0 or errcnt >= perrcnt or self.PGLOG['DSCHECK']: break
+            if cpass == 1: continue   # the record pass sets the record, also for a file not copied
+            if not fnames: fnames = self.get_field_keys(tname, None, "G")  # get setting fields if not yet
+            info = self.check_local_file(afile, 1, self.PGOPT['emerol']|self.PFSIZE)   # also when already in place
+            if not info and pgrec:
+               info = self.get_file_origin_info(sfile, pgrec)
+            sid = self.set_one_savedfile(i, pgrec, sfile, fnames, type, info)
+            if not sid:
+               self.params['LF'][i] = self.params['SF'][i] = None
+               continue
+         if cpass == 1 or errcnt == 0 or errcnt >= perrcnt or self.PGLOG['DSCHECK']: break
          perrcnt = errcnt
          self.pglog("Rearchive failed {}/{} Saved file{} for {}!".format(errcnt, self.ALLCNT, s, dsid), self.PGOPT['emllog'])
          errcnt = self.reset_errmsg(0)
+      if cpass == 1:   # the record pass checks the copies, retries failed ones and sets the records
+         self.wait_copy_children()
+         self.reset_errmsg(0)   # the record pass finds and counts any error again
+         return
       if errcnt:
          if 'CL' in self.params: del self.params['CL']
          self.RETSTAT = self.reset_errmsg(errcnt)
@@ -944,10 +964,6 @@ class DsArch(PgArch, PgMeta):
             if efiles[i]: self.params['SF'][i] = ''
          if self.PGLOG['DSCHECK']:
             self.check_storage_dflags(dflags, self.PGLOG['DSCHECK'], self.PGOPT['emerol'])
-      if bgcnt:
-         self.check_background(None, 0, self.LOGWRN, 1)
-         for i in range(self.ALLCNT):
-            if afiles[i]: self.validate_gladearch(afiles[i], lfiles[i], i)
       if acnt > 0:
          self.pglog("{} of {} Saved file{} archived for {}".format(acnt, self.ALLCNT, s, dsid), self.PGOPT['emllog'])
       if self.PGLOG['DSCHECK']:
@@ -981,18 +997,14 @@ class DsArch(PgArch, PgMeta):
             if bidx == self.ALLCNT: return
             self.set_rearchive_filenumber(dsid, bidx, self.ALLCNT, 4)
             chksize = self.PGLOG['DSCHECK']['size']
-      reorder = errcnt = metatotal = metacnt = self.MODCNT = bgcnt = acnt = ocnt = 0
+      reorder = errcnt = metatotal = metacnt = self.MODCNT = acnt = ocnt = 0
       perrcnt = self.ALLCNT
       efiles = [1]*self.ALLCNT
       self.params['LC'] = ['B']*self.ALLCNT
-      if self.PGSIG['BPROC'] > 1:
-         afiles = [None]*self.ALLCNT
-         ofiles = [None]*self.ALLCNT
-         warchs = [None]*self.ALLCNT
       fnames = None
       while True:
          for i in range(bidx, self.ALLCNT):
-            if self.PGSIG['BPROC'] < 2 and i > bidx and ((i-bidx)%20) == 0:
+            if i > bidx and ((i-bidx)%20) == 0:
                if self.PGLOG['DSCHECK']:
                   self.set_dscheck_dcount(i, chksize, self.PGOPT['extlog'])
                if metacnt >= self.PGOPT['RSMAX']:
@@ -1058,29 +1070,23 @@ class DsArch(PgArch, PgMeta):
                   self.params['LC'][i] = 'O'
                   self.delete_local_file(afile, self.PGOPT['extlog'])
                ocnt += 1
-            if self.PGSIG['BPROC'] > 1:
-               afiles[i] = afile
-               ofiles[i] = ofile
-               warchs[i] = warch
-               bgcnt += 1
             if self.PGLOG['DSCHECK']: chksize += pgrec['data_size']
-            if self.PGSIG['BPROC'] < 2:
-               if not fnames: fnames = self.get_field_keys(tname, None, "G")  # get setting fields if not yet
-               info = self.get_file_origin_info(wfile, pgrec)
-               wid = self.set_one_webfile(i, pgrec, wfile, fnames, type, info)
-               if not wid:
-                  self.params['WF'][i] = None
-                  continue
-               if 'GX' in self.params and self.PGOPT['GXTYP'].find(type) > -1:
-                  metacnt += self.record_meta_gather('W', dsid, wfile, self.params['DF'][i])
-                  self.cache_meta_tindex(dsid, wid, 'W')
-               if pgrec['meta_link'] and pgrec['meta_link'] != 'N':
-                  if 'DX' in self.params or self.PGOPT['GXTYP'].find(type) < 0 and self.PGOPT['GXTYP'].find(pgrec['type']) > -1:
-                     metacnt += self.record_meta_delete('W', dsid, wfile)
-                  elif 'GI' in self.params:
-                     gindex = self.params['GI'][i]
-                     if gindex != pgrec['gindex'] and (gindex or (self.OPTS['GI'][2]&2) == 0):
-                        metacnt += self.record_meta_summary('W', dsid, gindex, pgrec['gindex'])
+            if not fnames: fnames = self.get_field_keys(tname, None, "G")  # get setting fields if not yet
+            info = self.get_file_origin_info(wfile, pgrec)
+            wid = self.set_one_webfile(i, pgrec, wfile, fnames, type, info)
+            if not wid:
+               self.params['WF'][i] = None
+               continue
+            if 'GX' in self.params and self.PGOPT['GXTYP'].find(type) > -1:
+               metacnt += self.record_meta_gather('W', dsid, wfile, self.params['DF'][i] if 'DF' in self.params else pgrec['data_format'])
+               self.cache_meta_tindex(dsid, wid, 'W')
+            if pgrec['meta_link'] and pgrec['meta_link'] != 'N':
+               if 'DX' in self.params or self.PGOPT['GXTYP'].find(type) < 0 and self.PGOPT['GXTYP'].find(pgrec['type']) > -1:
+                  metacnt += self.record_meta_delete('W', dsid, wfile)
+               elif 'GI' in self.params:
+                  gindex = self.params['GI'][i]
+                  if gindex != pgrec['gindex'] and (gindex or (self.OPTS['GI'][2]&2) == 0):
+                     metacnt += self.record_meta_summary('W', dsid, gindex, pgrec['gindex'])
          if errcnt == 0 or errcnt >= perrcnt or self.PGLOG['DSCHECK']: break
          perrcnt = errcnt
          self.pglog("Recopy failed {}/{} Web file{} for {}".format(errcnt, self.ALLCNT, s, dsid), self.PGOPT['emllog'])
@@ -1091,13 +1097,6 @@ class DsArch(PgArch, PgMeta):
             if efiles[i]: self.params['WF'][i] = ''
          if self.PGLOG['DSCHECK']:
             self.check_storage_dflags(dflags, self.PGLOG['DSCHECK'], self.PGOPT['emerol'])
-      if bgcnt:
-         self.check_background(None, 0, self.LOGWRN, 1)
-         for i in range(self.ALLCNT):
-            if warchs[i]:
-               self.validate_gladearch(afiles[i], "{}-{}".format(bucket, ofiles[i]), i)
-            elif ofiles[i]:
-               self.validate_objectarch(ofiles[i], afiles[i], bucket, i)
       astr = 'Moved' if aname == 'Move' else 'Copied'
       if acnt > 0: self.pglog("{} of {} Web file{} Cross {} for {}".format(acnt, self.ALLCNT, s, astr, dsid), self.PGOPT['emllog'])
       if ocnt > 0: self.pglog("{} of {} Object file{} Cross {} for {}".format(ocnt, self.ALLCNT, s, astr, dsid), self.PGOPT['emllog'])
@@ -1135,18 +1134,14 @@ class DsArch(PgArch, PgMeta):
             if bidx == self.ALLCNT: return
             self.set_rearchive_filenumber(dsid, bidx, self.ALLCNT, 4)
             chksize = self.PGLOG['DSCHECK']['size']
-      reorder = errcnt = self.MODCNT = bgcnt = acnt = ocnt = 0
+      reorder = errcnt = self.MODCNT = acnt = ocnt = 0
       perrcnt = self.ALLCNT
       efiles = [1]*self.ALLCNT
       self.params['LC'] = ['B']*self.ALLCNT
-      if self.PGSIG['BPROC'] > 1:
-         afiles = [None]*self.ALLCNT
-         ofiles = [None]*self.ALLCNT
-         harchs = [None]*self.ALLCNT
       fnames = None
       while True:
          for i in range(bidx, self.ALLCNT):
-            if self.PGSIG['BPROC'] < 2 and i > bidx and ((i-bidx)%20) == 0:
+            if i > bidx and ((i-bidx)%20) == 0:
                if self.PGLOG['DSCHECK']:
                   self.set_dscheck_dcount(i, chksize, self.PGOPT['extlog'])
                if 'EM' in self.params:
@@ -1222,19 +1217,13 @@ class DsArch(PgArch, PgMeta):
                   self.params['LC'][i] = 'O'
                   self.delete_local_file(afile, self.PGOPT['extlog'])
                ocnt += 1
-            if self.PGSIG['BPROC'] > 1:
-               afiles[i] = afile
-               ofiles[i] = ofile
-               harchs[i] = harch
-               bgcnt += 1
             if self.PGLOG['DSCHECK']: chksize += pgrec['data_size']
-            if self.PGSIG['BPROC'] < 2:
-               if not fnames: fnames = self.get_field_keys(tname, None, "G")  # get setting fields if not yet
-               info = self.get_file_origin_info(hfile, pgrec)
-               hid = self.set_one_helpfile(i, pgrec, hfile, fnames, type, info)
-               if not hid:
-                  self.params['HF'][i] = None
-                  continue
+            if not fnames: fnames = self.get_field_keys(tname, None, "G")  # get setting fields if not yet
+            info = self.get_file_origin_info(hfile, pgrec)
+            hid = self.set_one_helpfile(i, pgrec, hfile, fnames, type, info)
+            if not hid:
+               self.params['HF'][i] = None
+               continue
          if errcnt == 0 or errcnt >= perrcnt or self.PGLOG['DSCHECK']: break
          perrcnt = errcnt
          self.pglog("Re{} {} Help file{} for {}".format(aname, errcnt, self.ALLCNT, s, dsid), self.PGOPT['emllog'])
@@ -1245,13 +1234,6 @@ class DsArch(PgArch, PgMeta):
             if efiles[i]: self.params['SF'][i] = ''
          if self.PGLOG['DSCHECK']:
             self.check_storage_dflags(dflags, self.PGLOG['DSCHECK'], self.PGOPT['emerol'])
-      if bgcnt:
-         self.check_background(None, 0, self.LOGWRN, 1)
-         for i in range(self.ALLCNT):
-            if harchs[i]:
-               self.validate_gladearch(afiles[i], "{}-{}".format(bucket, ofiles[i]), i)
-            elif ofiles[i]:
-               self.validate_objectarch(ofiles[i], afiles[i], bucket, i)
       astr = 'Moved' if aname == 'Move' else 'Copied'
       if acnt > 0: self.pglog("{} of {} Help file{} Cross {} for {}".format(acnt, self.ALLCNT, s, astr, dsid), self.PGOPT['emllog'])
       if ocnt > 0: self.pglog("{} of {} Object file{} Cross {} for {}".format(ocnt, self.ALLCNT, s, astr, dsid), self.PGOPT['emllog'])
@@ -1864,16 +1846,13 @@ class DsArch(PgArch, PgMeta):
             if bidx == self.ALLCNT: return
             self.set_rearchive_filenumber(dsid, bidx, self.ALLCNT, 4)
             chksize = self.PGLOG['DSCHECK']['size']
-      reorder = errcnt = self.MODCNT = bgcnt = bcnt = dcnt = 0
+      reorder = errcnt = self.MODCNT = bcnt = dcnt = 0
       perrcnt = self.ALLCNT
       efiles = [1]*self.ALLCNT
-      if self.PGSIG['BPROC'] > 1:
-         qfiles = [None]*self.ALLCNT
-         barchs = [None]*self.ALLCNT
       fnames = None
       while True:
          for i in range(bidx, self.ALLCNT):
-            if self.PGSIG['BPROC'] < 2 and i > bidx and ((i-bidx)%20) == 0:
+            if i > bidx and ((i-bidx)%20) == 0:
                if self.PGLOG['DSCHECK']:
                   self.set_dscheck_dcount(i, chksize, self.PGOPT['extlog'])
                if 'EM' in self.params:
@@ -1930,17 +1909,12 @@ class DsArch(PgArch, PgMeta):
                   dflags['D'] = dpoint
                   continue
                dcnt += 1
-            if self.PGSIG['BPROC'] > 1:
-               qfiles[i] = qfile
-               barchs[i] = barch
-               bgcnt += 1
             if self.PGLOG['DSCHECK']: chksize += pgrec['data_size']
-            if self.PGSIG['BPROC'] < 2:
-               if not fnames: fnames = self.get_field_keys(tname)  # get setting fields if not yet
-               bid = self.set_one_backfile(i, pgrec, bfile, fnames, qtype)
-               if not bid:
-                  self.params['QF'][i] = None
-                  continue
+            if not fnames: fnames = self.get_field_keys(tname)  # get setting fields if not yet
+            bid = self.set_one_backfile(i, pgrec, bfile, fnames, qtype)
+            if not bid:
+               self.params['QF'][i] = None
+               continue
          if errcnt == 0 or errcnt >= perrcnt or self.PGLOG['DSCHECK']: break
          perrcnt = errcnt
          self.pglog("Recopy {} Quasar file{} for {}".format(errcnt, self.ALLCNT, s, dsid), self.PGOPT['emllog'])
@@ -1951,13 +1925,6 @@ class DsArch(PgArch, PgMeta):
             if efiles[i]: self.params['QF'][i] = ''
          if self.PGLOG['DSCHECK']:
             self.check_storage_dflags(dflags, self.PGLOG['DSCHECK'], self.PGOPT['emerol'])
-      if bgcnt:
-         self.check_background(None, 0, self.LOGWRN, 1)
-         for i in range(self.ALLCNT):
-            if barchs[i]:
-               self.validate_backarch(qfiles[i], "{}-{}".format(dpoint, qfiles[i]), bpoint, i)
-            elif qfiles[i]:
-               self.validate_backarch(qfiles[i], "{}-{}".format(bpoint, qfiles[i]), dpoint, i)
       if bcnt > 0: self.pglog("{} of {} Backup file{} Cross Copied for {}".format(bcnt, self.ALLCNT, s, dsid), self.PGOPT['emllog'])
       if dcnt > 0: self.pglog("{} of {} Drdata file{} Cross Copied for {}".format(dcnt, self.ALLCNT, s, dsid), self.PGOPT['emllog'])
       if self.PGLOG['DSCHECK']:
@@ -1968,57 +1935,136 @@ class DsArch(PgArch, PgMeta):
          self.reset_rdadb_version(dsid)
       if 'EM' in self.params: self.PGLOG['PRGMSG'] = ""
 
-   def validate_gladearch(self, file, ofile, i):
+   def archive_in_passes(self, archfunc):
       """
-      Verify that a GLADE archive file exists and matches the expected file info.
+      Run an archive action (archive_web/help/saved_files) once, or in two passes for -AL.
 
-      Logs a fatal error when validation fails, setting the file entry at
-      index *i* to None so it is skipped in subsequent processing.
-
-      Args:
-         file  -- original local file name (for error messages)
-         ofile -- expected absolute GLADE archive path to check
-         i     -- file index (used to null out params entries on failure)
-      """
-      info = self.check_local_file(file, 6, self.PGOPT['errlog']|self.PFSIZE)
-      if not info:
-         self.pglog("Error archiving {} to {}".format(ofile, file), self.LGEREX)
-      elif self.OPTS['SZ'][2]&2 and self.params['SZ'] and info['data_size'] != self.params['SZ'][i]:
-         self.pglog("Wrong Sizes: ({}){}/({}){}".format(file, info['data_size'], ofile, self.params['SZ'][i]), self.LGEREX)
-      else:
-         self.set_local_mode(file, 1, self.PGLOG['FILEMODE'], info['mode'], info['logname'], self.PGOPT['errlog'])
-
-   def validate_objectarch(self, file, ofile, bucket, i):
-      """
-      Verify that an object-store file exists and matches the expected file info.
+      With -AL N (N > 1, so PGSIG['MPROC'] > 1) the action runs twice:
+        1. copy pass -- the usual checks, then each file that needs a copy is copied
+           in one of up to N child processes (run_copy()); no records are set;
+        2. record pass -- the usual single process loop; a file the copy pass copied
+           is checked (check_pass_copies()) instead of copied again, and copied again
+           only if its child copy failed; records, dscheck progress and metadata are
+           all set here exactly as without -AL.
 
       Args:
-         file   -- original local file name (for error messages)
-         ofile  -- object-store key path to check
-         bucket -- object-store bucket name
-         i      -- file index (used to null out params entries on failure)
+         archfunc -- bound archive method taking the pass number (0, 1 or 2)
       """
-      info = self.check_object_file(file, bucket, 0, self.PGOPT['errlog'])
-      if not info:
-         self.pglog("Error archiving {} to {}-{}".format(ofile, bucket, file), self.LGEREX)
-      elif self.OPTS['SZ'][2]&2 and self.params['SZ'] and info['data_size'] != self.params['SZ'][i]:
-         self.pglog("Wrong Sizes: ({}-{}){}/({}){}".format(bucket, file, info['data_size'], ofile, self.params['SZ'][i]), self.LGEREX)
+      if self.PGSIG['MPROC'] < 2: return archfunc()
+      self.CPFILES = {}
+      archfunc(1)
+      archfunc(2)
+      self.CPFILES = {}
 
-   def validate_backarch(self, file, ofile, endpoint, i):
+   def run_copy(self, i, copyfunc, *args):
       """
-      Verify that a Quasar backup file exists at the given endpoint.
+      Run the copy of file *i* in a child process for the -AL copy pass.
+
+      Waits for a free child slot (up to PGSIG['MPROC'] running), forks, and runs
+      copyfunc(*args) in the child, which then leaves with os._exit(): it skips the
+      parent's exit handling, so it cannot close the parent's database connection,
+      send email or end the run; NOQUIT also keeps an EXITLG error in the copy from
+      exiting early.  The parent records the child's process name in
+      self.CPFILES[i] (its exit code then shows up in self.CEXITS) and returns at
+      once.  If no child can be started, the copy runs in the parent and
+      self.CPFILES[i] is 1 or 0 for its result.
 
       Args:
-         file     -- original local file name (for error messages)
-         ofile    -- backup file path on the Quasar endpoint
-         endpoint -- Globus endpoint identifier string
-         i        -- file index (used to null out params entries on failure)
+         i        -- file index
+         copyfunc -- function doing the copy; returns true on success
+         args     -- arguments of copyfunc
       """
-      info = self.check_backup_file(file, endpoint, 0, self.PGOPT['errlog'])
-      if not info:
-         self.pglog("Error archiving {} to {}-{}".format(ofile, endpoint, file), self.LGEREX)
-      elif self.OPTS['SZ'][2]&2 and self.params['SZ'] and info['data_size'] != self.params['SZ'][i]:
-         self.pglog("Wrong Sizes: ({}-{}){}/({}){}".format(endpoint, file, info['data_size'], ofile, self.params['SZ'][i]), self.LGEREX)
+      for fh in (sys.stdout, sys.stderr):   # nothing buffered is written twice by the child
+         try:
+            fh.flush()
+         except Exception:
+            pass
+      pname = "dsarch_copy_{}".format(i)
+      self.CEXITS.pop(pname, None)
+      stat = self.start_child(pname, self.LOGWRN, 1)
+      if stat <= 0:   # cannot fork, copy in the parent
+         self.CPFILES[i] = 1 if copyfunc(*args) else 0
+         return self.CPFILES[i]
+      if self.PGSIG['PPID'] > 1:   # in the child process
+         self.PGLOG['NOQUIT'] = 1
+         ret = 0
+         try:
+            ret = copyfunc(*args)
+         except BaseException as e:
+            self.pglog("Copy {}: {}".format(i, str(e)), self.LOGERR)
+         for fh in (sys.stdout, sys.stderr):
+            try:
+               fh.flush()
+            except Exception:
+               pass
+         os._exit(0 if ret else 1)
+      self.CPFILES[i] = pname   # the child's exit code shows up in self.CEXITS[pname]
+      return 1
+
+   def wait_copy_children(self):
+      """Wait until all child processes of the -AL copy pass are done."""
+      if self.PGSIG['MPROC'] > 1: self.check_child(None, 0, self.LOGWRN, 1)
+
+   def copy_archive_file(self, afile, ofile, lfile, bucket, replace, logact):
+      """
+      Copy one local file to GLADE and/or the object store; run in a copy pass child.
+
+      Args:
+         afile   -- absolute GLADE target path, or None for no GLADE copy
+         ofile   -- object store key, or None for no object copy
+         lfile   -- local source file
+         bucket  -- object store bucket
+         replace -- true to delete the existing object first
+         logact  -- logging flags for the copies
+
+      Returns:
+         1 if all copies succeeded, 0 otherwise
+      """
+      if afile and not self.local_copy_local(afile, lfile, logact): return 0
+      if ofile:
+         if replace: self.delete_object_file(ofile, bucket)
+         if not self.local_copy_object(ofile, lfile, bucket, None, logact): return 0
+      return 1
+
+   def check_pass_copies(self, i, fname, afile, ofile, bucket, lsize):
+      """
+      Check the targets the -AL copy pass copied a file to, for the record pass.
+
+      A copy whose child exited with an error counts as failed even when the
+      target holds an older file of the same size (as with -OE); when the exit
+      code is unknown, a target of size *lsize* counts as copied.
+
+      Args:
+         i      -- file index, the key of self.CPFILES
+         fname  -- archived file name, for the message
+         afile  -- GLADE target path the copy pass copied to, or None
+         ofile  -- object store key the copy pass copied to, or None
+         bucket -- object store bucket
+         lsize  -- size of the local source file
+
+      Returns:
+         (gdone, odone) -- 1 for each target that holds the file with size *lsize*;
+         a 0 for a target given means its copy failed and is to be copied again
+      """
+      gdone = odone = 0
+      cstat = self.CPFILES.get(i)
+      if isinstance(cstat, str):   # copied in a child: failed if it exited with an error
+         ecode = self.CEXITS.get(cstat)
+         failed = ecode is not None and ecode != 0
+      else:                        # copied in the parent: 1 or 0
+         failed = cstat == 0
+      if failed:
+         self.pglog("{}: copy in child process failed, copy again".format(fname), self.PGOPT['wrnlog'])
+         return (0, 0)
+      if afile:
+         info = self.check_local_file(afile, 1, self.PGOPT['emerol']|self.PFSIZE)
+         if info and info['data_size'] == lsize: gdone = 1
+      if ofile:
+         info = self.check_object_file(ofile, bucket, 1, self.PGOPT['emerol'])
+         if info and info['data_size'] == lsize: odone = 1
+      if afile and not gdone or ofile and not odone:
+         self.pglog("{}: copy in child process failed, copy again".format(fname), self.PGOPT['wrnlog'])
+      return (gdone, odone)
 
    def get_dataset_info(self):
       """
